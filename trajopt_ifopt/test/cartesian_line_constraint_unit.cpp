@@ -127,8 +127,8 @@ TEST_F(CartesianLineConstraintUnit, GetValue)  // NOLINT
   {
       Eigen::Isometry3d start_pose_mod = line_start_pose;
       Eigen::Isometry3d end_pose_mod = line_end_pose;
-      start_pose_mod.translate(Eigen::Vector3d(0.0, 0.0, 0.1));
-      end_pose_mod.translate(Eigen::Vector3d(0.0, 0.0, 0.1));
+      start_pose_mod.translate(Eigen::Vector3d(0.0, 0.0, 0.3));
+      end_pose_mod.translate(Eigen::Vector3d(0.0, 0.0, 0.3));
       constraint->SetLine(start_pose_mod, end_pose_mod);
     auto error = constraint->CalcValues(joint_position);
     EXPECT_NEAR(error[2], 0.3, 1e-3);
@@ -148,8 +148,8 @@ TEST_F(CartesianLineConstraintUnit, FillJacobian)  // NOLINT
   forward_kinematics->calcFwdKin(target_pose, joint_position);
 
   // Set the line endpoints st the target pose is on the line
-  line_start_pose = target_pose.tranlate(Eigen::Vector3d(-1.0,0,0));
-  line_end_pose = target_pose.tranlate(Eigen::Vector3d(1.0,0,0));
+  line_start_pose = target_pose.translate(Eigen::Vector3d(-1.0,0,0));
+  line_end_pose = target_pose.translate(Eigen::Vector3d(1.0,0,0));
 
   constraint->SetLine(line_start_pose, line_end_pose);
 

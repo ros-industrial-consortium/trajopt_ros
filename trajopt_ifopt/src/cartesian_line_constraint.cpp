@@ -4,7 +4,8 @@
  *
  * @author Levi Armstrong
  * @author Matthew Powelson
- * @date May 18, 2020
+ * @author Colin Lewis
+ * @date December 27, 2020
  * @version TODO
  * @bug No known bugs
  *
@@ -41,8 +42,8 @@ CartLineConstraint::CartLineConstraint(const Eigen::Isometry3d& origin_pose,
                                       const std::string& name)
   : ifopt::ConstraintSet(6, name)
   , position_var_(std::move(position_var))
-  , line_start_(origin_pose)
-  , line_end_(target_pose)
+  , point_a_(origin_pose)
+  , point_b_(target_pose)
   , kinematic_info_(std::move(kinematic_info))
 {
   // Set the n_dof and n_vars for convenience
@@ -52,8 +53,7 @@ CartLineConstraint::CartLineConstraint(const Eigen::Isometry3d& origin_pose,
   bounds_ = std::vector<ifopt::Bounds>(6, ifopt::BoundZero);
 
   // calculate the equation of the constraint line
-  line_  = line_end_.translation() - line_start_.translation();//<< line_end_.translation().x() - line_start_.translation().x(), line_end_.translation().y() - line_start_.translation().y(), line_end_.translation().z() - line_start_.translation().z();
-
+  line_  = point_b_.translation() - point_a_.translation();
 }
 
 Eigen::VectorXd CartLineConstraint::CalcValues(const Eigen::Ref<const Eigen::VectorXd>& joint_vals)
@@ -66,61 +66,50 @@ Eigen::VectorXd CartLineConstraint::CalcValues(const Eigen::Ref<const Eigen::Vec
 
   // For Jacobian Calc, we need the inverse of the nearest point, D, to new Pose, C, on the constraint line AB
   // This will not honor tcp orientation. Not used bc this returns a scalar error, need vector/direction components
-//  Eigen::Vector3d d1,d2, pose_err;
 
-  //AC, new pose to first point on line
-//  d1 = new_pose.translation() - line_start_.translation();
-  //BC, new pose to second point on line
-//  d2 = new_pose.translation() - line_end_.translation();
-  //Distance = |AC * BC| / |AB|
+  // AC = new pose to first point on line
+  Eigen::Vector3d d1 = new_pose.translation() - point_a_.translation();
 
-//  pose_err = d1.cross(d2).squaredNorm() /  line_.squaredNorm();
-
-  //Find D, the closest point on the line to C, the new point
-
-  //AC, new pose to first point on line
-  Eigen::Vector3d d1 = new_pose.translation() - line_start_.translation();
-
-  // ((AB * AC ) / (|AB|^2)) * (AB)
-  Eigen::Isometry3d temp_ = Eigen::Isometry3d::Identity();
+  // Point D, the nearest point on line AB to point C, can be found with:
+  // D = ((AB * AC ) / (|AB|^2)) * (AB)
+  Eigen::Isometry3d temp = Eigen::Isometry3d::Identity();
   double line_point_dist_ = (line_.dot(d1) / line_.dot(line_));
+
+  // If point C is not between the line endpoints, set nearest point to endpoint
   if (line_point_dist_ > 1.0)
   {
-      temp_.translate(line_end_.translation());
+      temp.translate(point_b_.translation());
   }
   else if (line_point_dist_ < 0)
   {
-      temp_.translate(line_start_.translation());
+      temp.translate(point_a_.translation());
   }
   else
   {
-      temp_.translate(line_point_dist_ * line_);
+      temp.translate(line_point_dist_ * line_);
   }
-  line_point_ = temp_;
-  //SetLinePoint(temp_);
+  line_point_ = temp;
 
   //pose error is the vector from new pose C to nearest point on line AB, D
   Eigen::Vector3d pose_err = line_point_.translation() - new_pose.translation();
 
   // @TODO: Handle orientation
-  Eigen::Vector4d rot_ = Eigen::Vector4d::Identity();
-  Eigen::VectorXd err = concat(pose_err, rot_); //calcRotationalError(pose_err.rotation()));
-
+  Eigen::Vector3d rot_ = Eigen::Vector3d(0.0,0.0,0.0);
+  Eigen::VectorXd err = concat(pose_err, rot_);
   return err;
 }
 
-// @todo: Does this need to be updated
 Eigen::VectorXd CartLineConstraint::GetValues()
 {
   Eigen::VectorXd joint_vals = this->GetVariables()->GetComponent(position_var_->GetName())->GetValues();
   return CalcValues(joint_vals);
 }
 
-//void SetLinePoint(const Eigen::Isometry3d line_point)
-//{
-//  line_point_ = line_point;
-//  line_point_inverse_ = line_point_.inverse();
-//}
+void CartLineConstraint::SetLinePose(const Eigen::Isometry3d& line_point)
+{
+  line_point_ = line_point;
+  line_point_inv_ = line_point_.inverse();
+}
 
 
 // Set the limits on the constraint values
@@ -224,8 +213,8 @@ void CartLineConstraint::FillJacobianBlock(std::string var_set, Jacobian& jac_bl
 
 void CartLineConstraint::SetLine(const Eigen::Isometry3d& Point_A, const Eigen::Isometry3d& Point_B)
 {
-  line_end_ = Point_B;
-  line_start_ = Point_A;
+  point_b_ = Point_B;
+  point_a_ = Point_A;
   }
 
 Eigen::Isometry3d CartLineConstraint::GetCurrentPose()

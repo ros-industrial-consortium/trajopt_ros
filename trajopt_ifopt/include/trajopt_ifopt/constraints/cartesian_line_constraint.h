@@ -4,7 +4,8 @@
  *
  * @author Levi Armstrong
  * @author Matthew Powelson
- * @date May 18, 2020
+ * @author Colin Lewis
+ * @date December 27, 2020
  * @version TODO
  * @bug No known bugs
  *
@@ -80,6 +81,9 @@ struct CartPosKinematicInfo
   Eigen::Isometry3d tcp;
 };
 
+/**
+ * @brief The CartLineConstraint class
+ */
 class CartLineConstraint : public ifopt::ConstraintSet
 {
 public:
@@ -88,8 +92,8 @@ public:
   using Ptr = std::shared_ptr<CartLineConstraint>;
   using ConstPtr = std::shared_ptr<const CartLineConstraint>;
 
-  CartLineConstraint(const Eigen::Isometry3d& origin_pose,
-                     const Eigen::Isometry3d& target_pose,
+  CartLineConstraint(const Eigen::Isometry3d& Point_A,
+                     const Eigen::Isometry3d& Point_B,
                     CartPosKinematicInfo::ConstPtr kinematic_info,
                     JointPosition::ConstPtr position_var,
                     const std::string& name = "CartLine");
@@ -130,7 +134,7 @@ public:
 
   void SetLine(const Eigen::Isometry3d& Point_A, const Eigen::Isometry3d& Point_B);
 
-//  void SetLinePose(const Eigen::Isometry3d line_point);
+  void SetLinePose(const Eigen::Isometry3d& line_point);
 
   void SetTargetPose(const Eigen::Isometry3d& target_pose);
 
@@ -171,11 +175,11 @@ private:
    * Do not access them directly. Instead use this->GetVariables()->GetComponent(position_var->GetName())->GetValues()*/
   JointPosition::ConstPtr position_var_;
 
-  /** @brief The first point in the target line. Not used for calculation?. Stored for convenience */
-  Eigen::Isometry3d line_start_;
+  /** @brief The first point in the target line.*/
+  Eigen::Isometry3d point_a_;
 
-  /** @brief The endpoint of the target line. Not used for calculation?Stored for convenience */
-  Eigen::Isometry3d line_end_;
+  /** @brief The second point of the target line. Stored for convenience */
+  Eigen::Isometry3d point_b_;
 
   /** @brief The line vector used for operation **/
   Eigen::Vector3d line_;
