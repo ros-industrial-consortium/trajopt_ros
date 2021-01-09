@@ -36,10 +36,10 @@ TRAJOPT_IGNORE_WARNINGS_POP
 namespace trajopt
 {
 CartLineConstraint::CartLineConstraint(const Eigen::Isometry3d& origin_pose,
-                                      const Eigen::Isometry3d& target_pose,
-                                      CartPosKinematicInfo::ConstPtr kinematic_info,
-                                      JointPosition::ConstPtr position_var,
-                                      const std::string& name)
+                                       const Eigen::Isometry3d& target_pose,
+                                       CartPosKinematicInfo::ConstPtr kinematic_info,
+                                       JointPosition::ConstPtr position_var,
+                                       const std::string& name)
   : ifopt::ConstraintSet(6, name)
   , position_var_(std::move(position_var))
   , point_a_(origin_pose)
@@ -53,12 +53,11 @@ CartLineConstraint::CartLineConstraint(const Eigen::Isometry3d& origin_pose,
   bounds_ = std::vector<ifopt::Bounds>(6, ifopt::BoundZero);
 
   // calculate the equation of the constraint line
-  line_  = point_b_.translation() - point_a_.translation();
+  line_ = point_b_.translation() - point_a_.translation();
 }
 
 Eigen::VectorXd CartLineConstraint::CalcValues(const Eigen::Ref<const Eigen::VectorXd>& joint_vals)
 {
-
   Eigen::Isometry3d new_pose;
   kinematic_info_->manip->calcFwdKin(new_pose, joint_vals, kinematic_info_->kin_link->link_name);
 
@@ -78,23 +77,23 @@ Eigen::VectorXd CartLineConstraint::CalcValues(const Eigen::Ref<const Eigen::Vec
   // If point C is not between the line endpoints, set nearest point to endpoint
   if (line_point_dist_ > 1.0)
   {
-      temp.translate(point_b_.translation());
+    temp.translate(point_b_.translation());
   }
   else if (line_point_dist_ < 0)
   {
-      temp.translate(point_a_.translation());
+    temp.translate(point_a_.translation());
   }
   else
   {
-      temp.translate(line_point_dist_ * line_);
+    temp.translate(line_point_dist_ * line_);
   }
   line_point_ = temp;
 
-  //pose error is the vector from new pose C to nearest point on line AB, D
+  // pose error is the vector from new pose C to nearest point on line AB, D
   Eigen::Vector3d pose_err = line_point_.translation() - new_pose.translation();
 
   // @TODO: Handle orientation
-  Eigen::Vector3d rot_ = Eigen::Vector3d(0.0,0.0,0.0);
+  Eigen::Vector3d rot_ = Eigen::Vector3d(0.0, 0.0, 0.0);
   Eigen::VectorXd err = concat(pose_err, rot_);
   return err;
 }
@@ -111,7 +110,6 @@ void CartLineConstraint::SetLinePose(const Eigen::Isometry3d& line_point)
   line_point_inv_ = line_point_.inverse();
 }
 
-
 // Set the limits on the constraint values
 std::vector<ifopt::Bounds> CartLineConstraint::GetBounds() const { return bounds_; }
 
@@ -121,8 +119,7 @@ void CartLineConstraint::SetBounds(const std::vector<ifopt::Bounds>& bounds)
   bounds_ = bounds;
 }
 
-void CartLineConstraint::CalcJacobianBlock(const Eigen::Ref<const Eigen::VectorXd>& joint_vals,
-                                          Jacobian& jac_block)
+void CartLineConstraint::CalcJacobianBlock(const Eigen::Ref<const Eigen::VectorXd>& joint_vals, Jacobian& jac_block)
 {
   if (use_numeric_differentiation)
   {
@@ -215,11 +212,12 @@ void CartLineConstraint::SetLine(const Eigen::Isometry3d& Point_A, const Eigen::
 {
   point_b_ = Point_B;
   point_a_ = Point_A;
-  }
+}
 
 Eigen::Isometry3d CartLineConstraint::GetCurrentPose()
 {
-  Eigen:VectorXd joint_vals = this->GetVariables()->GetComponent(position_var_->GetName())->GetValues();
+Eigen:
+  VectorXd joint_vals = this->GetVariables()->GetComponent(position_var_->GetName())->GetValues();
   Eigen::Isometry3d new_pose;
   kinematic_info_->manip->calcFwdKin(new_pose, joint_vals, kinematic_info_->kin_link->link_name);
   new_pose = kinematic_info_->world_to_base * new_pose * kinematic_info_->kin_link->transform * kinematic_info_->tcp;

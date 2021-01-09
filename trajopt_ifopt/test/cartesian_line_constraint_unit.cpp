@@ -85,8 +85,8 @@ TEST_F(CartesianLineConstraintUnit, GetValue)  // NOLINT
   forward_kinematics->calcFwdKin(target_pose, joint_position);
 
   // Set the line endpoints st the target pose is on the line
-  line_start_pose = target_pose.tranlate(Eigen::Vector3d(-1.0,0,0));
-  line_end_pose = target_pose.tranlate(Eigen::Vector3d(1.0,0,0));
+  line_start_pose = target_pose.tranlate(Eigen::Vector3d(-1.0, 0, 0));
+  line_end_pose = target_pose.tranlate(Eigen::Vector3d(1.0, 0, 0));
 
   constraint->SetLine(line_start_pose, line_end_pose);
 
@@ -116,20 +116,20 @@ TEST_F(CartesianLineConstraintUnit, GetValue)  // NOLINT
     EXPECT_NEAR(error[0], -0.1, 1e-3);
   }
   {
-      Eigen::Isometry3d start_pose_mod = line_start_pose;
-      Eigen::Isometry3d end_pose_mod = line_end_pose;
-      start_pose_mod.translate(Eigen::Vector3d(0.0, 0.2, 0.0));
-      end_pose_mod.translate(Eigen::Vector3d(0.0, 0.2, 0.0));
-      constraint->SetLine(start_pose_mod, end_pose_mod);
+    Eigen::Isometry3d start_pose_mod = line_start_pose;
+    Eigen::Isometry3d end_pose_mod = line_end_pose;
+    start_pose_mod.translate(Eigen::Vector3d(0.0, 0.2, 0.0));
+    end_pose_mod.translate(Eigen::Vector3d(0.0, 0.2, 0.0));
+    constraint->SetLine(start_pose_mod, end_pose_mod);
     auto error = constraint->CalcValues(joint_position);
     EXPECT_NEAR(error[1], -0.2, 1e-3);
   }
   {
-      Eigen::Isometry3d start_pose_mod = line_start_pose;
-      Eigen::Isometry3d end_pose_mod = line_end_pose;
-      start_pose_mod.translate(Eigen::Vector3d(0.0, 0.0, 0.3));
-      end_pose_mod.translate(Eigen::Vector3d(0.0, 0.0, 0.3));
-      constraint->SetLine(start_pose_mod, end_pose_mod);
+    Eigen::Isometry3d start_pose_mod = line_start_pose;
+    Eigen::Isometry3d end_pose_mod = line_end_pose;
+    start_pose_mod.translate(Eigen::Vector3d(0.0, 0.0, 0.3));
+    end_pose_mod.translate(Eigen::Vector3d(0.0, 0.0, 0.3));
+    constraint->SetLine(start_pose_mod, end_pose_mod);
     auto error = constraint->CalcValues(joint_position);
     EXPECT_NEAR(error[2], 0.3, 1e-3);
   }
@@ -148,12 +148,12 @@ TEST_F(CartesianLineConstraintUnit, FillJacobian)  // NOLINT
   forward_kinematics->calcFwdKin(target_pose, joint_position);
 
   // Set the line endpoints st the target pose is on the line
-  line_start_pose = target_pose.translate(Eigen::Vector3d(-1.0,0,0));
-  line_end_pose = target_pose.translate(Eigen::Vector3d(1.0,0,0));
+  line_start_pose = target_pose.translate(Eigen::Vector3d(-1.0, 0, 0));
+  line_end_pose = target_pose.translate(Eigen::Vector3d(1.0, 0, 0));
 
   constraint->SetLine(line_start_pose, line_end_pose);
 
-  //below here should match cartesian
+  // below here should match cartesian
   // Modify one joint at a time
   for (Eigen::Index i = 0; i < n_dof; i++)
   {
@@ -197,9 +197,10 @@ TEST_F(CartesianLineConstraintUnit, GetSetBounds)  // NOLINT
     auto var0 = std::make_shared<trajopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
 
     auto line_start_pose = Eigen::Isometry3d::Identity();
-    auto line_end_pose = line_start_pose.translate(Eigen::Vector3d(1.0,0,0));
+    auto line_end_pose = line_start_pose.translate(Eigen::Vector3d(1.0, 0, 0));
 
-    auto constraint_2 = std::make_shared<trajopt::CartPosConstraint>(line_start_pose, line_end_pose, kinematic_info, var0);
+    auto constraint_2 =
+        std::make_shared<trajopt::CartPosConstraint>(line_start_pose, line_end_pose, kinematic_info, var0);
 
     ifopt::Bounds bounds(-0.1234, 0.5678);
     std::vector<ifopt::Bounds> bounds_vec = std::vector<ifopt::Bounds>(6, bounds);

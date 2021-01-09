@@ -94,9 +94,9 @@ public:
 
   CartLineConstraint(const Eigen::Isometry3d& Point_A,
                      const Eigen::Isometry3d& Point_B,
-                    CartPosKinematicInfo::ConstPtr kinematic_info,
-                    JointPosition::ConstPtr position_var,
-                    const std::string& name = "CartLine");
+                     CartPosKinematicInfo::ConstPtr kinematic_info,
+                     JointPosition::ConstPtr position_var,
+                     const std::string& name = "CartLine");
 
   /**
    * @brief CalcValues Calculates the values associated with the constraint
