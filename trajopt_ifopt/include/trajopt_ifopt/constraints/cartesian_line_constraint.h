@@ -46,15 +46,15 @@ namespace trajopt
 /**
  * @brief Contains kinematic information for the cartesian position cost; inlude cart point .h & remove?
  */
-struct CartPosKinematicInfo
+struct CartLineKinematicInfo
 {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  using Ptr = std::shared_ptr<CartPosKinematicInfo>;
-  using ConstPtr = std::shared_ptr<const CartPosKinematicInfo>;
+  using Ptr = std::shared_ptr<CartLineKinematicInfo>;
+  using ConstPtr = std::shared_ptr<const CartLineKinematicInfo>;
 
-  CartPosKinematicInfo() = default;
-  CartPosKinematicInfo(tesseract_kinematics::ForwardKinematics::ConstPtr manip,
+  CartLineKinematicInfo() = default;
+  CartLineKinematicInfo(tesseract_kinematics::ForwardKinematics::ConstPtr manip,
                        tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
                        const Eigen::Isometry3d& world_to_base,
                        std::string link,
@@ -94,7 +94,7 @@ public:
 
   CartLineConstraint(const Eigen::Isometry3d& Point_A,
                      const Eigen::Isometry3d& Point_B,
-                     CartPosKinematicInfo::ConstPtr kinematic_info,
+                     CartLineKinematicInfo::ConstPtr kinematic_info,
                      JointPosition::ConstPtr position_var,
                      const std::string& name = "CartLine");
 
@@ -110,7 +110,7 @@ public:
    * joint values placed along the line should be n_dof_ * n_vars_ long
    * @return
    */
-  Eigen::VectorXd GetValues();
+  Eigen::VectorXd GetValues() const override;
 
   /**
    * @brief  Returns the "bounds" of this constraint. How these are enforced is up to the solver
@@ -130,7 +130,7 @@ public:
    * @param var_set Name of the var_set to which the jac_block is associated
    * @param jac_block Block of the overal jacobian associated with these constraints and the var_set variable
    */
-  void FillJacobianBlock(std::string var_set, Jacobian& jac_block);
+  void FillJacobianBlock(std::string var_set, Jacobian& jac_block) const override;
 
   void SetLine(const Eigen::Isometry3d& Point_A, const Eigen::Isometry3d& Point_B);
 
@@ -142,7 +142,7 @@ public:
    * @brief Gets the kinematic info used to create this constraint
    * @return The kinematic info used to create this constraint
    */
-  const CartPosKinematicInfo::ConstPtr& getKinematicInfo() { return kinematic_info_; }
+  const CartLineKinematicInfo::ConstPtr& getKinematicInfo() { return kinematic_info_; }
 
   /**
    * @brief Returns the target pose for the constraint
@@ -191,7 +191,7 @@ private:
   Eigen::Isometry3d line_point_inv_;
 
   /** @brief The kinematic information used when calculating error */
-  CartPosKinematicInfo::ConstPtr kinematic_info_;
+  CartLineKinematicInfo::ConstPtr kinematic_info_;
 };
 };  // namespace trajopt
 #endif

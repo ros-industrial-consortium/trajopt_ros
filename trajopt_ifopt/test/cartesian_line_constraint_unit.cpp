@@ -6,7 +6,8 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <console_bridge/console.h>
 #include <ifopt/problem.h>
 
-#include <tesseract/tesseract.h>
+#include <tesseract_environment/core/environment.h>
+#include <tesseract_environment/ofkt/ofkt_state_solver.h>
 #include <tesseract_kinematics/core/forward_kinematics.h>
 #include <tesseract_environment/core/environment.h>
 #include <tesseract_environment/core/utils.h>
@@ -19,7 +20,6 @@ TRAJOPT_IGNORE_WARNINGS_POP
 using namespace trajopt;
 using namespace std;
 using namespace util;
-using namespace tesseract;
 using namespace tesseract_environment;
 using namespace tesseract_kinematics;
 using namespace tesseract_collision;
@@ -27,16 +27,16 @@ using namespace tesseract_visualization;
 using namespace tesseract_scene_graph;
 using namespace tesseract_geometry;
 
-class CartesianPositionConstraintUnit : public testing::TestWithParam<const char*>
+class CartesianLineConstraintUnit : public testing::TestWithParam<const char*>
 {
 public:
-  tesseract::Tesseract::Ptr tesseract = std::make_shared<Tesseract>();
+  Environment::Ptr tesseract = std::make_shared<Environment>();
   ifopt::Problem nlp;
 
   tesseract_kinematics::ForwardKinematics::Ptr forward_kinematics;
   tesseract_kinematics::InverseKinematics::Ptr inverse_kinematics;
-  CartPosKinematicInfo::Ptr kinematic_info;
-  CartPosConstraint::Ptr constraint;
+  CartLineKinematicInfo::Ptr kinematic_info;
+  CartLineConstraint::Ptr constraint;
 
   Eigen::Index n_dof;
 
@@ -47,9 +47,9 @@ public:
     boost::filesystem::path srdf_file(std::string(TRAJOPT_DIR) + "/test/data/pr2.srdf");
     tesseract_scene_graph::ResourceLocator::Ptr locator =
         std::make_shared<tesseract_scene_graph::SimpleResourceLocator>(locateResource);
-    auto tesseract = std::make_shared<tesseract::Tesseract>();
-    tesseract->init(urdf_file, srdf_file, locator);
-    EXPECT_TRUE(tesseract->init(urdf_file, srdf_file, locator));
+    auto tesseract = std::make_shared<Environment>();
+    tesseract->init<OFKTStateSolver>(urdf_file, srdf_file, locator);
+    EXPECT_TRUE(tesseract->init<OFKTStateSolver>(urdf_file, srdf_file, locator));
 
     // Extract necessary kinematic information
     forward_kinematics = tesseract->getManipulatorManager()->getFwdKinematicSolver("right_arm");
@@ -57,19 +57,20 @@ public:
     n_dof = forward_kinematics->numJoints();
 
     tesseract_environment::AdjacencyMap::Ptr adjacency_map = std::make_shared<tesseract_environment::AdjacencyMap>(
-        tesseract->getEnvironment()->getSceneGraph(),
+        tesseract->getSceneGraph(),
         forward_kinematics->getActiveLinkNames(),
-        tesseract->getEnvironment()->getCurrentState()->link_transforms);
-    kinematic_info = std::make_shared<trajopt::CartPosKinematicInfo>(
+        tesseract->getCurrentState()->link_transforms);
+    kinematic_info = std::make_shared<trajopt::CartLineKinematicInfo>(
         forward_kinematics, adjacency_map, Eigen::Isometry3d::Identity(), forward_kinematics->getTipLinkName());
 
     auto pos = Eigen::VectorXd::Ones(forward_kinematics->numJoints());
     auto var0 = std::make_shared<trajopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
     nlp.AddVariableSet(var0);
 
-    // 4) Add constraints
-    auto target_pose = Eigen::Isometry3d::Identity();
-    constraint = std::make_shared<trajopt::CartPosConstraint>(target_pose, kinematic_info, var0);
+    // Add constraints
+    auto target_pose_1 = Eigen::Isometry3d::Identity();
+    auto target_pose_2 = target_pose_1.translate(Eigen::Vector3d(1.0, 0, 0));
+    constraint = std::make_shared<trajopt::CartLineConstraint>(target_pose_1, target_pose_2, kinematic_info, var0);
     nlp.AddConstraintSet(constraint);
   }
 };
@@ -85,8 +86,8 @@ TEST_F(CartesianLineConstraintUnit, GetValue)  // NOLINT
   forward_kinematics->calcFwdKin(target_pose, joint_position);
 
   // Set the line endpoints st the target pose is on the line
-  line_start_pose = target_pose.tranlate(Eigen::Vector3d(-1.0, 0, 0));
-  line_end_pose = target_pose.tranlate(Eigen::Vector3d(1.0, 0, 0));
+  line_start_pose = target_pose.translate(Eigen::Vector3d(-1.0, 0, 0));
+  line_end_pose = target_pose.translate(Eigen::Vector3d(1.0, 0, 0));
 
   constraint->SetLine(line_start_pose, line_end_pose);
 
@@ -196,17 +197,17 @@ TEST_F(CartesianLineConstraintUnit, GetSetBounds)  // NOLINT
     Eigen::VectorXd pos = Eigen::VectorXd::Ones(forward_kinematics->numJoints());
     auto var0 = std::make_shared<trajopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
 
-    auto line_start_pose = Eigen::Isometry3d::Identity();
-    auto line_end_pose = line_start_pose.translate(Eigen::Vector3d(1.0, 0, 0));
+//    auto line_start_pose = Eigen::Isometry3d::Identity();
+//    auto line_end_pose = line_start_pose.translate(Eigen::Vector3d(1.0, 0, 0));
 
-    auto constraint_2 =
-        std::make_shared<trajopt::CartPosConstraint>(line_start_pose, line_end_pose, kinematic_info, var0);
+//    auto constraint_2 =
+//        std::make_shared<trajopt::CartLineConstraint>(line_start_pose, line_end_pose, kinematic_info, var0);
 
     ifopt::Bounds bounds(-0.1234, 0.5678);
     std::vector<ifopt::Bounds> bounds_vec = std::vector<ifopt::Bounds>(6, bounds);
 
-    constraint_2->SetBounds(bounds_vec);
-    std::vector<ifopt::Bounds> results_vec = constraint_2->GetBounds();
+    constraint->SetBounds(bounds_vec);
+    std::vector<ifopt::Bounds> results_vec = constraint->GetBounds();
     for (size_t i = 0; i < bounds_vec.size(); i++)
     {
       EXPECT_EQ(bounds_vec[i].lower_, results_vec[i].lower_);

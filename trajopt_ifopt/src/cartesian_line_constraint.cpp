@@ -37,7 +37,7 @@ namespace trajopt
 {
 CartLineConstraint::CartLineConstraint(const Eigen::Isometry3d& origin_pose,
                                        const Eigen::Isometry3d& target_pose,
-                                       CartPosKinematicInfo::ConstPtr kinematic_info,
+                                       CartLineKinematicInfo::ConstPtr kinematic_info,
                                        JointPosition::ConstPtr position_var,
                                        const std::string& name)
   : ifopt::ConstraintSet(6, name)
@@ -216,8 +216,7 @@ void CartLineConstraint::SetLine(const Eigen::Isometry3d& Point_A, const Eigen::
 
 Eigen::Isometry3d CartLineConstraint::GetCurrentPose()
 {
-Eigen:
-  VectorXd joint_vals = this->GetVariables()->GetComponent(position_var_->GetName())->GetValues();
+  Eigen::VectorXd joint_vals = this->GetVariables()->GetComponent(position_var_->GetName())->GetValues();
   Eigen::Isometry3d new_pose;
   kinematic_info_->manip->calcFwdKin(new_pose, joint_vals, kinematic_info_->kin_link->link_name);
   new_pose = kinematic_info_->world_to_base * new_pose * kinematic_info_->kin_link->transform * kinematic_info_->tcp;
