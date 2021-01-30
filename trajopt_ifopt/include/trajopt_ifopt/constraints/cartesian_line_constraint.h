@@ -104,7 +104,7 @@ public:
    * @return Error of FK solution from target, size 6. The first 3 terms are associated with position and are currently
    * the only values honored for the linear model
    * */
-  Eigen::VectorXd CalcValues(const Eigen::Ref<const Eigen::VectorXd>& joint_vals);
+  Eigen::VectorXd CalcValues(const Eigen::Ref<const Eigen::VectorXd>& joint_vals) const;
   /**
    * @brief Returns the values associated with the constraint. In this case it should be the
    * joint values placed along the line should be n_dof_ * n_vars_ long
@@ -124,7 +124,7 @@ public:
    * @brief Fills the jacobian block associated with the constraint
    * @param jac_block Block of the overall jacobian associated with these constraints
    */
-  void CalcJacobianBlock(const Eigen::Ref<const Eigen::VectorXd>& joint_vals, Jacobian& jac_block);
+  void CalcJacobianBlock(const Eigen::Ref<const Eigen::VectorXd>& joint_vals, Jacobian& jac_block) const;
   /**
    * @brief Fills the jacobian block associated with the given var_set.
    * @param var_set Name of the var_set to which the jac_block is associated
@@ -185,6 +185,7 @@ private:
   Eigen::Vector3d line_;
 
   /** @brief The nearest point on the line to the new pose **/
+  // This cannot currently be set because of const correctness
   Eigen::Isometry3d line_point_;
 
   /** @brief The inverse of line_point_ used for error calculations */

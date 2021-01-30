@@ -56,7 +56,7 @@ CartLineConstraint::CartLineConstraint(const Eigen::Isometry3d& origin_pose,
   line_ = point_b_.translation() - point_a_.translation();
 }
 
-Eigen::VectorXd CartLineConstraint::CalcValues(const Eigen::Ref<const Eigen::VectorXd>& joint_vals)
+Eigen::VectorXd CartLineConstraint::CalcValues(const Eigen::Ref<const Eigen::VectorXd>& joint_vals) const
 {
   Eigen::Isometry3d new_pose;
   kinematic_info_->manip->calcFwdKin(new_pose, joint_vals, kinematic_info_->kin_link->link_name);
@@ -71,26 +71,25 @@ Eigen::VectorXd CartLineConstraint::CalcValues(const Eigen::Ref<const Eigen::Vec
 
   // Point D, the nearest point on line AB to point C, can be found with:
   // D = ((AB * AC ) / (|AB|^2)) * (AB)
-  Eigen::Isometry3d temp = Eigen::Isometry3d::Identity();
-  double line_point_dist_ = (line_.dot(d1) / line_.dot(line_));
+  Eigen::Isometry3d line_point = Eigen::Isometry3d::Identity();
+  double line_point_dist = (line_.dot(d1) / line_.dot(line_));
 
   // If point C is not between the line endpoints, set nearest point to endpoint
-  if (line_point_dist_ > 1.0)
+  if (line_point_dist > 1.0)
   {
-    temp.translate(point_b_.translation());
+    line_point.translate(point_b_.translation());
   }
-  else if (line_point_dist_ < 0)
+  else if (line_point_dist < 0)
   {
-    temp.translate(point_a_.translation());
+    line_point.translate(point_a_.translation());
   }
   else
   {
-    temp.translate(line_point_dist_ * line_);
+    line_point.translate(line_point_dist * line_);
   }
-  line_point_ = temp;
 
   // pose error is the vector from new pose C to nearest point on line AB, D
-  Eigen::Vector3d pose_err = line_point_.translation() - new_pose.translation();
+  Eigen::Vector3d pose_err = line_point.translation() - new_pose.translation();
 
   // @TODO: Handle orientation
   Eigen::Vector3d rot_ = Eigen::Vector3d(0.0, 0.0, 0.0);
@@ -98,7 +97,7 @@ Eigen::VectorXd CartLineConstraint::CalcValues(const Eigen::Ref<const Eigen::Vec
   return err;
 }
 
-Eigen::VectorXd CartLineConstraint::GetValues()
+Eigen::VectorXd CartLineConstraint::GetValues() const
 {
   Eigen::VectorXd joint_vals = this->GetVariables()->GetComponent(position_var_->GetName())->GetValues();
   return CalcValues(joint_vals);
@@ -119,7 +118,7 @@ void CartLineConstraint::SetBounds(const std::vector<ifopt::Bounds>& bounds)
   bounds_ = bounds;
 }
 
-void CartLineConstraint::CalcJacobianBlock(const Eigen::Ref<const Eigen::VectorXd>& joint_vals, Jacobian& jac_block)
+void CartLineConstraint::CalcJacobianBlock(const Eigen::Ref<const Eigen::VectorXd>& joint_vals, Jacobian& jac_block) const
 {
   if (use_numeric_differentiation)
   {
@@ -197,7 +196,7 @@ void CartLineConstraint::CalcJacobianBlock(const Eigen::Ref<const Eigen::VectorX
   }
 }
 
-void CartLineConstraint::FillJacobianBlock(std::string var_set, Jacobian& jac_block)
+void CartLineConstraint::FillJacobianBlock(std::string var_set, Jacobian& jac_block) const
 {
   // Only modify the jacobian if this constraint uses var_set
   if (var_set == position_var_->GetName())
