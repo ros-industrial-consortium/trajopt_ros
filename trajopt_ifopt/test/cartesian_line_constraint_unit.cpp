@@ -81,13 +81,17 @@ TEST_F(CartesianLineConstraintUnit, GetValue)  // NOLINT
   CONSOLE_BRIDGE_logDebug("CartesianPositionConstraintUnit, GetValue");
 
   // Run FK to get target pose
-  Eigen::VectorXd joint_position = Eigen::VectorXd::Ones(n_dof);
-  Eigen::Isometry3d target_pose, line_start_pose, line_end_pose;
-  forward_kinematics->calcFwdKin(target_pose, joint_position);
+  Eigen::VectorXd joint_position;
+  Eigen::Isometry3d target_pose = Eigen::Isometry3d::Identity();
+  Eigen::Isometry3d line_start_pose = Eigen::Isometry3d::Identity();
+  Eigen::Isometry3d line_end_pose = Eigen::Isometry3d::Identity();
+  auto sol_vector = inverse_kinematics->calcInvKin(target_pose, Eigen::VectorXd::Ones(n_dof));
+
+  joint_position = sol_vector[0];
 
   // Set the line endpoints st the target pose is on the line
-  line_start_pose = target_pose.translate(Eigen::Vector3d(-1.0, 0, 0));
-  line_end_pose = target_pose.translate(Eigen::Vector3d(1.0, 0, 0));
+  line_start_pose.translate(Eigen::Vector3d(-0.5, 0, 0));
+  line_end_pose.translate(Eigen::Vector3d(0.5, 0, 0));
 
   constraint->SetLine(line_start_pose, line_end_pose);
 
@@ -110,31 +114,23 @@ TEST_F(CartesianLineConstraintUnit, GetValue)  // NOLINT
   {
     Eigen::Isometry3d start_pose_mod = line_start_pose;
     Eigen::Isometry3d end_pose_mod = line_end_pose;
-    start_pose_mod.translate(Eigen::Vector3d(0.1, 0.0, 0.0));
-    end_pose_mod.translate(Eigen::Vector3d(0.1, 0.0, 0.0));
+    start_pose_mod.translate(Eigen::Vector3d(0.0, 0.1, 0.0));
+    end_pose_mod.translate(Eigen::Vector3d(0.0, 0.1, 0.0));
     constraint->SetLine(start_pose_mod, end_pose_mod);
+    nlp.SetVariables(joint_position.data());
     auto error = constraint->CalcValues(joint_position);
-    EXPECT_NEAR(error[0], -0.1, 1e-3);
+    EXPECT_NEAR(error.norm(), 0.1, 1e-3);
   }
+  // distance error with a 3-4-5 triangle
   {
     Eigen::Isometry3d start_pose_mod = line_start_pose;
     Eigen::Isometry3d end_pose_mod = line_end_pose;
-    start_pose_mod.translate(Eigen::Vector3d(0.0, 0.2, 0.0));
-    end_pose_mod.translate(Eigen::Vector3d(0.0, 0.2, 0.0));
+    start_pose_mod.translate(Eigen::Vector3d(0.0, 0.3, 0.4));
+    end_pose_mod.translate(Eigen::Vector3d(0.0, 0.3, 0.4));
     constraint->SetLine(start_pose_mod, end_pose_mod);
     auto error = constraint->CalcValues(joint_position);
-    EXPECT_NEAR(error[1], -0.2, 1e-3);
+    EXPECT_NEAR(error.norm(), 0.5, 1e-2);
   }
-  {
-    Eigen::Isometry3d start_pose_mod = line_start_pose;
-    Eigen::Isometry3d end_pose_mod = line_end_pose;
-    start_pose_mod.translate(Eigen::Vector3d(0.0, 0.0, 0.3));
-    end_pose_mod.translate(Eigen::Vector3d(0.0, 0.0, 0.3));
-    constraint->SetLine(start_pose_mod, end_pose_mod);
-    auto error = constraint->CalcValues(joint_position);
-    EXPECT_NEAR(error[2], 0.3, 1e-3);
-  }
-
   // TODO: Check error for orientation
 }
 
@@ -146,7 +142,7 @@ TEST_F(CartesianLineConstraintUnit, FillJacobian)  // NOLINT
   // Run FK to get target pose
   Eigen::VectorXd joint_position = Eigen::VectorXd::Ones(n_dof);
   Eigen::Isometry3d target_pose, line_start_pose, line_end_pose;
-  forward_kinematics->calcFwdKin(target_pose, joint_position);
+  target_pose = forward_kinematics->calcFwdKin(joint_position);
 
   // Set the line endpoints st the target pose is on the line
   line_start_pose = target_pose.translate(Eigen::Vector3d(-1.0, 0, 0));
@@ -172,15 +168,11 @@ TEST_F(CartesianLineConstraintUnit, FillJacobian)  // NOLINT
       trajopt::Jacobian jac_block(num_jac_block.rows(), num_jac_block.cols());
       constraint->CalcJacobianBlock(joint_position_mod, jac_block);
       EXPECT_TRUE(jac_block.isApprox(num_jac_block, 1e-3));
-      //      std::cout << "Numeric:\n" << num_jac_block.toDense() << std::endl;
-      //      std::cout << "Analytic:\n" << jac_block.toDense() << std::endl;
     }
     {
       trajopt::Jacobian jac_block(num_jac_block.rows(), num_jac_block.cols());
       constraint->FillJacobianBlock("Joint_Position_0", jac_block);
       EXPECT_TRUE(jac_block.toDense().isApprox(num_jac_block.toDense(), 1e-3));
-      //      std::cout << "Numeric:\n" << num_jac_block.toDense() << std::endl;
-      //      std::cout << "Analytic:\n" << jac_block.toDense() << std::endl;
     }
   }
 }

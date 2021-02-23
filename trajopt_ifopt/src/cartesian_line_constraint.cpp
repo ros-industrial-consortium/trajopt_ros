@@ -58,39 +58,38 @@ CartLineConstraint::CartLineConstraint(const Eigen::Isometry3d& origin_pose,
 
 Eigen::VectorXd CartLineConstraint::CalcValues(const Eigen::Ref<const Eigen::VectorXd>& joint_vals) const
 {
-  Eigen::Isometry3d new_pose;
-  kinematic_info_->manip->calcFwdKin(new_pose, joint_vals, kinematic_info_->kin_link->link_name);
+  Eigen::Isometry3d new_pose = kinematic_info_->manip->calcFwdKin(joint_vals);
 
   new_pose = kinematic_info_->world_to_base * new_pose * kinematic_info_->kin_link->transform * kinematic_info_->tcp;
 
   // For Jacobian Calc, we need the inverse of the nearest point, D, to new Pose, C, on the constraint line AB
-  // This will not honor tcp orientation. Not used bc this returns a scalar error, need vector/direction components
+  // This will not honor tcp orientation.
 
-  // AC = new pose to first point on line
-  Eigen::Vector3d d1 = new_pose.translation() - point_a_.translation();
+  // d1 = distance 1; distance from new pose to first point on line
+  Eigen::Vector3d d1 = (point_a_.translation() - new_pose.translation()).array().abs();
 
   // Point D, the nearest point on line AB to point C, can be found with:
-  // D = ((AB * AC ) / (|AB|^2)) * (AB)
-  Eigen::Isometry3d line_point = Eigen::Isometry3d::Identity();
-  double line_point_dist = (line_.dot(d1) / line_.dot(line_));
+  // (AC - (AC * AB)) * AB
+  Eigen::Vector3d line_point;
+  Eigen::Vector3d line_norm = line_ / line_.squaredNorm();
+  double mag = d1.dot(line_norm);
 
   // If point C is not between the line endpoints, set nearest point to endpoint
-  if (line_point_dist > 1.0)
+  if (mag > 1.0)
   {
-    line_point.translate(point_b_.translation());
+    line_point = point_b_.translation();
   }
-  else if (line_point_dist < 0)
+  else if (mag < 0)
   {
-    line_point.translate(point_a_.translation());
+    line_point = point_a_.translation();
   }
   else
   {
-    line_point.translate(line_point_dist * line_);
+    line_point = point_a_.translation() + mag * line_norm;
   }
 
-  // pose error is the vector from new pose C to nearest point on line AB, D
-  Eigen::Vector3d pose_err = line_point.translation() - new_pose.translation();
-
+  // pose error is the vector from the new_pose to nearest point on line AB, line_point
+  Eigen::Vector3d pose_err = (line_point - new_pose.translation()).array().abs();
   // @TODO: Handle orientation
   Eigen::Vector3d rot_ = Eigen::Vector3d(0.0, 0.0, 0.0);
   Eigen::VectorXd err = concat(pose_err, rot_);
@@ -145,9 +144,8 @@ void CartLineConstraint::CalcJacobianBlock(const Eigen::Ref<const Eigen::VectorX
     Eigen::Isometry3d tf0;
 
     // Calculate the jacobian
-    // @todo: I do not think this is the correct inverse
-    kinematic_info_->manip->calcFwdKin(tf0, joint_vals, kinematic_info_->kin_link->link_name);
-    kinematic_info_->manip->calcJacobian(jac0, joint_vals, kinematic_info_->kin_link->link_name);
+    tf0 = kinematic_info_->manip->calcFwdKin(joint_vals);
+    jac0 = kinematic_info_->manip->calcJacobian(joint_vals, kinematic_info_->kin_link->link_name);
     tesseract_kinematics::jacobianChangeBase(jac0, kinematic_info_->world_to_base);
     tesseract_kinematics::jacobianChangeRefPoint(
         jac0,
@@ -211,13 +209,13 @@ void CartLineConstraint::SetLine(const Eigen::Isometry3d& Point_A, const Eigen::
 {
   point_b_ = Point_B;
   point_a_ = Point_A;
+  line_ = point_b_.translation() - point_a_.translation();
 }
 
 Eigen::Isometry3d CartLineConstraint::GetCurrentPose()
 {
   Eigen::VectorXd joint_vals = this->GetVariables()->GetComponent(position_var_->GetName())->GetValues();
-  Eigen::Isometry3d new_pose;
-  kinematic_info_->manip->calcFwdKin(new_pose, joint_vals, kinematic_info_->kin_link->link_name);
+  Eigen::Isometry3d new_pose = kinematic_info_->manip->calcFwdKin(joint_vals);
   new_pose = kinematic_info_->world_to_base * new_pose * kinematic_info_->kin_link->transform * kinematic_info_->tcp;
   return new_pose;
 }
