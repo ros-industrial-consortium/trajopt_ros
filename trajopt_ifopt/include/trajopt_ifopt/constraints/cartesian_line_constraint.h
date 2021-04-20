@@ -185,7 +185,6 @@ private:
   Eigen::Vector3d line_;
 
   /** @brief The nearest point on the line to the new pose **/
-  // This cannot currently be set because of const correctness
   Eigen::Isometry3d line_point_;
 
   /** @brief The inverse of line_point_ used for error calculations */

@@ -63,36 +63,40 @@ Eigen::VectorXd CartLineConstraint::CalcValues(const Eigen::Ref<const Eigen::Vec
   new_pose = kinematic_info_->world_to_base * new_pose * kinematic_info_->kin_link->transform * kinematic_info_->tcp;
 
   // For Jacobian Calc, we need the inverse of the nearest point, D, to new Pose, C, on the constraint line AB
-  // This will not honor tcp orientation.
-
-  // d1 = distance 1; distance from new pose to first point on line
+  // distance 1; distance from new pose to first point on line
   Eigen::Vector3d d1 = (point_a_.translation() - new_pose.translation()).array().abs();
 
   // Point D, the nearest point on line AB to point C, can be found with:
   // (AC - (AC * AB)) * AB
-  Eigen::Vector3d line_point;
+  Eigen::Isometry3d line_point;
   Eigen::Vector3d line_norm = line_ / line_.squaredNorm();
   double mag = d1.dot(line_norm);
 
   // If point C is not between the line endpoints, set nearest point to endpoint
   if (mag > 1.0)
   {
-    line_point = point_b_.translation();
+    line_point.translation() = point_b_.translation();
   }
   else if (mag < 0)
   {
-    line_point = point_a_.translation();
+    line_point.translation() = point_a_.translation();
   }
   else
   {
-    line_point = point_a_.translation() + mag * line_norm;
+    line_point.translation() = point_a_.translation() + mag * line_norm;
   }
 
+  //The orientation of the line_point is found using quaternion SLERP
+  Eigen::Quaterniond quat_a(point_a_.rotation());
+  Eigen::Quaterniond quat_b(point_b_.rotation());
+  Eigen::Quaterniond slerp = quat_a.slerp(mag, quat_b);
+  //TODO: Quantify the 'distance' between this rotation and the new_pose.rotation()
+
   // pose error is the vector from the new_pose to nearest point on line AB, line_point
-  Eigen::Vector3d pose_err = (line_point - new_pose.translation()).array().abs();
+  Eigen::Vector3d cart_pose_err = (line_point.translation() - new_pose.translation()).array().abs();
   // @TODO: Handle orientation
   Eigen::Vector3d rot_ = Eigen::Vector3d(0.0, 0.0, 0.0);
-  Eigen::VectorXd err = concat(pose_err, rot_);
+  Eigen::VectorXd err = concat(cart_pose_err, rot_);
   return err;
 }
 
