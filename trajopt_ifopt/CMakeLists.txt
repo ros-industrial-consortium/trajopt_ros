@@ -45,6 +45,7 @@ set(TRAJOPT_IFOPT_SOURCE_FILES
     src/inverse_kinematics_constraint.cpp
     src/joint_position_constraint.cpp
     src/joint_velocity_constraint.cpp
+    src/joint_acceleration_constraint.cpp
     src/squared_cost.cpp
     src/absolute_cost.cpp
 )
