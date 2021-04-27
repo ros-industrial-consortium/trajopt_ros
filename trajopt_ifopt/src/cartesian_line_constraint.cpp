@@ -63,40 +63,14 @@ Eigen::VectorXd CartLineConstraint::CalcValues(const Eigen::Ref<const Eigen::Vec
   new_pose = kinematic_info_->world_to_base * new_pose * kinematic_info_->kin_link->transform * kinematic_info_->tcp;
 
   // For Jacobian Calc, we need the inverse of the nearest point, D, to new Pose, C, on the constraint line AB
-  // distance 1; distance from new pose to first point on line
-  Eigen::Vector3d d1 = (point_a_.translation() - new_pose.translation()).array().abs();
 
-  // Point D, the nearest point on line AB to point C, can be found with:
-  // (AC - (AC * AB)) * AB
-  Eigen::Isometry3d line_point;
-  Eigen::Vector3d line_norm = line_ / line_.squaredNorm();
-  double mag = d1.dot(line_norm);
-
-  // If point C is not between the line endpoints, set nearest point to endpoint
-  if (mag > 1.0)
-  {
-    line_point.translation() = point_b_.translation();
-  }
-  else if (mag < 0)
-  {
-    line_point.translation() = point_a_.translation();
-  }
-  else
-  {
-    line_point.translation() = point_a_.translation() + mag * line_norm;
-  }
-
-  //The orientation of the line_point is found using quaternion SLERP
-  Eigen::Quaterniond quat_a(point_a_.rotation());
-  Eigen::Quaterniond quat_b(point_b_.rotation());
-  Eigen::Quaterniond slerp = quat_a.slerp(mag, quat_b);
-  //TODO: Quantify the 'distance' between this rotation and the new_pose.rotation()
-
+  Eigen::Isometry3d line_point = GetLinePoint(new_pose);
   // pose error is the vector from the new_pose to nearest point on line AB, line_point
-  Eigen::Vector3d cart_pose_err = (line_point.translation() - new_pose.translation()).array().abs();
-  // @TODO: Handle orientation
-  Eigen::Vector3d rot_ = Eigen::Vector3d(0.0, 0.0, 0.0);
-  Eigen::VectorXd err = concat(cart_pose_err, rot_);
+  //old line_constraint method:
+  //Eigen::Vector3d cart_pose_err = (line_point.translation() - new_pose.translation()).array().abs();
+  //the below method is equivalent to the position constraint; using the line point as the target point
+  Eigen::Isometry3d pose_err = line_point.inverse() * new_pose;
+  Eigen::VectorXd err = concat(pose_err.translation(), calcRotationalError(pose_err.rotation()));
   return err;
 }
 
@@ -104,12 +78,6 @@ Eigen::VectorXd CartLineConstraint::GetValues() const
 {
   Eigen::VectorXd joint_vals = this->GetVariables()->GetComponent(position_var_->GetName())->GetValues();
   return CalcValues(joint_vals);
-}
-
-void CartLineConstraint::SetLinePose(const Eigen::Isometry3d& line_point)
-{
-  line_point_ = line_point;
-  line_point_inv_ = line_point_.inverse();
 }
 
 // Set the limits on the constraint values
@@ -149,13 +117,15 @@ void CartLineConstraint::CalcJacobianBlock(const Eigen::Ref<const Eigen::VectorX
 
     // Calculate the jacobian
     tf0 = kinematic_info_->manip->calcFwdKin(joint_vals);
+    Eigen::Isometry3d line_point_inv = GetLinePoint(tf0).inverse();
+
     jac0 = kinematic_info_->manip->calcJacobian(joint_vals, kinematic_info_->kin_link->link_name);
     tesseract_kinematics::jacobianChangeBase(jac0, kinematic_info_->world_to_base);
     tesseract_kinematics::jacobianChangeRefPoint(
         jac0,
         (kinematic_info_->world_to_base * tf0).linear() *
             (kinematic_info_->kin_link->transform * kinematic_info_->tcp).translation());
-    tesseract_kinematics::jacobianChangeBase(jac0, line_point_inv_);
+    tesseract_kinematics::jacobianChangeBase(jac0, line_point_inv);
 
     // Paper:
     // https://ethz.ch/content/dam/ethz/special-interest/mavt/robotics-n-intelligent-systems/rsl-dam/documents/RobotDynamics2016/RD2016script.pdf
@@ -172,7 +142,7 @@ void CartLineConstraint::CalcJacobianBlock(const Eigen::Ref<const Eigen::VectorX
     // The approach below leverages the geometric jacobian and a small step in time to approximate
     // the partial derivative of the error function. Note that the rotational portion is the only part
     // that is required to be modified per the paper.
-    Eigen::Isometry3d pose_err = line_point_inv_ * tf0;
+    Eigen::Isometry3d pose_err = line_point_inv * tf0;
     Eigen::Vector3d rot_err = calcRotationalError(pose_err.rotation());
     for (int c = 0; c < jac0.cols(); ++c)
     {
@@ -222,5 +192,40 @@ Eigen::Isometry3d CartLineConstraint::GetCurrentPose()
   Eigen::Isometry3d new_pose = kinematic_info_->manip->calcFwdKin(joint_vals);
   new_pose = kinematic_info_->world_to_base * new_pose * kinematic_info_->kin_link->transform * kinematic_info_->tcp;
   return new_pose;
+}
+
+//this has to be const because it is used in const functions, it would be nicer if this could store a member line_point_
+Eigen::Isometry3d CartLineConstraint::GetLinePoint(const Eigen::Isometry3d& test_point) const
+{
+  // distance 1; distance from new pose to first point on line
+  Eigen::Vector3d d1 = (point_a_.translation() - test_point.translation()).array().abs();
+
+  // Point D, the nearest point on line AB to point C, can be found with:
+  // (AC - (AC * AB)) * AB
+  Eigen::Isometry3d line_point;
+  Eigen::Vector3d line_norm = line_ / line_.squaredNorm();
+  double mag = d1.dot(line_norm);
+
+  // If point C is not between the line endpoints, set nearest point to endpoint
+  if (mag > 1.0)
+  {
+    line_point.translation() = point_b_.translation();
+  }
+  else if (mag < 0)
+  {
+    line_point.translation() = point_a_.translation();
+  }
+  else
+  {
+    line_point.translation() = point_a_.translation() + mag * line_norm;
+  }
+
+  //The orientation of the line_point is found using quaternion SLERP
+  Eigen::Quaterniond quat_a(point_a_.rotation());
+  Eigen::Quaterniond quat_b(point_b_.rotation());
+  Eigen::Quaterniond slerp = quat_a.slerp(mag, quat_b);
+  line_point.linear() = slerp.toRotationMatrix();
+
+  return line_point;
 }
 }  // namespace trajopt

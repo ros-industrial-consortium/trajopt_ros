@@ -134,8 +134,6 @@ public:
 
   void SetLine(const Eigen::Isometry3d& Point_A, const Eigen::Isometry3d& Point_B);
 
-  void SetLinePose(const Eigen::Isometry3d& line_point);
-
   void SetTargetPose(const Eigen::Isometry3d& target_pose);
 
   /**
@@ -162,8 +160,17 @@ public:
    * to false at your own risk.
    */
   bool use_numeric_differentiation{ true };
-
+  /**
+   * @brief GetLinePoint Finds the nearest point on the line between Isometry a,b
+   * to a test point
+   * @param test_point input location, orientation to comapre to the line
+   * note that only cartesian proximity is used to determine nearness;
+   * LinePoint orientation is determined by a SLERP between Isometry a, b
+   * @return
+   */
+  Eigen::Isometry3d GetLinePoint(const Eigen::Isometry3d& test_point) const;
 private:
+
   /** @brief The number of joints in a single JointPosition */
   long n_dof_;
 
@@ -183,12 +190,6 @@ private:
 
   /** @brief The line vector used for operation **/
   Eigen::Vector3d line_;
-
-  /** @brief The nearest point on the line to the new pose **/
-  Eigen::Isometry3d line_point_;
-
-  /** @brief The inverse of line_point_ used for error calculations */
-  Eigen::Isometry3d line_point_inv_;
 
   /** @brief The kinematic information used when calculating error */
   CartLineKinematicInfo::ConstPtr kinematic_info_;
