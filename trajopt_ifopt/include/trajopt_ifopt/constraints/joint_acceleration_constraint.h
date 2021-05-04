@@ -32,14 +32,14 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <Eigen/Eigen>
 TRAJOPT_IGNORE_WARNINGS_POP
 
-#include <trajopt_ifopt/variable_sets/joint_velocity_variable.h>
+#include <trajopt_ifopt/variable_sets/joint_position_variable.h>
 
 namespace trajopt
 {
 /**
  * @brief This creates a joint acceleration constraint and allows bounds to be set on a joint position
  *
- * Joint acceleration is calculated as a = th_1 - th_0
+ * Joint acceleration is calculated as a = th_2 - 2th_1 + th_0
  */
 class JointAccelConstraint : public ifopt::ConstraintSet
 {
@@ -55,7 +55,7 @@ public:
    * @param name Name of the constraint
    */
   JointAccelConstraint(const Eigen::VectorXd& targets,
-                     std::vector<JointVelocity::ConstPtr> position_vars,
+                     std::vector<JointPosition::ConstPtr> position_vars,
                      const std::string& name = "JointAccel");
 
   /**
@@ -66,7 +66,7 @@ public:
    * @param name Name of the constraint
    */
   JointAccelConstraint(const std::vector<ifopt::Bounds>& bounds,
-                     std::vector<JointVelocity::ConstPtr> position_vars,
+                     std::vector<JointPosition::ConstPtr> position_vars,
                      const std::string& name = "JointAccel");
 
   /**
@@ -89,9 +89,9 @@ public:
   void FillJacobianBlock(std::string var_set, Jacobian& jac_block) const override;
 
 private:
-  /** @brief The number of joints in a single JointVelocity */
+  /** @brief The number of joints in a single JointPosition */
   long n_dof_;
-  /** @brief The number of JointVelocitys passed in */
+  /** @brief The number of JointPositions passed in */
   long n_vars_;
 
   /** @brief Bounds on the velocities of each joint */
@@ -100,7 +100,7 @@ private:
   /** @brief Pointers to the vars used by this constraint.
    *
    * Do not access them directly. Instead use this->GetVariables()->GetComponent(position_var->GetName())->GetValues()*/
-  std::vector<JointVelocity::ConstPtr> velocity_vars_;
+  std::vector<JointPosition::ConstPtr> position_vars_;
 };
 };  // namespace trajopt
 #endif
