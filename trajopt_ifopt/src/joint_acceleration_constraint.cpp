@@ -32,21 +32,21 @@ TRAJOPT_IGNORE_WARNINGS_POP
 namespace trajopt
 {
 JointAccelConstraint::JointAccelConstraint(const Eigen::VectorXd& targets,
-                                       std::vector<JointVelocity::ConstPtr> velocity_vars,
+                                       std::vector<JointPosition::ConstPtr> position_vars,
                                        const std::string& name)
-  : ifopt::ConstraintSet(static_cast<int>(targets.size()) * static_cast<int>(velocity_vars.size() - 1), name)
-  , velocity_vars_(velocity_vars)
+  : ifopt::ConstraintSet(static_cast<int>(targets.size()) * static_cast<int>(position_vars.size() - 1), name)
+  , position_vars_(position_vars)
 {
   // Check and make sure the targets size aligns with the vars passed in
-  for (auto& velocity_var : velocity_vars)
+  for (auto& position_var : position_vars)
   {
-    if (targets.size() != velocity_var->GetRows())
+    if (targets.size() != position_var->GetRows())
       CONSOLE_BRIDGE_logError("Targets size does not align with variables provided");
   }
 
   // Set n_dof and n_vars
   n_dof_ = targets.size();
-  n_vars_ = static_cast<long>(velocity_vars.size());
+  n_vars_ = static_cast<long>(position_vars.size());
   assert(n_dof_ > 0);
   assert(n_vars_ > 0);
   //  assert(n_vars_ == 2);
@@ -66,12 +66,13 @@ JointAccelConstraint::JointAccelConstraint(const Eigen::VectorXd& targets,
 
 Eigen::VectorXd JointAccelConstraint::GetValues() const
 {
-  Eigen::VectorXd acceleration(static_cast<size_t>(n_dof_) * (velocity_vars_.size() - 1));
-  for (std::size_t ind = 0; ind < velocity_vars_.size() - 1; ind++)
+  Eigen::VectorXd acceleration(static_cast<size_t>(n_dof_) * (position_vars_.size() - 2));
+  for (std::size_t ind = 0; ind < position_vars_.size() - 2; ind++)
   {
-    auto vals1 = GetVariables()->GetComponent(velocity_vars_[ind]->GetName())->GetValues();
-    auto vals2 = GetVariables()->GetComponent(velocity_vars_[ind + 1]->GetName())->GetValues();
-    Eigen::VectorXd single_step = vals1 - vals2;
+    auto vals1 = GetVariables()->GetComponent(position_vars_[ind]->GetName())->GetValues();
+    auto vals2 = GetVariables()->GetComponent(position_vars_[ind + 1]->GetName())->GetValues();
+    auto vals3 = GetVariables()->GetComponent(position_vars_[ind + 2]->GetName())->GetValues();
+    Eigen::VectorXd single_step = (vals3 - 2*vals2 + vals1);
     acceleration.block(n_dof_ * static_cast<Eigen::Index>(ind), 0, n_dof_, 1) = single_step;
   }
 
@@ -87,7 +88,7 @@ void JointAccelConstraint::FillJacobianBlock(std::string var_set, Jacobian& jac_
   for (int i = 0; i < n_vars_; i++)
   {
     // Only modify the jacobian if this constraint uses var_set
-    if (var_set == velocity_vars_[static_cast<size_t>(i)]->GetName())
+    if (var_set == position_vars_[static_cast<size_t>(i)]->GetName())
     {
       // Reserve enough room in the sparse matrix
       jac_block.reserve(n_dof_ * 2);
@@ -97,10 +98,12 @@ void JointAccelConstraint::FillJacobianBlock(std::string var_set, Jacobian& jac_
       {
         // The first and last variable are special and only effect the first and last constraint. Everything else
         // effects 2
-        if (i < n_vars_ - 1)
+        if (i < n_vars_ - 2)
           jac_block.coeffRef(i * n_dof_ + j, j) = 1.0;
-        if (i > 0)
-          jac_block.coeffRef((i - 1) * n_dof_ + j, j) = -1.0;
+        if (i > 0 && i < n_vars_ - 1)
+          jac_block.coeffRef((i - 1) * n_dof_ + j, j) = -2.0;
+        if (i > 1)
+          jac_block.coeffRef((i - 2) * n_dof_ + j, j) = 1.0;
       }
     }
   }
