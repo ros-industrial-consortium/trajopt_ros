@@ -40,13 +40,13 @@ void CollisionPlottingCallback::plot(const ifopt::Problem& /*nlp*/)
 }
 
 void CollisionPlottingCallback::addConstraintSet(
-    const trajopt::CollisionConstraintIfopt::ConstPtr& collision_constraint)
+    const trajopt::DiscreteCollisionConstraintIfopt::ConstPtr& collision_constraint)
 {
   collision_constraints_.push_back(collision_constraint);
 }
 
 void CollisionPlottingCallback::addConstraintSet(
-    const std::vector<trajopt::CollisionConstraintIfopt::ConstPtr>& collision_constraints)
+    const std::vector<trajopt::DiscreteCollisionConstraintIfopt::ConstPtr>& collision_constraints)
 {
   for (const auto& cnt : collision_constraints)
     collision_constraints_.push_back(cnt);

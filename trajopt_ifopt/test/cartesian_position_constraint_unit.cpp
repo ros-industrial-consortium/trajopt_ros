@@ -205,6 +205,7 @@ TEST_F(CartesianPositionConstraintUnit, IgnoreVariables)  // NOLINT
     constraint->FillJacobianBlock("another_var", jac_block_input);
     EXPECT_EQ(jac_block_input.nonZeros(), 0);
   }
+
   // Check that it is fine with jac blocks the wrong size for this constraint
   {
     ifopt::ConstraintSet::Jacobian jac_block_input;
