@@ -50,13 +50,13 @@ public:
   /**
    * @brief Constructs a acceleration contraint from these variables, setting the bounds to the target
    * @param targets Joint Acceleration targets (length should be n_dof). Upper and lower bounds are set to this value
-   * @param position_vars Joint velocities used to calculate acceleration. These vars are assumed to be continuous and in
+   * @param position_vars Joint positions used to calculate acceleration. These vars are assumed to be continuous and in
    * order.
    * @param name Name of the constraint
    */
   JointAccelConstraint(const Eigen::VectorXd& targets,
-                     std::vector<JointPosition::ConstPtr> position_vars,
-                     const std::string& name = "JointAccel");
+                       std::vector<JointPosition::ConstPtr> position_vars,
+                       const std::string& name = "JointAccel");
 
   /**
    * @brief Constructs a acceleration contraint from these variables, setting the bounds to those passed in.
@@ -66,8 +66,8 @@ public:
    * @param name Name of the constraint
    */
   JointAccelConstraint(const std::vector<ifopt::Bounds>& bounds,
-                     std::vector<JointPosition::ConstPtr> position_vars,
-                     const std::string& name = "JointAccel");
+                       std::vector<JointPosition::ConstPtr> position_vars,
+                       const std::string& name = "JointAccel");
 
   /**
    * @brief Returns the values associated with the constraint. In this case that is the approximate joint acceleration.
