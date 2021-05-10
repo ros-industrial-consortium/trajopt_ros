@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>trajopt_optimizers_test_suite</name>
+  <version>0.1.0</version>
+  <description>The trajopt_optimizers_test_suite package</description>
+  <maintainer email="levi.armstrong@swri.org">Levi Armstrong</maintainer>
+  <license>Apache 2.0</license>
+  <author>Randall Kliman</author>
+
+  <depend>libconsole-bridge-dev</depend>
+  <depend>ifopt</depend>
+  <depend>osqp_eigen</depend>
+  <depend>trajopt</depend>
+  <depend>trajopt_ifopt</depend>
+  <depend>trajopt_utils</depend>
+  <depend>trajopt_sqp</depend>
+  <depend>trajopt_pagmo</depend>
+
+  <test_depend>gtest</test_depend>
+
+  <export>
+    <build_type>cmake</build_type>
+  </export>
+</package>

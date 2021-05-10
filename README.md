@@ -28,6 +28,7 @@ At the moment, the following solvers are supported:
 - `Gurobi` (simplex and interior point/parallel barrier, license required)
 - `OSQP` (ADMM, BSD2 license)
 - `qpOASES` (active set, LGPL 2.1 license)
+- `PaGMO` (genetic evolution solvers,  GNU general public license, VERY EXPERIMENTAL)
 
 While the `BPMPD` library is bundled in the distribution, `Gurobi`, `OSQP` and `qpOASES` need to be installed in the system.
 To compile with `Gurobi` support, a `GUROBI_HOME` variable needs to be defined.
