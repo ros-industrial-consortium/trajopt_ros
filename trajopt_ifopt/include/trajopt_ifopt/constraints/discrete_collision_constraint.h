@@ -45,6 +45,7 @@ public:
   using ConstPtr = std::shared_ptr<const DiscreteCollisionConstraintIfopt>;
 
   DiscreteCollisionConstraintIfopt(DiscreteCollisionEvaluator::Ptr collision_evaluator,
+                                   GradientCombineMethod gradient_method,
                                    JointPosition::ConstPtr position_var,
                                    const std::string& name = "DiscreteCollision");
 
@@ -102,6 +103,7 @@ private:
   JointPosition::ConstPtr position_var_;
 
   DiscreteCollisionEvaluator::Ptr collision_evaluator_;
+  GradientCombineMethod gradient_method_;
 };
 };  // namespace trajopt
 #endif

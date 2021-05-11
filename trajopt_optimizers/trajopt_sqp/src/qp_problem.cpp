@@ -165,7 +165,7 @@ void QPProblem::linearizeConstraints()
     }
     else
     {
-      tripletList.emplace_back(i, current_column_index, 1);
+      tripletList.emplace_back(i, current_column_index, -1);
       current_column_index++;
     }
   }
@@ -200,8 +200,12 @@ void QPProblem::updateNLPConstraintBounds()
     Eigen::VectorXd x_initial = nlp_->GetVariableValues();
     Eigen::VectorXd cnt_initial_value = nlp_->EvaluateConstraints(x_initial.data());
 
-    // Our error is now represented as dy(x0)/dx * x + (y(x0) - dy(xo)/dx * x0)
-    // This accounts for moving (error - dy/dx*x) term to other side of equation
+    // d = collision distance
+    // T = distance threshhold
+    // J = Jacobian
+    // x = initial values
+    // Original trajopt Affine constant = T - d - (J * x)
+    // Trajopt ifopt cnt_initial_value = T - d, so the following is correct.
     Eigen::SparseMatrix<double> jac = nlp_->GetJacobianOfConstraints();
     Eigen::VectorXd linearized_cnt_lower = cnt_bound_lower - (cnt_initial_value - jac * x_initial);
     Eigen::VectorXd linearized_cnt_upper = cnt_bound_upper - (cnt_initial_value - jac * x_initial);

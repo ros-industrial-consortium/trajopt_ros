@@ -1,6 +1,6 @@
 /**
- * @file lvs_collision_evaluators.h
- * @brief Contains longest valid segment evaluators for the collision constraint
+ * @file continuous_collision_evaluators.h
+ * @brief Contains continuous evaluators for the collision constraint
  *
  * @author Levi Armstrong
  * @author Matthew Powelson
@@ -23,8 +23,8 @@
  * limitations under the License.
  */
 
-#ifndef TRAJOPT_IFOPT_LVS_COLLISION_EVALUATOR_H
-#define TRAJOPT_IFOPT_LVS_COLLISION_EVALUATOR_H
+#ifndef TRAJOPT_IFOPT_CONTINUOUS_COLLISION_EVALUATOR_H
+#define TRAJOPT_IFOPT_CONTINUOUS_COLLISION_EVALUATOR_H
 
 #include <trajopt_utils/macros.h>
 TRAJOPT_IGNORE_WARNINGS_PUSH
@@ -46,15 +46,15 @@ namespace trajopt
  * @brief This collision evaluator operates on two states and checks for collision between the two states using a
  * casted collision objects between to intermediate interpolated states.
  */
-class LVSCollisionEvaluator
+class ContinuousCollisionEvaluator
 {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  using Ptr = std::shared_ptr<LVSCollisionEvaluator>;
-  using ConstPtr = std::shared_ptr<const LVSCollisionEvaluator>;
+  using Ptr = std::shared_ptr<ContinuousCollisionEvaluator>;
+  using ConstPtr = std::shared_ptr<const ContinuousCollisionEvaluator>;
 
-  virtual ~LVSCollisionEvaluator() = default;
+  virtual ~ContinuousCollisionEvaluator() = default;
 
   /**
    * @brief Given joint names and values calculate the collision results for this evaluator
@@ -98,14 +98,14 @@ public:
    * @brief Get the evaluator type
    * @return The Evaluator Type
    */
-  virtual LVSCollisionEvaluatorType GetEvaluatorType() const = 0;
+  virtual ContinuousCollisionEvaluatorType GetEvaluatorType() const = 0;
 };
 
 /**
  * @brief This collision evaluator operates on two states and checks for collision between the two states using a
  * casted collision objects between to intermediate interpolated states.
  */
-class LVSContinuousCollisionEvaluator : public LVSCollisionEvaluator
+class LVSContinuousCollisionEvaluator : public ContinuousCollisionEvaluator
 {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -118,6 +118,7 @@ public:
                                   tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
                                   const Eigen::Isometry3d& world_to_base,
                                   const TrajOptCollisionConfig& collision_config,
+                                  ContinuousCollisionEvaluatorType evaluator_type,
                                   bool dynamic_environment = false);
 
   void CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
@@ -135,7 +136,7 @@ public:
 
   TrajOptCollisionConfig& GetCollisionConfig() override;
 
-  LVSCollisionEvaluatorType GetEvaluatorType() const override;
+  ContinuousCollisionEvaluatorType GetEvaluatorType() const override;
 
   Cache<size_t, std::pair<tesseract_collision::ContactResultMap, tesseract_collision::ContactResultVector>, 10> m_cache;
 
@@ -146,7 +147,7 @@ private:
   Eigen::Isometry3d world_to_base_;
   TrajOptCollisionConfig collision_config_;
   tesseract_environment::StateSolver::Ptr state_solver_;
-  LVSCollisionEvaluatorType evaluator_type_;
+  ContinuousCollisionEvaluatorType evaluator_type_;
   GetStateFn get_state_fn_;
   bool dynamic_environment_;
   tesseract_collision::ContinuousContactManager::Ptr contact_manager_;
@@ -160,7 +161,7 @@ private:
  * @brief This collision evaluator operates on two states and checks for collision between the two states using a
  * descrete collision objects at each intermediate interpolated states.
  */
-class LVSDiscreteCollisionEvaluator : public LVSCollisionEvaluator
+class LVSDiscreteCollisionEvaluator : public ContinuousCollisionEvaluator
 {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -173,6 +174,7 @@ public:
                                 tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
                                 const Eigen::Isometry3d& world_to_base,
                                 const TrajOptCollisionConfig& collision_config,
+                                ContinuousCollisionEvaluatorType evaluator_type,
                                 bool dynamic_environment = false);
 
   void CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
@@ -190,7 +192,7 @@ public:
 
   TrajOptCollisionConfig& GetCollisionConfig() override;
 
-  LVSCollisionEvaluatorType GetEvaluatorType() const override;
+  ContinuousCollisionEvaluatorType GetEvaluatorType() const override;
 
   Cache<size_t, std::pair<tesseract_collision::ContactResultMap, tesseract_collision::ContactResultVector>, 10> m_cache;
 
@@ -201,7 +203,7 @@ private:
   Eigen::Isometry3d world_to_base_;
   TrajOptCollisionConfig collision_config_;
   tesseract_environment::StateSolver::Ptr state_solver_;
-  LVSCollisionEvaluatorType evaluator_type_;
+  ContinuousCollisionEvaluatorType evaluator_type_;
   GetStateFn get_state_fn_;
   bool dynamic_environment_;
   tesseract_collision::DiscreteContactManager::Ptr contact_manager_;
@@ -211,4 +213,4 @@ private:
                             tesseract_collision::ContactResultMap& dist_results);
 };
 }  // namespace trajopt
-#endif  // TRAJOPT_IFOPT_LVS_COLLISION_EVALUATOR_H
+#endif  // TRAJOPT_IFOPT_CONTINUOUS_COLLISION_EVALUATOR_H

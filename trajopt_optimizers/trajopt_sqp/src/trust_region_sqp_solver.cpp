@@ -34,7 +34,7 @@
 
 namespace trajopt_sqp
 {
-const bool SUPER_DEBUG_MODE = false;
+const bool SUPER_DEBUG_MODE = true;
 
 TrustRegionSQPSolver::TrustRegionSQPSolver(QPSolver::Ptr qp_solver) : qp_solver(std::move(qp_solver))
 {

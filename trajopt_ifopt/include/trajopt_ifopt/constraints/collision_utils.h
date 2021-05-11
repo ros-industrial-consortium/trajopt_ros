@@ -51,7 +51,7 @@ void processInterpolatedCollisionResults(std::vector<tesseract_collision::Contac
                                          tesseract_collision::ContactResultMap& contact_results,
                                          const std::vector<std::string>& active_links,
                                          const TrajOptCollisionConfig& collision_config,
-                                         LVSCollisionEvaluatorType evaluator_type,
+                                         ContinuousCollisionEvaluatorType evaluator_type,
                                          double dt);
 
 /**
@@ -60,9 +60,33 @@ void processInterpolatedCollisionResults(std::vector<tesseract_collision::Contac
  * @param contact_results Contact results vector to process.
  */
 void removeInvalidContactResults(tesseract_collision::ContactResultVector& contact_results,
-                                 const Eigen::Vector2d& pair_data,
-                                 LVSCollisionEvaluatorType evaluator_type,
-                                 double collision_margin_buffer);
+                                 const Eigen::Vector3d& data,
+                                 ContinuousCollisionEvaluatorType evaluator_type);
+
+/**
+ * @brief This takes a vector of gradient results and outputs a single gradient using least squares
+ * @param grad_results A vector of gradient results
+ * @param dof The DOF of the system
+ * @param num_eq The number equations
+ * @return A gradient
+ */
+Eigen::VectorXd getLeastSquaresGradient(std::vector<trajopt::GradientResults> grad_results, long dof, long num_eq);
+
+/**
+ * @brief This takes a vector of gradient results and outputs a single gradient using weighted least squares
+ * where the weights are the error
+ * @param grad_results A vector of gradient results
+ * @param dof The DOF of the system
+ * @param num_eq The number equations
+ * @return A gradient
+ */
+Eigen::VectorXd getWeightedLeastSquaresGradient(std::vector<trajopt::GradientResults> grad_results, long dof, long num_eq);
+Eigen::VectorXd getWeightedLeastSquaresGradient2(std::vector<trajopt::GradientResults> grad_results, long dof, long num_eq);
+
+/** @brief These were from the original trajopt */
+Eigen::VectorXd getWeightedAvgGradient(std::vector<trajopt::GradientResults> grad_results, long dof);
+Eigen::VectorXd getScaledSumGradient(std::vector<trajopt::GradientResults> grad_results, long dof);
+Eigen::VectorXd getSumGradient(std::vector<trajopt::GradientResults> grad_results, long dof);
 
 /**
  * @brief Extracts the gradient information based on the contact results
@@ -74,7 +98,7 @@ void removeInvalidContactResults(tesseract_collision::ContactResultVector& conta
  */
 GradientResults getGradient(const Eigen::VectorXd& dofvals,
                             const tesseract_collision::ContactResult& contact_result,
-                            const Eigen::Vector2d& data,
+                            const Eigen::Vector3d &data,
                             const tesseract_kinematics::ForwardKinematics::ConstPtr& manip,
                             const tesseract_environment::AdjacencyMap::ConstPtr& adjacency_map,
                             const Eigen::Isometry3d& world_to_base);
@@ -90,7 +114,7 @@ GradientResults getGradient(const Eigen::VectorXd& dofvals,
 GradientResults getGradient(const Eigen::VectorXd& dofvals0,
                             const Eigen::VectorXd& dofvals1,
                             const tesseract_collision::ContactResult& contact_result,
-                            const Eigen::Vector2d& data,
+                            const Eigen::Vector3d &data,
                             const tesseract_kinematics::ForwardKinematics::ConstPtr& manip,
                             const tesseract_environment::AdjacencyMap::ConstPtr& adjacency_map,
                             const Eigen::Isometry3d& world_to_base,

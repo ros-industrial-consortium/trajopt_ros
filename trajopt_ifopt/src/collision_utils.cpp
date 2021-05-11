@@ -60,7 +60,7 @@ void processInterpolatedCollisionResults(std::vector<tesseract_collision::Contac
                                          tesseract_collision::ContactResultMap& contact_results,
                                          const std::vector<std::string>& active_links,
                                          const TrajOptCollisionConfig& collision_config,
-                                         LVSCollisionEvaluatorType evaluator_type,
+                                         ContinuousCollisionEvaluatorType evaluator_type,
                                          double dt)
 {
   // If contact is found the actual dt between the original two state must be recalculated based on where it
@@ -76,7 +76,7 @@ void processInterpolatedCollisionResults(std::vector<tesseract_collision::Contac
       // Contains the contact distance threshold and coefficient for the given link pair
       double dist = collision_config.collision_margin_data.getPairCollisionMargin(pair.first.first, pair.first.second);
       double coeff = collision_config.collision_coeff_data.getPairCollisionCoeff(pair.first.first, pair.first.second);
-      const Eigen::Vector2d data = { dist, coeff };
+      const Eigen::Vector3d data = { dist, collision_config.collision_margin_buffer, coeff};
 
       // Update cc_time and cc_type
       for (auto& r : pair.second)
@@ -101,7 +101,7 @@ void processInterpolatedCollisionResults(std::vector<tesseract_collision::Contac
       }
 
       // Dont include contacts at the fixed state
-      removeInvalidContactResults(pair.second, data, evaluator_type, collision_config.collision_margin_buffer);
+      removeInvalidContactResults(pair.second, data, evaluator_type);
 
       // If the contact pair does not exist in contact_results add it
       if (p == contact_results.end() && !pair.second.empty())
@@ -123,19 +123,18 @@ void processInterpolatedCollisionResults(std::vector<tesseract_collision::Contac
 }
 
 void removeInvalidContactResults(tesseract_collision::ContactResultVector& contact_results,
-                                 const Eigen::Vector2d& pair_data,
-                                 LVSCollisionEvaluatorType evaluator_type,
-                                 double collision_margin_buffer)
+                                 const Eigen::Vector3d &data,
+                                 ContinuousCollisionEvaluatorType evaluator_type)
 {
   auto end = std::remove_if(
-      contact_results.begin(), contact_results.end(), [=, &pair_data](const tesseract_collision::ContactResult& r) {
+      contact_results.begin(), contact_results.end(), [=, &data](const tesseract_collision::ContactResult& r) {
         switch (evaluator_type)
         {
-          case LVSCollisionEvaluatorType::START_FREE_END_FREE:
+          case ContinuousCollisionEvaluatorType::START_FREE_END_FREE:
           {
             break;
           }
-          case LVSCollisionEvaluatorType::START_FIXED_END_FREE:
+          case ContinuousCollisionEvaluatorType::START_FIXED_END_FREE:
           {
             if (r.cc_type[0] == tesseract_collision::ContinuousCollisionType::CCType_Time0)
               return true;
@@ -145,7 +144,7 @@ void removeInvalidContactResults(tesseract_collision::ContactResultVector& conta
 
             break;
           }
-          case LVSCollisionEvaluatorType::START_FREE_END_FIXED:
+          case ContinuousCollisionEvaluatorType::START_FREE_END_FIXED:
           {
             if (r.cc_type[0] == tesseract_collision::ContinuousCollisionType::CCType_Time1)
               return true;
@@ -155,11 +154,11 @@ void removeInvalidContactResults(tesseract_collision::ContactResultVector& conta
 
             break;
           }
-          case LVSCollisionEvaluatorType::START_FREE_END_FREE_WEIGHTED_SUM:
+          case ContinuousCollisionEvaluatorType::START_FREE_END_FREE_WEIGHTED_SUM:
           {
             break;
           }
-          case LVSCollisionEvaluatorType::START_FIXED_END_FREE_WEIGHTED_SUM:
+          case ContinuousCollisionEvaluatorType::START_FIXED_END_FREE_WEIGHTED_SUM:
           {
             if (r.cc_type[0] == tesseract_collision::ContinuousCollisionType::CCType_Time0)
               return true;
@@ -169,7 +168,7 @@ void removeInvalidContactResults(tesseract_collision::ContactResultVector& conta
 
             break;
           }
-          case LVSCollisionEvaluatorType::START_FREE_END_FIXED_WEIGHTED_SUM:
+          case ContinuousCollisionEvaluatorType::START_FREE_END_FIXED_WEIGHTED_SUM:
           {
             if (r.cc_type[0] == tesseract_collision::ContinuousCollisionType::CCType_Time1)
               return true;
@@ -187,10 +186,166 @@ void removeInvalidContactResults(tesseract_collision::ContactResultVector& conta
         };
 
         /** @todo Is this correct? (Levi)*/
-        return (!((pair_data[0] + collision_margin_buffer) > r.distance));
+        return (!((data[0] + data[1]) > r.distance));
       });
 
   contact_results.erase(end, contact_results.end());
+}
+
+Eigen::VectorXd getLeastSquaresGradient(std::vector<trajopt::GradientResults> grad_results, long dof, long num_eq)
+{
+  if (num_eq == 0)
+    return Eigen::VectorXd::Zero(dof);
+
+
+  Eigen::MatrixXd jacobian(3 * num_eq, dof);
+  Eigen::VectorXd error(3 * num_eq);
+  long cnt = 0;
+  for (const auto& grad : grad_results)
+  {
+    if (grad.gradients[0].has_gradient)
+    {
+      long start_idx = cnt * 3;
+      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[0].translation_vector;
+      jacobian.middleRows(start_idx, 3) = grad.gradients[0].jacobian;
+      cnt++;
+    }
+    if (grad.gradients[1].has_gradient)
+    {
+      long start_idx = cnt * 3;
+      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[1].translation_vector;
+      jacobian.middleRows(start_idx, 3) = grad.gradients[1].jacobian;
+      cnt++;
+    }
+  }
+
+//  return jacobian.householderQr().solve(error);
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  tesseract_kinematics::solvePInv(jacobian, error, grad_vec);
+
+  return grad_vec.normalized();
+//  return jacobian.transpose() * error;
+}
+
+Eigen::VectorXd getWeightedLeastSquaresGradient(std::vector<trajopt::GradientResults> grad_results, long dof, long num_eq)
+{
+  if (num_eq == 0)
+    return Eigen::VectorXd::Zero(dof);
+
+  Eigen::MatrixXd jacobian(3 * num_eq, dof);
+  Eigen::VectorXd error(3 * num_eq);
+  long cnt = 0;
+  for (const auto& grad : grad_results)
+  {
+    if (grad.gradients[0].has_gradient)
+    {
+      long start_idx = cnt * 3;
+      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[0].translation_vector;
+      jacobian.middleRows(start_idx, 3) = grad.gradients[0].jacobian;
+      cnt++;
+    }
+    if (grad.gradients[1].has_gradient)
+    {
+      long start_idx = cnt * 3;
+      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[1].translation_vector;
+      jacobian.middleRows(start_idx, 3) = grad.gradients[1].jacobian;
+      cnt++;
+    }
+  }
+  //H=(A^T * W * A)^−1 * A^T * W so that y=Hb
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  Eigen::MatrixXd weights = error.normalized().asDiagonal();
+  Eigen::MatrixXd jacobian_transpose = jacobian.transpose();
+  tesseract_kinematics::solvePInv(jacobian_transpose * weights * jacobian, jacobian_transpose * weights * error, grad_vec);
+  return grad_vec.normalized();
+
+      //  return (jacobian_transpose * weights * jacobian).householderQr().solve(jacobian_transpose * weights * error);
+}
+
+Eigen::VectorXd getWeightedLeastSquaresGradient2(std::vector<trajopt::GradientResults> grad_results, long dof, long num_eq)
+{
+  if (num_eq == 0)
+    return Eigen::VectorXd::Zero(dof);
+
+  Eigen::MatrixXd jacobian(num_eq, dof);
+  Eigen::VectorXd error(num_eq);
+  long cnt = 0;
+  for (const auto& grad : grad_results)
+  {
+    if (grad.gradients[0].has_gradient)
+    {
+      error(cnt) = grad.error_with_buffer;
+      jacobian.row(cnt) = grad.gradients[0].gradient;
+//      long start_idx = cnt * 3;
+//      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[0].translation_vector;
+//      jacobian.middleRows(start_idx, 3) = grad.gradients[0].jacobian;
+      cnt++;
+    }
+    if (grad.gradients[1].has_gradient)
+    {
+      error(cnt) = grad.error_with_buffer;
+      jacobian.row(cnt) = grad.gradients[1].gradient;
+//      long start_idx = cnt * 3;
+//      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[1].translation_vector;
+//      jacobian.middleRows(start_idx, 3) = grad.gradients[1].jacobian;
+      cnt++;
+    }
+  }
+  //H=(A^T * W * A)^−1 * A^T * W so that y=Hb
+  Eigen::MatrixXd weights = error.normalized().asDiagonal();
+  Eigen::MatrixXd jacobian_transpose = jacobian.transpose();
+//  return (jacobian_transpose * weights * jacobian).householderQr().solve(jacobian_transpose * weights * error);
+
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  tesseract_kinematics::solvePInv(jacobian_transpose * weights * jacobian, jacobian_transpose * weights * error, grad_vec);
+  return grad_vec;
+}
+
+Eigen::VectorXd getWeightedAvgGradient(std::vector<trajopt::GradientResults> grad_results, long dof)
+{
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  double total_weight = 0;
+  for (auto& grad : grad_results)
+  {
+    if (grad.gradients[0].has_gradient)
+    {
+      total_weight += (grad.error * grad.gradients[0].scale);
+      grad_vec += grad.error * grad.gradients[0].scale * grad.gradients[0].gradient;
+    }
+
+    if (grad.gradients[1].has_gradient)
+    {
+      total_weight += (grad.error * grad.gradients[1].scale);
+      grad_vec += grad.error * grad.gradients[1].scale * grad.gradients[1].gradient;
+    }
+  }
+  return (1.0 / total_weight) * grad_vec;
+}
+
+Eigen::VectorXd getScaledSumGradient(std::vector<trajopt::GradientResults> grad_results, long dof)
+{
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  for (auto& grad : grad_results)
+  {
+    if (grad.gradients[0].has_gradient)
+      grad_vec += grad.gradients[0].scale * grad.gradients[0].gradient;
+    if (grad.gradients[1].has_gradient)
+      grad_vec += grad.gradients[1].scale * grad.gradients[1].gradient;
+  }
+  return grad_vec;
+}
+
+Eigen::VectorXd getSumGradient(std::vector<trajopt::GradientResults> grad_results, long dof)
+{
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  for (auto& grad : grad_results)
+  {
+    if (grad.gradients[0].has_gradient)
+      grad_vec += grad.gradients[0].gradient;
+    if (grad.gradients[1].has_gradient)
+      grad_vec += grad.gradients[1].gradient;
+  }
+  return grad_vec;
 }
 
 void calcGradient(GradientResults& results,
@@ -234,17 +389,24 @@ void calcGradient(GradientResults& results,
   //      tesseract_kinematics::numericalJacobian(jac_test, world_to_base_, *manip_, dofvals, it->link_name,
   //      contact_result.nearest_points_local[i]); bool check = jac.isApprox(jac_test, 1e-3); assert(check == true);
 
-  results.gradients[i].gradient = ((i == 0) ? -1.0 : 1.0) * contact_result.normal.transpose() * jac.topRows(3);
+  results.gradients[i].translation_vector = ((i == 0) ? -1.0 : 1.0) * contact_result.normal;
+  results.gradients[i].jacobian = jac.topRows(3);
+  results.gradients[i].gradient = results.gradients[i].translation_vector.transpose() * results.gradients[i].jacobian;
 }
 
 GradientResults getGradient(const Eigen::VectorXd& dofvals,
                             const tesseract_collision::ContactResult& contact_result,
-                            const Eigen::Vector2d& data,
+                            const Eigen::Vector3d& data,
                             const tesseract_kinematics::ForwardKinematics::ConstPtr& manip,
                             const tesseract_environment::AdjacencyMap::ConstPtr& adjacency_map,
                             const Eigen::Isometry3d& world_to_base)
 {
   GradientResults results(data);
+//  results.error = std::max<double>((data[0] - contact_result.distance), 0.);
+//  results.error_with_buffer = std::max<double>((data[0] + data[1] - contact_result.distance), 0.);
+
+  results.error = (data[0] - contact_result.distance);
+  results.error_with_buffer = (data[0] + data[1] - contact_result.distance);
   for (std::size_t i = 0; i < 2; ++i)
   {
     tesseract_environment::AdjacencyMapPair::ConstPtr it = adjacency_map->getLinkMapping(contact_result.link_names[i]);
@@ -259,13 +421,19 @@ GradientResults getGradient(const Eigen::VectorXd& dofvals,
 GradientResults getGradient(const Eigen::VectorXd& dofvals0,
                             const Eigen::VectorXd& dofvals1,
                             const tesseract_collision::ContactResult& contact_result,
-                            const Eigen::Vector2d& data,
+                            const Eigen::Vector3d& data,
                             const tesseract_kinematics::ForwardKinematics::ConstPtr& manip,
                             const tesseract_environment::AdjacencyMap::ConstPtr& adjacency_map,
                             const Eigen::Isometry3d& world_to_base,
                             bool isTimestep1)
 {
   GradientResults results(data);
+//  results.error = std::max<double>((data[0] - contact_result.distance), 0.);
+//  results.error_with_buffer = std::max<double>((data[0] + data[1] - contact_result.distance), 0.);
+
+  results.error = (data[0] - contact_result.distance);
+  results.error_with_buffer =(data[0] + data[1] - contact_result.distance);
+
   Eigen::VectorXd dofvalst = Eigen::VectorXd::Zero(dofvals0.size());
   for (std::size_t i = 0; i < 2; ++i)
   {

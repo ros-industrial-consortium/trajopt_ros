@@ -57,6 +57,6 @@ TrajOptCollisionConfig::TrajOptCollisionConfig(double margin, double coeff)
 {
 }
 
-GradientResults::GradientResults(const Eigen::Vector2d& data) : data(data) {}
+GradientResults::GradientResults(const Eigen::Vector3d& data) : data(data) {}
 
 }  // namespace trajopt

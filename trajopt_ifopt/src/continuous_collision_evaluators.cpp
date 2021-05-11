@@ -1,6 +1,6 @@
 /**
- * @file lvs_collision_evaluators.h
- * @brief Contains longest valid segment evaluators for the collision constraint
+ * @file continuous_collision_evaluators.h
+ * @brief Contains continuous evaluators for the collision constraint
  *
  * @author Levi Armstrong
  * @author Matthew Powelson
@@ -23,23 +23,25 @@
  * limitations under the License.
  */
 
-#include <trajopt_ifopt/constraints/lvs_collision_constraint.h>
+#include <trajopt_ifopt/constraints/continuous_collision_constraint.h>
 #include <trajopt_ifopt/constraints/collision_utils.h>
 
 namespace trajopt
 {
-LVSContinuousCollisionEvaluator::LVSContinuousCollisionEvaluator(
-    tesseract_kinematics::ForwardKinematics::ConstPtr manip,
+LVSContinuousCollisionEvaluator::LVSContinuousCollisionEvaluator(tesseract_kinematics::ForwardKinematics::ConstPtr manip,
     tesseract_environment::Environment::ConstPtr env,
     tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
     const Eigen::Isometry3d& world_to_base,
     const TrajOptCollisionConfig& collision_config,
+    ContinuousCollisionEvaluatorType evaluator_type,
     bool dynamic_environment)
   : manip_(std::move(manip))
   , env_(std::move(env))
   , adjacency_map_(std::move(adjacency_map))
   , world_to_base_(world_to_base)
   , collision_config_(std::move(collision_config))
+  , state_solver_(env_->getStateSolver())
+  , evaluator_type_(evaluator_type)
   , dynamic_environment_(dynamic_environment)
 {
   // If the environment is not expected to change, then the cloned state solver may be used each time.
@@ -60,7 +62,9 @@ LVSContinuousCollisionEvaluator::LVSContinuousCollisionEvaluator(
 
   contact_manager_ = env_->getContinuousContactManager();
   contact_manager_->setActiveCollisionObjects(adjacency_map_->getActiveLinkNames());
-  contact_manager_->setCollisionMarginData(collision_config.collision_margin_data);
+  contact_manager_->setCollisionMarginData(collision_config_.collision_margin_data);
+  // Increase the default by the buffer
+  contact_manager_->setDefaultCollisionMarginData(collision_config_.collision_margin_data.getMaxCollisionMargin() + collision_config_.collision_margin_buffer);
 }
 
 void LVSContinuousCollisionEvaluator::CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
@@ -169,8 +173,8 @@ void LVSContinuousCollisionEvaluator::CalcCollisionsHelper(const Eigen::Ref<cons
       // Contains the contact distance threshold and coefficient for the given link pair
       double dist = collision_config_.collision_margin_data.getPairCollisionMargin(pair.first.first, pair.first.second);
       double coeff = collision_config_.collision_coeff_data.getPairCollisionCoeff(pair.first.first, pair.first.second);
-      const Eigen::Vector2d data = { dist, coeff };
-      removeInvalidContactResults(pair.second, data, evaluator_type_, collision_config_.collision_margin_buffer);
+      const Eigen::Vector3d data = { dist, collision_config_.collision_margin_buffer, coeff };
+      removeInvalidContactResults(pair.second, data, evaluator_type_);
     }
   }
 }
@@ -185,14 +189,15 @@ GradientResults LVSContinuousCollisionEvaluator::GetGradient(const Eigen::Vector
                                                                                contact_result.link_names[1]);
   double coeff = collision_config_.collision_coeff_data.getPairCollisionCoeff(contact_result.link_names[0],
                                                                               contact_result.link_names[1]);
-  const Eigen::Vector2d data = { dist, coeff };
+
+  const Eigen::Vector3d data = { dist, collision_config_.collision_margin_buffer, coeff };
 
   return getGradient(dofvals0, dofvals1, contact_result, data, manip_, adjacency_map_, world_to_base_, isTimestep1);
 }
 
 TrajOptCollisionConfig& LVSContinuousCollisionEvaluator::GetCollisionConfig() { return collision_config_; }
 
-LVSCollisionEvaluatorType LVSContinuousCollisionEvaluator::GetEvaluatorType() const { return evaluator_type_; }
+ContinuousCollisionEvaluatorType LVSContinuousCollisionEvaluator::GetEvaluatorType() const { return evaluator_type_; }
 
 //////////////////////////////////////////
 
@@ -202,12 +207,15 @@ LVSDiscreteCollisionEvaluator::LVSDiscreteCollisionEvaluator(
     tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
     const Eigen::Isometry3d& world_to_base,
     const TrajOptCollisionConfig& collision_config,
+    ContinuousCollisionEvaluatorType evaluator_type,
     bool dynamic_environment)
   : manip_(std::move(manip))
   , env_(std::move(env))
   , adjacency_map_(std::move(adjacency_map))
   , world_to_base_(world_to_base)
   , collision_config_(std::move(collision_config))
+  , state_solver_(env_->getStateSolver())
+  , evaluator_type_(evaluator_type)
   , dynamic_environment_(dynamic_environment)
 {
   // If the environment is not expected to change, then the cloned state solver may be used each time.
@@ -228,7 +236,9 @@ LVSDiscreteCollisionEvaluator::LVSDiscreteCollisionEvaluator(
 
   contact_manager_ = env_->getDiscreteContactManager();
   contact_manager_->setActiveCollisionObjects(adjacency_map_->getActiveLinkNames());
-  contact_manager_->setCollisionMarginData(collision_config.collision_margin_data);
+  contact_manager_->setCollisionMarginData(collision_config_.collision_margin_data);
+  // Increase the default by the buffer
+  contact_manager_->setDefaultCollisionMarginData(collision_config_.collision_margin_data.getMaxCollisionMargin() + collision_config_.collision_margin_buffer);
 }
 
 void LVSDiscreteCollisionEvaluator::CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
@@ -334,13 +344,14 @@ GradientResults LVSDiscreteCollisionEvaluator::GetGradient(const Eigen::VectorXd
                                                                                contact_result.link_names[1]);
   double coeff = collision_config_.collision_coeff_data.getPairCollisionCoeff(contact_result.link_names[0],
                                                                               contact_result.link_names[1]);
-  const Eigen::Vector2d data = { dist, coeff };
+
+  const Eigen::Vector3d data = { dist, collision_config_.collision_margin_buffer, coeff };
 
   return getGradient(dofvals0, dofvals1, contact_result, data, manip_, adjacency_map_, world_to_base_, isTimestep1);
 }
 
 TrajOptCollisionConfig& LVSDiscreteCollisionEvaluator::GetCollisionConfig() { return collision_config_; }
 
-LVSCollisionEvaluatorType LVSDiscreteCollisionEvaluator::GetEvaluatorType() const { return evaluator_type_; }
+ContinuousCollisionEvaluatorType LVSDiscreteCollisionEvaluator::GetEvaluatorType() const { return evaluator_type_; }
 
 }  // namespace trajopt

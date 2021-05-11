@@ -40,6 +40,7 @@ SingleTimestepCollisionEvaluator::SingleTimestepCollisionEvaluator(
   , adjacency_map_(std::move(adjacency_map))
   , world_to_base_(world_to_base)
   , collision_config_(std::move(collision_config))
+  , state_solver_(env_->getStateSolver())
   , dynamic_environment_(dynamic_environment)
 {
   // If the environment is not expected to change, then the cloned state solver may be used each time.
@@ -60,7 +61,9 @@ SingleTimestepCollisionEvaluator::SingleTimestepCollisionEvaluator(
 
   contact_manager_ = env_->getDiscreteContactManager();
   contact_manager_->setActiveCollisionObjects(adjacency_map_->getActiveLinkNames());
-  contact_manager_->setCollisionMarginData(collision_config.collision_margin_data);
+  contact_manager_->setCollisionMarginData(collision_config_.collision_margin_data);
+  // Increase the default by the buffer
+  contact_manager_->setDefaultCollisionMarginData(collision_config_.collision_margin_data.getMaxCollisionMargin() + collision_config_.collision_margin_buffer);
 }
 
 void SingleTimestepCollisionEvaluator::CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals,
@@ -135,7 +138,7 @@ GradientResults SingleTimestepCollisionEvaluator::GetGradient(const Eigen::Vecto
                                                                                contact_result.link_names[1]);
   double coeff = collision_config_.collision_coeff_data.getPairCollisionCoeff(contact_result.link_names[0],
                                                                               contact_result.link_names[1]);
-  const Eigen::Vector2d data = { dist, coeff };
+  const Eigen::Vector3d data = { dist, collision_config_.collision_margin_buffer, coeff };
 
   return getGradient(dofvals, contact_result, data, manip_, adjacency_map_, world_to_base_);
 }

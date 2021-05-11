@@ -40,9 +40,22 @@ using GetStateFn =
                                                        const Eigen::Ref<const Eigen::VectorXd>& joint_values)>;
 
 /**
+ * @brief IFOPT does not support dynamically changing the constraint size so
+ * all collision gradient data must be combined into a single gradient and error.
+ * This allows switching between different methods for calculating a single gradient and error.
+ */
+enum class GradientCombineMethod
+{
+  SUM = 0,
+  WEIGHTED_SUM = 1,
+  LEAST_SQUARES = 2,
+  WEIGHTED_LEAST_SQUARES = 3
+};
+
+/**
  * @brief This contains the different types of expression evaluators used when performing continuous collision checking.
  */
-enum class LVSCollisionEvaluatorType
+enum class ContinuousCollisionEvaluatorType
 {
   /** @brief Both start and end state variables are free to be adjusted */
   START_FREE_END_FREE = 0,
@@ -122,12 +135,6 @@ struct TrajOptCollisionConfig : public tesseract_collision::CollisionCheckConfig
   TrajOptCollisionConfig() = default;
   TrajOptCollisionConfig(double margin, double coeff);
 
-  /**
-   * @brief Use the weighted sum for each link pair. This reduces the number equations added to the problem
-   * If set to true, it is recommended to start with the coeff set to one
-   */
-  bool use_weighted_sum = false;
-
   /** @brief The collision coeff/weight */
   CollisionCoeffData collision_coeff_data;
 
@@ -145,6 +152,12 @@ struct LinkGradientResults
   /** @brief Gradient Results */
   Eigen::VectorXd gradient;
 
+  /** @brief The minimum translation vector to move link out of collision*/
+  Eigen::VectorXd translation_vector;
+
+  /** @brief The robot jocobian at the contact point */
+  Eigen::MatrixXd jacobian;
+
   /** @brief Gradient Scale */
   double scale{ 1.0 };
 };
@@ -156,13 +169,24 @@ struct GradientResults
    * @brief Construct the GradientResults
    * @param data The link pair safety margin data
    */
-  GradientResults(const Eigen::Vector2d& data);
+  GradientResults(const Eigen::Vector3d& data);
 
   /** @brief The gradient results data for LinkA and LinkB */
   std::array<LinkGradientResults, 2> gradients;
 
-  /** @brief The link pair safety margin data */
-  const Eigen::Vector2d& data;
+  /** @brief The error std::max<double>(((dist - dist_result.distance) * coeff), 0.) */
+  double error {0};
+
+  /** @brief The error std::max<double>(((dist + buffer - dist_result.distance) * coeff), 0.) */
+  double error_with_buffer {0};
+
+  /**
+   * @brief The link pair safety margin data
+   * [0] safety margin
+   * [1] safety margin buffer
+   * [2] coefficent
+   */
+  Eigen::Vector3d data;
 };
 }  // namespace trajopt
 #endif  // TRAJOPT_IFOPT_COLLISION_TYPES_H

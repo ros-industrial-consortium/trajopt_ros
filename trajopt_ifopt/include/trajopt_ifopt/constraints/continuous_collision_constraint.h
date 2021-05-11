@@ -1,6 +1,6 @@
 /**
- * @file lvs_collision_constraint.h
- * @brief The longest valid segment collision position constraint
+ * @file continuous_collision_constraint.h
+ * @brief The continuous collision position constraint
  *
  * @author Levi Armstrong
  * @author Matthew Powelson
@@ -24,29 +24,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef TRAJOPT_IFOPT_LVS_COLLISION_CONSTRAINT_H
-#define TRAJOPT_IFOPT_LVS_COLLISION_CONSTRAINT_H
+#ifndef TRAJOPT_IFOPT_CONTINUOUS_COLLISION_CONSTRAINT_H
+#define TRAJOPT_IFOPT_CONTINUOUS_COLLISION_CONSTRAINT_H
 #include <trajopt_utils/macros.h>
 TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <Eigen/Eigen>
 #include <ifopt/constraint_set.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
-#include <trajopt_ifopt/constraints/lvs_collision_evaluators.h>
+#include <trajopt_ifopt/constraints/continuous_collision_evaluators.h>
 #include <trajopt_ifopt/variable_sets/joint_position_variable.h>
 
 namespace trajopt
 {
-class LVSCollisionConstraintIfopt : public ifopt::ConstraintSet
+class ContinuousCollisionConstraintIfopt : public ifopt::ConstraintSet
 {
 public:
-  using Ptr = std::shared_ptr<LVSCollisionConstraintIfopt>;
-  using ConstPtr = std::shared_ptr<const LVSCollisionConstraintIfopt>;
+  using Ptr = std::shared_ptr<ContinuousCollisionConstraintIfopt>;
+  using ConstPtr = std::shared_ptr<const ContinuousCollisionConstraintIfopt>;
 
-  LVSCollisionConstraintIfopt(LVSCollisionEvaluator::Ptr collision_evaluator,
-                              JointPosition::ConstPtr position_var0,
-                              JointPosition::ConstPtr position_var1,
-                              const std::string& name = "LVSCollision");
+  ContinuousCollisionConstraintIfopt(ContinuousCollisionEvaluator::Ptr collision_evaluator,
+                                     GradientCombineMethod gradient_method,
+                                     JointPosition::ConstPtr position_var0,
+                                     JointPosition::ConstPtr position_var1,
+                                     const std::string& name = "LVSCollision");
 
   /**
    * @brief Returns the values associated with the constraint.
@@ -79,7 +80,7 @@ public:
    * @brief Get the collision evaluator. This exposed for plotter callbacks
    * @return The collision evaluator
    */
-  LVSCollisionEvaluator::Ptr GetCollisionEvaluator() const;
+  ContinuousCollisionEvaluator::Ptr GetCollisionEvaluator() const;
 
 private:
   /** @brief The number of joints in a single JointPosition */
@@ -95,7 +96,8 @@ private:
   JointPosition::ConstPtr position_var0_;
   JointPosition::ConstPtr position_var1_;
 
-  LVSCollisionEvaluator::Ptr collision_evaluator_;
+  ContinuousCollisionEvaluator::Ptr collision_evaluator_;
+  GradientCombineMethod gradient_method_;
 
   void CalcJacobianBlockStartFree(Jacobian& jac_block,
                                   const Eigen::Ref<const Eigen::VectorXd>& joint_vals0,
@@ -112,4 +114,4 @@ private:
 };
 };  // namespace trajopt
 
-#endif  // TRAJOPT_IFOPT_LVS_COLLISION_CONSTRAINT_H
+#endif  // TRAJOPT_IFOPT_CONTINUOUS_COLLISION_CONSTRAINT_H

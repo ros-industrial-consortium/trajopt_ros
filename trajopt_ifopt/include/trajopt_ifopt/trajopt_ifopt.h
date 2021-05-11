@@ -25,9 +25,9 @@
 #define TRAJOPT_IFOPT_TRAJOPT_IFOPT_H
 
 #include <trajopt_ifopt/constraints/discrete_collision_constraint.h>
-#include <trajopt_ifopt/constraints/lvs_collision_constraint.h>
+#include <trajopt_ifopt/constraints/continuous_collision_constraint.h>
 #include <trajopt_ifopt/constraints/discrete_collision_evaluators.h>
-#include <trajopt_ifopt/constraints/lvs_collision_evaluators.h>
+#include <trajopt_ifopt/constraints/continuous_collision_evaluators.h>
 #include <trajopt_ifopt/constraints/collision_utils.h>
 #include <trajopt_ifopt/constraints/collision_types.h>
 

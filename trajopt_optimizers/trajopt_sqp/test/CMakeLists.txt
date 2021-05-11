@@ -60,3 +60,5 @@ add_gtest(${PROJECT_NAME}_joint_position_optimization_unit joint_position_optimi
 add_gtest(${PROJECT_NAME}_joint_velocity_optimization_unit joint_velocity_optimization_unit.cpp)
 add_gtest(${PROJECT_NAME}_cart_position_optimization_unit cart_position_optimization_unit.cpp)
 add_gtest(${PROJECT_NAME}_cart_position_optimization_trajopt_sco_unit cart_position_optimization_trajopt_sco_unit.cpp)
+add_gtest(${PROJECT_NAME}_cast_cost_unit cast_cost_orig_unit.cpp)
+add_gtest(${PROJECT_NAME}_simple_collision_unit simple_collision_unit.cpp)

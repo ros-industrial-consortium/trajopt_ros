@@ -41,8 +41,8 @@ public:
 
   void SetUp() override
   {
-    boost::filesystem::path urdf_file(std::string(TRAJOPT_DIR) + "/test/data/boxbot.urdf");
-    boost::filesystem::path srdf_file(std::string(TRAJOPT_DIR) + "/test/data/boxbot.srdf");
+    boost::filesystem::path urdf_file(std::string(TRAJOPT_DIR) + "/test/data/spherebot.urdf");
+    boost::filesystem::path srdf_file(std::string(TRAJOPT_DIR) + "/test/data/spherebot.srdf");
 
     ResourceLocator::Ptr locator = std::make_shared<SimpleResourceLocator>(locateResource);
     EXPECT_TRUE(env_->init<OFKTStateSolver>(urdf_file, srdf_file, locator));
@@ -58,11 +58,11 @@ TEST_F(CastTest, boxes)  // NOLINT
 {
   CONSOLE_BRIDGE_logDebug("CastTest, boxes");
 
-  Json::Value root = readJsonFile(std::string(TRAJOPT_DIR) + "/test/data/config/box_cast_test.json");
+  Json::Value root = readJsonFile(std::string(TRAJOPT_DIR) + "/test/data/config/simple_collision_test.json");
 
   std::unordered_map<std::string, double> ipos;
-  ipos["boxbot_x_joint"] = -1.9;
-  ipos["boxbot_y_joint"] = 0;
+  ipos["spherebot_x_joint"] = -0.75;
+  ipos["spherebot_y_joint"] = 0.75;
   env_->setState(ipos);
 
   //  plotter_->plotScene();
@@ -77,7 +77,7 @@ TEST_F(CastTest, boxes)  // NOLINT
       env_->getSceneGraph(), prob->GetKin()->getActiveLinkNames(), prob->GetEnv()->getCurrentState()->link_transforms);
 
   manager->setActiveCollisionObjects(adjacency_map->getActiveLinkNames());
-  manager->setDefaultCollisionMarginData(0);
+  manager->setDefaultCollisionMarginData(0.2);
 
   collisions.clear();
   tesseract_collision::CollisionCheckConfig config;
