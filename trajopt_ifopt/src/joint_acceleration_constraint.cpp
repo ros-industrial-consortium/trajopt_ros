@@ -96,8 +96,8 @@ void JointAccelConstraint::FillJacobianBlock(std::string var_set, Jacobian& jac_
       // jac block will be (n_vars-1)*n_dof x n_dof
       for (int j = 0; j < n_dof_; j++)
       {
-        // The first and last variable are special and only effect the first and last constraint. Everything else
-        // effects 2
+        // The last two variable are special and only effect the last two constraints. Everything else
+        // effects 3
         if (i < n_vars_ - 2)
           jac_block.coeffRef(i * n_dof_ + j, j) = 1.0;
         if (i > 0 && i < n_vars_ - 1)
