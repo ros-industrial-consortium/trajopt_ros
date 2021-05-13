@@ -80,8 +80,12 @@ Eigen::VectorXd getLeastSquaresGradient(std::vector<trajopt::GradientResults> gr
  * @param num_eq The number equations
  * @return A gradient
  */
-Eigen::VectorXd getWeightedLeastSquaresGradient(std::vector<trajopt::GradientResults> grad_results, long dof, long num_eq);
-Eigen::VectorXd getWeightedLeastSquaresGradient2(std::vector<trajopt::GradientResults> grad_results, long dof, long num_eq);
+Eigen::VectorXd getWeightedLeastSquaresGradient(std::vector<trajopt::GradientResults> grad_results,
+                                                long dof,
+                                                long num_eq);
+Eigen::VectorXd getWeightedLeastSquaresGradient2(std::vector<trajopt::GradientResults> grad_results,
+                                                 long dof,
+                                                 long num_eq);
 
 /** @brief These were from the original trajopt */
 Eigen::VectorXd getWeightedAvgGradient(std::vector<trajopt::GradientResults> grad_results, long dof);
@@ -98,7 +102,7 @@ Eigen::VectorXd getSumGradient(std::vector<trajopt::GradientResults> grad_result
  */
 GradientResults getGradient(const Eigen::VectorXd& dofvals,
                             const tesseract_collision::ContactResult& contact_result,
-                            const Eigen::Vector3d &data,
+                            const Eigen::Vector3d& data,
                             const tesseract_kinematics::ForwardKinematics::ConstPtr& manip,
                             const tesseract_environment::AdjacencyMap::ConstPtr& adjacency_map,
                             const Eigen::Isometry3d& world_to_base);
@@ -114,7 +118,7 @@ GradientResults getGradient(const Eigen::VectorXd& dofvals,
 GradientResults getGradient(const Eigen::VectorXd& dofvals0,
                             const Eigen::VectorXd& dofvals1,
                             const tesseract_collision::ContactResult& contact_result,
-                            const Eigen::Vector3d &data,
+                            const Eigen::Vector3d& data,
                             const tesseract_kinematics::ForwardKinematics::ConstPtr& manip,
                             const tesseract_environment::AdjacencyMap::ConstPtr& adjacency_map,
                             const Eigen::Isometry3d& world_to_base,

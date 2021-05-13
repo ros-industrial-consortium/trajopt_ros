@@ -54,6 +54,7 @@ macro(add_gtest test_name test_file)
 endmacro()
 
 add_gtest(${PROJECT_NAME}_planning_unit planning_unit.cpp)
+add_gtest(${PROJECT_NAME}_numerical_ik_unit numerical_ik_unit.cpp)
 #add_gtest(${PROJECT_NAME}_interface_unit interface_unit.cpp)
 add_gtest(${PROJECT_NAME}_joint_costs_unit joint_costs_unit.cpp)
 add_gtest(${PROJECT_NAME}_kinematic_costs_unit kinematic_costs_unit.cpp)

@@ -35,11 +35,12 @@ TRAJOPT_IGNORE_WARNINGS_POP
 
 namespace trajopt
 {
-ContinuousCollisionConstraintIfopt::ContinuousCollisionConstraintIfopt(ContinuousCollisionEvaluator::Ptr collision_evaluator,
-                                                                       GradientCombineMethod gradient_method,
-                                                                       JointPosition::ConstPtr position_var0,
-                                                                       JointPosition::ConstPtr position_var1,
-                                                                       const std::string& name)
+ContinuousCollisionConstraintIfopt::ContinuousCollisionConstraintIfopt(
+    ContinuousCollisionEvaluator::Ptr collision_evaluator,
+    GradientCombineMethod gradient_method,
+    JointPosition::ConstPtr position_var0,
+    JointPosition::ConstPtr position_var1,
+    const std::string& name)
   : ifopt::ConstraintSet(1, name)
   , position_var0_(std::move(position_var0))
   , position_var1_(std::move(position_var1))
@@ -95,8 +96,9 @@ void ContinuousCollisionConstraintIfopt::FillJacobianBlock(std::string var_set, 
   }
 }
 
-Eigen::VectorXd ContinuousCollisionConstraintIfopt::CalcValues(const Eigen::Ref<const Eigen::VectorXd>& joint_vals0,
-                                                        const Eigen::Ref<const Eigen::VectorXd>& joint_vals1) const
+Eigen::VectorXd
+ContinuousCollisionConstraintIfopt::CalcValues(const Eigen::Ref<const Eigen::VectorXd>& joint_vals0,
+                                               const Eigen::Ref<const Eigen::VectorXd>& joint_vals1) const
 {
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
 
@@ -109,56 +111,56 @@ Eigen::VectorXd ContinuousCollisionConstraintIfopt::CalcValues(const Eigen::Ref<
 
   switch (gradient_method_)
   {
-  case GradientCombineMethod::SUM:
-  {
-    for (tesseract_collision::ContactResult& dist_result : dist_results)
+    case GradientCombineMethod::SUM:
     {
-      double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
-          dist_result.link_names[0], dist_result.link_names[1]);
-      double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
-          dist_result.link_names[0], dist_result.link_names[1]);
-      err[0] += std::max<double>(((dist - dist_result.distance) * coeff), 0.);
+      for (tesseract_collision::ContactResult& dist_result : dist_results)
+      {
+        double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
+            dist_result.link_names[0], dist_result.link_names[1]);
+        double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
+            dist_result.link_names[0], dist_result.link_names[1]);
+        err[0] += std::max<double>(((dist - dist_result.distance) * coeff), 0.);
+      }
+      break;
     }
-    break;
-  }
-  case GradientCombineMethod::WEIGHTED_SUM:
-  {
-    for (tesseract_collision::ContactResult& dist_result : dist_results)
+    case GradientCombineMethod::WEIGHTED_SUM:
     {
-      double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
-          dist_result.link_names[0], dist_result.link_names[1]);
-      double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
-          dist_result.link_names[0], dist_result.link_names[1]);
-      err[0] += std::max<double>((std::pow(dist - dist_result.distance, 2) * coeff), 0.);
+      for (tesseract_collision::ContactResult& dist_result : dist_results)
+      {
+        double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
+            dist_result.link_names[0], dist_result.link_names[1]);
+        double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
+            dist_result.link_names[0], dist_result.link_names[1]);
+        err[0] += std::max<double>((std::pow(dist - dist_result.distance, 2) * coeff), 0.);
+      }
+      break;
     }
-    break;
-  }
-  case GradientCombineMethod::LEAST_SQUARES:
-  {
-    for (tesseract_collision::ContactResult& dist_result : dist_results)
+    case GradientCombineMethod::LEAST_SQUARES:
     {
-      double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
-          dist_result.link_names[0], dist_result.link_names[1]);
-      double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
-          dist_result.link_names[0], dist_result.link_names[1]);
-      err[0] += std::max<double>(((dist - dist_result.distance) * coeff), 0.);
+      for (tesseract_collision::ContactResult& dist_result : dist_results)
+      {
+        double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
+            dist_result.link_names[0], dist_result.link_names[1]);
+        double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
+            dist_result.link_names[0], dist_result.link_names[1]);
+        err[0] += std::max<double>(((dist - dist_result.distance) * coeff), 0.);
+      }
+      err[0] = err[0] / static_cast<double>(dist_results.size());
+      break;
     }
-    err[0] = err[0] / static_cast<double>(dist_results.size());
-    break;
-  }
-  case GradientCombineMethod::WEIGHTED_LEAST_SQUARES:
-  {
-    for (tesseract_collision::ContactResult& dist_result : dist_results)
+    case GradientCombineMethod::WEIGHTED_LEAST_SQUARES:
     {
-      double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
-          dist_result.link_names[0], dist_result.link_names[1]);
-      double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
-          dist_result.link_names[0], dist_result.link_names[1]);
-      err[0] += std::max<double>((std::pow(dist - dist_result.distance, 2) * coeff), 0.);
+      for (tesseract_collision::ContactResult& dist_result : dist_results)
+      {
+        double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
+            dist_result.link_names[0], dist_result.link_names[1]);
+        double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
+            dist_result.link_names[0], dist_result.link_names[1]);
+        err[0] += std::max<double>((std::pow(dist - dist_result.distance, 2) * coeff), 0.);
+      }
+      err[0] = err[0] / static_cast<double>(dist_results.size());
+      break;
     }
-    err[0] = err[0] / static_cast<double>(dist_results.size());
-    break;
-  }
   }
 
   return err;
@@ -170,9 +172,10 @@ void ContinuousCollisionConstraintIfopt::SetBounds(const std::vector<ifopt::Boun
   bounds_ = bounds;
 }
 
-void ContinuousCollisionConstraintIfopt::CalcJacobianBlockStartFree(Jacobian& jac_block,
-                                                             const Eigen::Ref<const Eigen::VectorXd>& joint_vals0,
-                                                             const Eigen::Ref<const Eigen::VectorXd>& joint_vals1) const
+void ContinuousCollisionConstraintIfopt::CalcJacobianBlockStartFree(
+    Jacobian& jac_block,
+    const Eigen::Ref<const Eigen::VectorXd>& joint_vals0,
+    const Eigen::Ref<const Eigen::VectorXd>& joint_vals1) const
 {
   // Reserve enough room in the sparse matrix
   jac_block.reserve(n_dof_);
@@ -182,7 +185,7 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockStartFree(Jacobian& ja
   collision_evaluator_->CalcCollisions(joint_vals0, joint_vals1, dist_results);
 
   // Get gradients for all contacts
-  long num_eq {0};
+  long num_eq{ 0 };
   std::vector<trajopt::GradientResults> grad_results;
   grad_results.reserve(dist_results.size());
   for (tesseract_collision::ContactResult& dist_result : dist_results)
@@ -196,29 +199,29 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockStartFree(Jacobian& ja
   Eigen::VectorXd grad_vec;
   switch (gradient_method_)
   {
-  case GradientCombineMethod::SUM:
-  {
-    grad_vec = getSumGradient(grad_results, n_dof_);
-    break;
+    case GradientCombineMethod::SUM:
+    {
+      grad_vec = getSumGradient(grad_results, n_dof_);
+      break;
+    }
+    case GradientCombineMethod::WEIGHTED_SUM:
+    {
+      grad_vec = getSumGradient(grad_results, n_dof_);
+      break;
+    }
+    case GradientCombineMethod::LEAST_SQUARES:
+    {
+      grad_vec = getLeastSquaresGradient(grad_results, n_dof_, num_eq);
+      break;
+    }
+    case GradientCombineMethod::WEIGHTED_LEAST_SQUARES:
+    {
+      grad_vec = getWeightedLeastSquaresGradient(grad_results, n_dof_, num_eq);
+      // grad_vec = getWeightedLeastSquaresGradient2(grad_results, n_dof_, num_eq);
+      break;
+    }
   }
-  case GradientCombineMethod::WEIGHTED_SUM:
-  {
-    grad_vec = getSumGradient(grad_results, n_dof_);
-    break;
-  }
-  case GradientCombineMethod::LEAST_SQUARES:
-  {
-    grad_vec = getLeastSquaresGradient(grad_results, n_dof_, num_eq);
-    break;
-  }
-  case GradientCombineMethod::WEIGHTED_LEAST_SQUARES:
-  {
-    grad_vec = getWeightedLeastSquaresGradient(grad_results, n_dof_, num_eq);
-    // grad_vec = getWeightedLeastSquaresGradient2(grad_results, n_dof_, num_eq);
-    break;
-  }
-  }
-  
+
   // This does work but could be faster
   for (int j = 0; j < n_dof_; j++)
   {
@@ -227,9 +230,10 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockStartFree(Jacobian& ja
   }
 }
 
-void ContinuousCollisionConstraintIfopt::CalcJacobianBlockEndFree(Jacobian& jac_block,
-                                                           const Eigen::Ref<const Eigen::VectorXd>& joint_vals0,
-                                                           const Eigen::Ref<const Eigen::VectorXd>& joint_vals1) const
+void ContinuousCollisionConstraintIfopt::CalcJacobianBlockEndFree(
+    Jacobian& jac_block,
+    const Eigen::Ref<const Eigen::VectorXd>& joint_vals0,
+    const Eigen::Ref<const Eigen::VectorXd>& joint_vals1) const
 {
   // Reserve enough room in the sparse matrix
   jac_block.reserve(n_dof_);
@@ -239,7 +243,7 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockEndFree(Jacobian& jac_
   collision_evaluator_->CalcCollisions(joint_vals0, joint_vals1, dist_results);
 
   // Get gradients for all contacts
-  long num_eq {0};
+  long num_eq{ 0 };
   std::vector<trajopt::GradientResults> grad_results;
   grad_results.reserve(dist_results.size());
   for (tesseract_collision::ContactResult& dist_result : dist_results)
@@ -253,27 +257,27 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockEndFree(Jacobian& jac_
   Eigen::VectorXd grad_vec;
   switch (gradient_method_)
   {
-  case GradientCombineMethod::SUM:
-  {
-    grad_vec = getSumGradient(grad_results, n_dof_);
-    break;
-  }
-  case GradientCombineMethod::WEIGHTED_SUM:
-  {
-    grad_vec = getSumGradient(grad_results, n_dof_);
-    break;
-  }
-  case GradientCombineMethod::LEAST_SQUARES:
-  {
-    grad_vec = getLeastSquaresGradient(grad_results, n_dof_, num_eq);
-    break;
-  }
-  case GradientCombineMethod::WEIGHTED_LEAST_SQUARES:
-  {
-    grad_vec = getWeightedLeastSquaresGradient(grad_results, n_dof_, num_eq);
-    // grad_vec = getWeightedLeastSquaresGradient2(grad_results, n_dof_, num_eq);
-    break;
-  }
+    case GradientCombineMethod::SUM:
+    {
+      grad_vec = getSumGradient(grad_results, n_dof_);
+      break;
+    }
+    case GradientCombineMethod::WEIGHTED_SUM:
+    {
+      grad_vec = getSumGradient(grad_results, n_dof_);
+      break;
+    }
+    case GradientCombineMethod::LEAST_SQUARES:
+    {
+      grad_vec = getLeastSquaresGradient(grad_results, n_dof_, num_eq);
+      break;
+    }
+    case GradientCombineMethod::WEIGHTED_LEAST_SQUARES:
+    {
+      grad_vec = getWeightedLeastSquaresGradient(grad_results, n_dof_, num_eq);
+      // grad_vec = getWeightedLeastSquaresGradient2(grad_results, n_dof_, num_eq);
+      break;
+    }
   }
 
   // This does work but could be faster
@@ -285,9 +289,9 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockEndFree(Jacobian& jac_
 }
 
 void ContinuousCollisionConstraintIfopt::CalcJacobianBlockBothFree(Jacobian& jac_block,
-                                                            const Eigen::Ref<const Eigen::VectorXd>& joint_vals0,
-                                                            const Eigen::Ref<const Eigen::VectorXd>& joint_vals1,
-                                                            bool isTimestep1) const
+                                                                   const Eigen::Ref<const Eigen::VectorXd>& joint_vals0,
+                                                                   const Eigen::Ref<const Eigen::VectorXd>& joint_vals1,
+                                                                   bool isTimestep1) const
 {
   // Reserve enough room in the sparse matrix
   jac_block.reserve(n_dof_);
@@ -297,12 +301,13 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockBothFree(Jacobian& jac
   collision_evaluator_->CalcCollisions(joint_vals0, joint_vals1, dist_results);
 
   // Get gradients for all contacts
-  long num_eq {0};
+  long num_eq{ 0 };
   std::vector<trajopt::GradientResults> grad_results;
   grad_results.reserve(dist_results.size());
   for (tesseract_collision::ContactResult& dist_result : dist_results)
   {
-    trajopt::GradientResults result = collision_evaluator_->GetGradient(joint_vals0, joint_vals1, dist_result, isTimestep1);
+    trajopt::GradientResults result =
+        collision_evaluator_->GetGradient(joint_vals0, joint_vals1, dist_result, isTimestep1);
     num_eq += (result.gradients[0].has_gradient + result.gradients[1].has_gradient);
     grad_results.push_back(result);
   }
@@ -311,27 +316,27 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockBothFree(Jacobian& jac
   Eigen::VectorXd grad_vec;
   switch (gradient_method_)
   {
-  case GradientCombineMethod::SUM:
-  {
-    grad_vec = getSumGradient(grad_results, n_dof_);
-    break;
-  }
-  case GradientCombineMethod::WEIGHTED_SUM:
-  {
-    grad_vec = getSumGradient(grad_results, n_dof_);
-    break;
-  }
-  case GradientCombineMethod::LEAST_SQUARES:
-  {
-    grad_vec = getLeastSquaresGradient(grad_results, n_dof_, num_eq);
-    break;
-  }
-  case GradientCombineMethod::WEIGHTED_LEAST_SQUARES:
-  {
-    grad_vec = getWeightedLeastSquaresGradient(grad_results, n_dof_, num_eq);
-    // grad_vec = getWeightedLeastSquaresGradient2(grad_results, n_dof_, num_eq);
-    break;
-  }
+    case GradientCombineMethod::SUM:
+    {
+      grad_vec = getSumGradient(grad_results, n_dof_);
+      break;
+    }
+    case GradientCombineMethod::WEIGHTED_SUM:
+    {
+      grad_vec = getSumGradient(grad_results, n_dof_);
+      break;
+    }
+    case GradientCombineMethod::LEAST_SQUARES:
+    {
+      grad_vec = getLeastSquaresGradient(grad_results, n_dof_, num_eq);
+      break;
+    }
+    case GradientCombineMethod::WEIGHTED_LEAST_SQUARES:
+    {
+      grad_vec = getWeightedLeastSquaresGradient(grad_results, n_dof_, num_eq);
+      // grad_vec = getWeightedLeastSquaresGradient2(grad_results, n_dof_, num_eq);
+      break;
+    }
   }
 
   // This does work but could be faster
@@ -342,6 +347,9 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockBothFree(Jacobian& jac
   }
 }
 
-ContinuousCollisionEvaluator::Ptr ContinuousCollisionConstraintIfopt::GetCollisionEvaluator() const { return collision_evaluator_; }
+ContinuousCollisionEvaluator::Ptr ContinuousCollisionConstraintIfopt::GetCollisionEvaluator() const
+{
+  return collision_evaluator_;
+}
 
 }  // namespace trajopt

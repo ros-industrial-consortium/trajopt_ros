@@ -175,10 +175,10 @@ struct GradientResults
   std::array<LinkGradientResults, 2> gradients;
 
   /** @brief The error std::max<double>(((dist - dist_result.distance) * coeff), 0.) */
-  double error {0};
+  double error{ 0 };
 
   /** @brief The error std::max<double>(((dist + buffer - dist_result.distance) * coeff), 0.) */
-  double error_with_buffer {0};
+  double error_with_buffer{ 0 };
 
   /**
    * @brief The link pair safety margin data

@@ -8,16 +8,15 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <tesseract_visualization/visualization.h>
 #include <tesseract_scene_graph/utils.h>
 #include <ifopt/problem.h>
-#include <ifopt/ipopt_solver.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
-#include <trajopt_ifopt/utils/numeric_differentiation.h>
 #include <trajopt_ifopt/constraints/continuous_collision_constraint.h>
 #include <trajopt_ifopt/constraints/continuous_collision_evaluators.h>
-#include <trajopt_ifopt/constraints/discrete_collision_constraint.h>
-#include <trajopt_ifopt/constraints/discrete_collision_evaluators.h>
 #include <trajopt_ifopt/constraints/joint_position_constraint.h>
 #include <trajopt_ifopt/costs/squared_cost.h>
+#include <trajopt_sqp/trust_region_sqp_solver.h>
+#include <trajopt_sqp/osqp_eigen_solver.h>
+#include "test_suite_utils.hpp"
 
 using namespace trajopt;
 using namespace tesseract_environment;
@@ -27,43 +26,16 @@ using namespace tesseract_visualization;
 using namespace tesseract_scene_graph;
 using namespace tesseract_geometry;
 
-inline std::string locateResource(const std::string& url)
-{
-  std::string mod_url = url;
-  if (url.find("package://trajopt") == 0)
-  {
-    mod_url.erase(0, strlen("package://trajopt"));
-    size_t pos = mod_url.find('/');
-    if (pos == std::string::npos)
-    {
-      return std::string();
-    }
-
-    std::string package = mod_url.substr(0, pos);
-    mod_url.erase(0, pos);
-    std::string package_path = std::string(TRAJOPT_DIR);
-
-    if (package_path.empty())
-    {
-      return std::string();
-    }
-
-    mod_url = package_path + mod_url;
-  }
-
-  return mod_url;
-}
-
-class SimpleCollisionTest : public testing::TestWithParam<const char*>
+class CastTest : public testing::TestWithParam<const char*>
 {
 public:
   Environment::Ptr env = std::make_shared<Environment>(); /**< Tesseract */
-  Visualization::Ptr plotter_;                            /**< Plotter */
+  Visualization::Ptr plotter;                             /**< Plotter */
 
   void SetUp() override
   {
-    boost::filesystem::path urdf_file(std::string(TRAJOPT_DIR) + "/test/data/spherebot.urdf");
-    boost::filesystem::path srdf_file(std::string(TRAJOPT_DIR) + "/test/data/spherebot.srdf");
+    boost::filesystem::path urdf_file(std::string(TRAJOPT_DIR) + "/test/data/boxbot.urdf");
+    boost::filesystem::path srdf_file(std::string(TRAJOPT_DIR) + "/test/data/boxbot.srdf");
     auto tmp = TRAJOPT_DIR;
     std::cout << tmp;
 
@@ -72,16 +44,14 @@ public:
   }
 };
 
-TEST_F(SimpleCollisionTest, spheres)  // NOLINT
+TEST_F(CastTest, boxes)  // NOLINT
 {
-  CONSOLE_BRIDGE_logDebug("SimpleCollisionTest, spheres");
+  CONSOLE_BRIDGE_logDebug("CastTest, boxes");
 
   std::unordered_map<std::string, double> ipos;
-  ipos["spherebot_x_joint"] = -0.75;
-  ipos["spherebot_y_joint"] = 0.75;
+  ipos["boxbot_x_joint"] = -1.9;
+  ipos["boxbot_y_joint"] = 0;
   env->setState(ipos);
-
-  //  plotter_->plotScene();
 
   std::vector<ContactResultMap> collisions;
   tesseract_environment::StateSolver::Ptr state_solver = env->getStateSolver();
@@ -93,8 +63,6 @@ TEST_F(SimpleCollisionTest, spheres)  // NOLINT
   manager->setActiveCollisionObjects(adjacency_map->getActiveLinkNames());
   manager->setDefaultCollisionMarginData(0);
 
-  collisions.clear();
-
   // 2) Create the problem
   ifopt::Problem nlp;
 
@@ -103,9 +71,25 @@ TEST_F(SimpleCollisionTest, spheres)  // NOLINT
   std::vector<Eigen::VectorXd> positions;
   {
     Eigen::VectorXd pos(2);
-    pos << -0.75, 0.75;
+    pos << -1.9, 0;
     positions.push_back(pos);
     auto var = std::make_shared<trajopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
+    vars.push_back(var);
+    nlp.AddVariableSet(var);
+  }
+  {
+    Eigen::VectorXd pos(2);
+    pos << 0, 1.9;
+    positions.push_back(pos);
+    auto var = std::make_shared<trajopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_1");
+    vars.push_back(var);
+    nlp.AddVariableSet(var);
+  }
+  {
+    Eigen::VectorXd pos(2);
+    pos << 1.9, 3.8;
+    positions.push_back(pos);
+    auto var = std::make_shared<trajopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_2");
     vars.push_back(var);
     nlp.AddVariableSet(var);
   }
@@ -116,43 +100,77 @@ TEST_F(SimpleCollisionTest, spheres)  // NOLINT
       env->getSceneGraph(), kin->getActiveLinkNames(), env->getCurrentState()->link_transforms);
 
   double margin_coeff = 10;
-  double margin = 0.2;
+  double margin = 0.02;
   trajopt::TrajOptCollisionConfig trajopt_collision_config(margin, margin_coeff);
   trajopt_collision_config.collision_margin_buffer = 0.05;
 
-  trajopt::DiscreteCollisionEvaluator::Ptr collision_evaluator =
-      std::make_shared<trajopt::SingleTimestepCollisionEvaluator>(
-          kin, env, adj_map, Eigen::Isometry3d::Identity(), trajopt_collision_config);
+  // 4) Add constraints
+  {  // Fix start position
+    std::vector<trajopt::JointPosition::ConstPtr> fixed_vars = { vars[0] };
+    auto cnt = std::make_shared<trajopt::JointPosConstraint>(positions[0], fixed_vars);
+    nlp.AddConstraintSet(cnt);
+  }
 
-  auto cnt = std::make_shared<trajopt::DiscreteCollisionConstraintIfopt>(
-      collision_evaluator, GradientCombineMethod::SUM, vars[0]);
-  nlp.AddConstraintSet(cnt);
+  {  // Fix end position
+    std::vector<trajopt::JointPosition::ConstPtr> fixed_vars = { vars[2] };
+    auto cnt = std::make_shared<trajopt::JointPosConstraint>(positions[2], fixed_vars);
+    nlp.AddConstraintSet(cnt);
+  }
+
+  for (std::size_t i = 1; i < vars.size(); ++i)
+  {
+    trajopt::ContinuousCollisionEvaluator::Ptr collision_evaluator;
+    if (i == 1)
+    {
+      collision_evaluator = std::make_shared<trajopt::LVSContinuousCollisionEvaluator>(
+          kin,
+          env,
+          adj_map,
+          Eigen::Isometry3d::Identity(),
+          trajopt_collision_config,
+          ContinuousCollisionEvaluatorType::START_FIXED_END_FREE);
+    }
+    else
+    {
+      collision_evaluator = std::make_shared<trajopt::LVSContinuousCollisionEvaluator>(
+          kin,
+          env,
+          adj_map,
+          Eigen::Isometry3d::Identity(),
+          trajopt_collision_config,
+          ContinuousCollisionEvaluatorType::START_FREE_END_FIXED);
+    }
+
+    auto cnt = std::make_shared<trajopt::ContinuousCollisionConstraintIfopt>(
+        collision_evaluator, GradientCombineMethod::WEIGHTED_LEAST_SQUARES, vars[i - 1], vars[i]);
+    nlp.AddConstraintSet(cnt);
+  }
 
   nlp.PrintCurrent();
   std::cout << "Jacobian: \n" << nlp.GetJacobianOfConstraints() << std::endl;
 
-  auto error_calculator = [&](const Eigen::Ref<const Eigen::VectorXd>& x) { return cnt->CalcValues(x); };
-  trajopt::Jacobian num_jac_block = trajopt::calcForwardNumJac(error_calculator, positions[0], 1e-4);
-  std::cout << "Numerical Jacobian: \n" << num_jac_block << std::endl;
-
-  // 5) choose solver and options
-  ifopt::IpoptSolver ipopt;
-  ipopt.SetOption("derivative_test", "first-order");
-  ipopt.SetOption("linear_solver", "mumps");
-  //  ipopt.SetOption("jacobian_approximation", "finite-difference-values");
-  ipopt.SetOption("jacobian_approximation", "exact");
-  ipopt.SetOption("print_level", 5);
+  // 5) Setup solver
+  auto qp_solver = std::make_shared<trajopt_sqp::OSQPEigenSolver>();
+  trajopt_sqp::TrustRegionSQPSolver solver(qp_solver);
+  qp_solver->solver_.settings()->setVerbosity(true);
+  qp_solver->solver_.settings()->setWarmStart(true);
+  qp_solver->solver_.settings()->setPolish(true);
+  qp_solver->solver_.settings()->setAdaptiveRho(false);
+  qp_solver->solver_.settings()->setMaxIteraction(8192);
+  qp_solver->solver_.settings()->setAbsoluteTolerance(1e-4);
+  qp_solver->solver_.settings()->setRelativeTolerance(1e-6);
 
   // 6) solve
-  ipopt.Solve(nlp);
+  solver.verbose = true;
+  solver.Solve(nlp);
   Eigen::VectorXd x = nlp.GetOptVariables()->GetValues();
   std::cout << x.transpose() << std::endl;
 
-  EXPECT_TRUE(ipopt.GetReturnStatus() == 0);
+  EXPECT_TRUE(solver.getStatus() == trajopt_sqp::SQPStatus::NLP_CONVERGED);
 
-  tesseract_common::TrajArray inputs(1, 2);
-  inputs << -0.75, 0.75;
-  Eigen::Map<tesseract_common::TrajArray> results(x.data(), 1, 2);
+  tesseract_common::TrajArray inputs(3, 2);
+  inputs << -1.9, 0, 0, 1.9, 1.9, 3.8;
+  Eigen::Map<tesseract_common::TrajArray> results(x.data(), 3, 2);
 
   tesseract_collision::CollisionCheckConfig config;
   config.type = tesseract_collision::CollisionEvaluatorType::CONTINUOUS;

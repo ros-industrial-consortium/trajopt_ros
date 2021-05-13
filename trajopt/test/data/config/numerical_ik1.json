@@ -4,15 +4,15 @@
     "manip" : "left_arm",
     "convex_solver" : "AUTO_SOLVER"
   },
-  "costs" : [
+  "constraints" : [
   {
     "type" : "cart_pose",
     "params": {
       "xyz" : [0.4,0,0.8],
       "wxyz" : [0,0,1,0],
       "link" : "l_gripper_tool_frame",
-      "pos_coeffs" : [10, 10, 10],
-      "rot_coeffs" : [10, 10, 10],
+      "pos_coeffs" : [1, 1, 1],
+      "rot_coeffs" : [1, 1, 1],
       "target" : "base_footprint"
     }
   }

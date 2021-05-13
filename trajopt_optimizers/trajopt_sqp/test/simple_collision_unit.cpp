@@ -11,10 +11,6 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <ifopt/constraint_set.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
-#include <trajopt_utils/config.hpp>
-#include <trajopt_utils/eigen_conversions.hpp>
-#include <trajopt_utils/logging.hpp>
-#include <trajopt_utils/stl_to_string.hpp>
 #include <trajopt_ifopt/utils/numeric_differentiation.h>
 #include <trajopt_ifopt/constraints/continuous_collision_constraint.h>
 #include <trajopt_ifopt/constraints/continuous_collision_evaluators.h>
@@ -25,11 +21,9 @@ TRAJOPT_IGNORE_WARNINGS_POP
 #include <trajopt_ifopt/variable_sets/joint_position_variable.h>
 #include <trajopt_sqp/trust_region_sqp_solver.h>
 #include <trajopt_sqp/osqp_eigen_solver.h>
-
+#include "test_suite_utils.hpp"
 
 using namespace trajopt;
-using namespace std;
-using namespace util;
 using namespace tesseract_environment;
 using namespace tesseract_kinematics;
 using namespace tesseract_collision;
@@ -37,150 +31,121 @@ using namespace tesseract_visualization;
 using namespace tesseract_scene_graph;
 using namespace tesseract_geometry;
 
-inline std::string locateResource(const std::string& url)
-{
-  std::string mod_url = url;
-  if (url.find("package://trajopt") == 0)
-  {
-    mod_url.erase(0, strlen("package://trajopt"));
-    size_t pos = mod_url.find('/');
-    if (pos == std::string::npos)
-    {
-      return std::string();
-    }
-
-    std::string package = mod_url.substr(0, pos);
-    mod_url.erase(0, pos);
-    std::string package_path = std::string(TRAJOPT_DIR);
-
-    if (package_path.empty())
-    {
-      return std::string();
-    }
-
-    mod_url = package_path + mod_url;
-  }
-
-  return mod_url;
-}
-
 class SimpleCollisionConstraintIfopt : public ifopt::ConstraintSet
 {
 public:
+  SimpleCollisionConstraintIfopt(DiscreteCollisionEvaluator::Ptr collision_evaluator,
+                                 JointPosition::ConstPtr position_var,
+                                 const std::string& name = "SimpleCollisionConstraint")
+    : ifopt::ConstraintSet(3, name)
+    , position_var_(std::move(position_var))
+    , collision_evaluator_(std::move(collision_evaluator))
+  {
+    // Set n_dof_ for convenience
+    n_dof_ = position_var_->GetRows();
+    assert(n_dof_ > 0);
 
-SimpleCollisionConstraintIfopt(DiscreteCollisionEvaluator::Ptr collision_evaluator,
-                               JointPosition::ConstPtr position_var,
-                               const std::string& name = "SimpleCollisionConstraint")
-  : ifopt::ConstraintSet(3, name)
-  , position_var_(std::move(position_var))
-  , collision_evaluator_(std::move(collision_evaluator))
-{
-  // Set n_dof_ for convenience
-  n_dof_ = position_var_->GetRows();
-  assert(n_dof_ > 0);
+    bounds_ = std::vector<ifopt::Bounds>(3, ifopt::BoundSmallerZero);
+  }
 
-  bounds_ = std::vector<ifopt::Bounds>(3, ifopt::BoundSmallerZero);
-}
-
-Eigen::VectorXd GetValues() const
-{
-  // Get current joint values
-  Eigen::VectorXd joint_vals = this->GetVariables()->GetComponent(position_var_->GetName())->GetValues();
-
-  return CalcValues(joint_vals);
-}
-
-// Set the limits on the constraint values
-std::vector<ifopt::Bounds> GetBounds() const { return bounds_; }
-
-void FillJacobianBlock(std::string var_set, Jacobian& jac_block) const
-{
-  // Only modify the jacobian if this constraint uses var_set
-  if (var_set == position_var_->GetName())
+  Eigen::VectorXd GetValues() const
   {
     // Get current joint values
-    VectorXd joint_vals = this->GetVariables()->GetComponent(position_var_->GetName())->GetValues();
+    Eigen::VectorXd joint_vals = this->GetVariables()->GetComponent(position_var_->GetName())->GetValues();
 
-    CalcJacobianBlock(joint_vals, jac_block);
+    return CalcValues(joint_vals);
   }
-}
 
-Eigen::VectorXd CalcValues(const Eigen::Ref<const Eigen::VectorXd>& joint_vals) const
-{
-  Eigen::VectorXd err = Eigen::VectorXd::Zero(3);
+  // Set the limits on the constraint values
+  std::vector<ifopt::Bounds> GetBounds() const { return bounds_; }
 
-  // Check the collisions
-  tesseract_collision::ContactResultVector dist_results;
-  collision_evaluator_->CalcCollisions(joint_vals, dist_results);
+  void FillJacobianBlock(std::string var_set, Jacobian& jac_block) const
+  {
+    // Only modify the jacobian if this constraint uses var_set
+    if (var_set == position_var_->GetName())
+    {
+      // Get current joint values
+      VectorXd joint_vals = this->GetVariables()->GetComponent(position_var_->GetName())->GetValues();
 
-  if (dist_results.empty())
+      CalcJacobianBlock(joint_vals, jac_block);
+    }
+  }
+
+  Eigen::VectorXd CalcValues(const Eigen::Ref<const Eigen::VectorXd>& joint_vals) const
+  {
+    Eigen::VectorXd err = Eigen::VectorXd::Zero(3);
+
+    // Check the collisions
+    tesseract_collision::ContactResultVector dist_results;
+    collision_evaluator_->CalcCollisions(joint_vals, dist_results);
+
+    if (dist_results.empty())
+      return err;
+
+    for (std::size_t i = 0; i < dist_results.size(); ++i)
+    {
+      tesseract_collision::ContactResult& dist_result = dist_results[i];
+      double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
+          dist_result.link_names[0], dist_result.link_names[1]);
+      double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
+          dist_result.link_names[0], dist_result.link_names[1]);
+      err[static_cast<Eigen::Index>(i)] += std::max<double>(((dist - dist_result.distance) * coeff), 0.);
+    }
+
     return err;
-
-  for (std::size_t i = 0; i < dist_results.size(); ++i)
-  {
-    tesseract_collision::ContactResult& dist_result = dist_results[i];
-    double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
-        dist_result.link_names[0], dist_result.link_names[1]);
-    double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
-        dist_result.link_names[0], dist_result.link_names[1]);
-    err[static_cast<Eigen::Index>(i)] += std::max<double>(((dist - dist_result.distance) * coeff), 0.);
   }
 
-  return err;
-}
-
-void SetBounds(const std::vector<ifopt::Bounds>& bounds)
-{
-  assert(bounds.size() == 3);
-  bounds_ = bounds;
-}
-
-void CalcJacobianBlock(const Eigen::Ref<const Eigen::VectorXd>& joint_vals,
-                                                         Jacobian& jac_block) const
-{
-  // Reserve enough room in the sparse matrix
-  jac_block.reserve(n_dof_ * 3);
-
-  // Calculate collisions
-  tesseract_collision::ContactResultVector dist_results;
-  collision_evaluator_->CalcCollisions(joint_vals, dist_results);
-
-  // Get gradients for all contacts
-  std::vector<trajopt::GradientResults> grad_results;
-  grad_results.reserve(dist_results.size());
-  for (tesseract_collision::ContactResult& dist_result : dist_results)
+  void SetBounds(const std::vector<ifopt::Bounds>& bounds)
   {
-    trajopt::GradientResults result = collision_evaluator_->GetGradient(joint_vals, dist_result);
-    grad_results.push_back(result);
+    assert(bounds.size() == 3);
+    bounds_ = bounds;
   }
 
-  for (std::size_t i = 0; i < grad_results.size(); ++i)
+  void CalcJacobianBlock(const Eigen::Ref<const Eigen::VectorXd>& joint_vals, Jacobian& jac_block) const
   {
-    if (grad_results[i].gradients[0].has_gradient)
+    // Reserve enough room in the sparse matrix
+    jac_block.reserve(n_dof_ * 3);
+
+    // Calculate collisions
+    tesseract_collision::ContactResultVector dist_results;
+    collision_evaluator_->CalcCollisions(joint_vals, dist_results);
+
+    // Get gradients for all contacts
+    std::vector<trajopt::GradientResults> grad_results;
+    grad_results.reserve(dist_results.size());
+    for (tesseract_collision::ContactResult& dist_result : dist_results)
     {
-      // This does work but could be faster
-      for (int j = 0; j < n_dof_; j++)
-      {
-        // Collision is 1 x n_dof
-        jac_block.coeffRef(static_cast<Eigen::Index>(i), j) = -1.0 * grad_results[i].data[2] * grad_results[i].gradients[0].gradient[j];
-      }
+      trajopt::GradientResults result = collision_evaluator_->GetGradient(joint_vals, dist_result);
+      grad_results.push_back(result);
     }
-    else if (grad_results[i].gradients[1].has_gradient)
+
+    for (std::size_t i = 0; i < grad_results.size(); ++i)
     {
-      // This does work but could be faster
-      for (int j = 0; j < n_dof_; j++)
+      if (grad_results[i].gradients[0].has_gradient)
       {
-        // Collision is 1 x n_dof
-        jac_block.coeffRef(static_cast<Eigen::Index>(i), j) = -1.0 * grad_results[i].data[2] * grad_results[i].gradients[1].gradient[j];
+        // This does work but could be faster
+        for (int j = 0; j < n_dof_; j++)
+        {
+          // Collision is 1 x n_dof
+          jac_block.coeffRef(static_cast<Eigen::Index>(i), j) =
+              -1.0 * grad_results[i].data[2] * grad_results[i].gradients[0].gradient[j];
+        }
+      }
+      else if (grad_results[i].gradients[1].has_gradient)
+      {
+        // This does work but could be faster
+        for (int j = 0; j < n_dof_; j++)
+        {
+          // Collision is 1 x n_dof
+          jac_block.coeffRef(static_cast<Eigen::Index>(i), j) =
+              -1.0 * grad_results[i].data[2] * grad_results[i].gradients[1].gradient[j];
+        }
       }
     }
   }
-}
 
-DiscreteCollisionEvaluator::Ptr GetCollisionEvaluator() const
-{
-  return collision_evaluator_;
-}
+  DiscreteCollisionEvaluator::Ptr GetCollisionEvaluator() const { return collision_evaluator_; }
+
 private:
   /** @brief The number of joints in a single JointPosition */
   long n_dof_;
@@ -197,11 +162,11 @@ private:
   DiscreteCollisionEvaluator::Ptr collision_evaluator_;
 };
 
-class CastTest : public testing::TestWithParam<const char*>
+class SimpleCollisionTest : public testing::TestWithParam<const char*>
 {
 public:
   Environment::Ptr env = std::make_shared<Environment>(); /**< Tesseract */
-  Visualization::Ptr plotter_;                             /**< Plotter */
+  Visualization::Ptr plotter_;                            /**< Plotter */
 
   void SetUp() override
   {
@@ -212,12 +177,10 @@ public:
 
     ResourceLocator::Ptr locator = std::make_shared<SimpleResourceLocator>(locateResource);
     EXPECT_TRUE(env->init<OFKTStateSolver>(urdf_file, srdf_file, locator));
-
-    gLogLevel = util::LevelError;
   }
 };
 
-TEST_F(CastTest, boxes)  // NOLINT
+TEST_F(SimpleCollisionTest, spheres)  // NOLINT
 {
   CONSOLE_BRIDGE_logDebug("SimpleCollisionTest, spheres");
 
@@ -230,7 +193,7 @@ TEST_F(CastTest, boxes)  // NOLINT
 
   std::vector<ContactResultMap> collisions;
   tesseract_environment::StateSolver::Ptr state_solver = env->getStateSolver();
-  ContinuousContactManager::Ptr manager = env->getContinuousContactManager();
+  DiscreteContactManager::Ptr manager = env->getDiscreteContactManager();
   auto forward_kinematics = env->getManipulatorManager()->getFwdKinematicSolver("manipulator");
   AdjacencyMap::Ptr adjacency_map = std::make_shared<AdjacencyMap>(
       env->getSceneGraph(), forward_kinematics->getActiveLinkNames(), env->getCurrentState()->link_transforms);
@@ -265,9 +228,9 @@ TEST_F(CastTest, boxes)  // NOLINT
   trajopt::TrajOptCollisionConfig trajopt_collision_config(margin, margin_coeff);
   trajopt_collision_config.collision_margin_buffer = 0.05;
 
-
-  trajopt::DiscreteCollisionEvaluator::Ptr collision_evaluator = std::make_shared<trajopt::SingleTimestepCollisionEvaluator>(
-        kin, env, adj_map, Eigen::Isometry3d::Identity(), trajopt_collision_config);
+  trajopt::DiscreteCollisionEvaluator::Ptr collision_evaluator =
+      std::make_shared<trajopt::SingleTimestepCollisionEvaluator>(
+          kin, env, adj_map, Eigen::Isometry3d::Identity(), trajopt_collision_config);
 
   auto cnt = std::make_shared<SimpleCollisionConstraintIfopt>(collision_evaluator, vars[0]);
   nlp.AddConstraintSet(cnt);
@@ -301,16 +264,15 @@ TEST_F(CastTest, boxes)  // NOLINT
   inputs << -0.75, 0.75;
   Eigen::Map<tesseract_common::TrajArray> results(x.data(), 1, 2);
 
-  tesseract_collision::CollisionCheckConfig config;
-  config.type = tesseract_collision::CollisionEvaluatorType::CONTINUOUS;
-  bool found =
-      checkTrajectory(collisions, *manager, *state_solver, forward_kinematics->getJointNames(), inputs, config);
+  bool found = checkTrajectory(
+      collisions, *manager, *state_solver, forward_kinematics->getJointNames(), inputs, trajopt_collision_config);
 
   EXPECT_TRUE(found);
   CONSOLE_BRIDGE_logWarn((found) ? ("Initial trajectory is in collision") : ("Initial trajectory is collision free"));
 
   collisions.clear();
-  found = checkTrajectory(collisions, *manager, *state_solver, forward_kinematics->getJointNames(), results, config);
+  found = checkTrajectory(
+      collisions, *manager, *state_solver, forward_kinematics->getJointNames(), results, trajopt_collision_config);
 
   EXPECT_FALSE(found);
   CONSOLE_BRIDGE_logWarn((found) ? ("Final trajectory is in collision") : ("Final trajectory is collision free"));

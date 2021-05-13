@@ -63,7 +63,8 @@ SingleTimestepCollisionEvaluator::SingleTimestepCollisionEvaluator(
   contact_manager_->setActiveCollisionObjects(adjacency_map_->getActiveLinkNames());
   contact_manager_->setCollisionMarginData(collision_config_.collision_margin_data);
   // Increase the default by the buffer
-  contact_manager_->setDefaultCollisionMarginData(collision_config_.collision_margin_data.getMaxCollisionMargin() + collision_config_.collision_margin_buffer);
+  contact_manager_->setDefaultCollisionMarginData(collision_config_.collision_margin_data.getMaxCollisionMargin() +
+                                                  collision_config_.collision_margin_buffer);
 }
 
 void SingleTimestepCollisionEvaluator::CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals,

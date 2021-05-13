@@ -33,7 +33,7 @@ using namespace tesseract_geometry;
 
 static bool plotting = false;
 
-class CastTest : public testing::TestWithParam<const char*>
+class SimpleCollisionTest : public testing::TestWithParam<const char*>
 {
 public:
   Environment::Ptr env_ = std::make_shared<Environment>(); /**< Tesseract */
@@ -54,9 +54,9 @@ public:
   }
 };
 
-TEST_F(CastTest, boxes)  // NOLINT
+TEST_F(SimpleCollisionTest, spheres)  // NOLINT
 {
-  CONSOLE_BRIDGE_logDebug("CastTest, boxes");
+  CONSOLE_BRIDGE_logDebug("SimpleCollisionTest, spheres");
 
   Json::Value root = readJsonFile(std::string(TRAJOPT_DIR) + "/test/data/config/simple_collision_test.json");
 

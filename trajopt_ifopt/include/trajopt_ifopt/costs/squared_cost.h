@@ -81,13 +81,13 @@ public:
    * @brief Constructs a CostTerm that converts a constraint into a cost with a sum squared error
    * @param constraint Input constraint to be converted to a cost
    */
-  SquaredCost(const ifopt::ConstraintSet::Ptr& constraint);
+  SquaredCost(ifopt::ConstraintSet::Ptr constraint);
   /**
    * @brief Constructs a CostTerm that converts a constraint into a cost with a weighted sum squared error
    * @param constraint Input constraint to be converted to a cost
    * @param weights Weights applied to the constraints. Length should be n_constraints
    */
-  SquaredCost(const ifopt::ConstraintSet::Ptr& constraint, const Eigen::Ref<const Eigen::VectorXd>& weights);
+  SquaredCost(ifopt::ConstraintSet::Ptr constraint, const Eigen::Ref<const Eigen::VectorXd>& weights);
 
   double GetCost() const override;
 

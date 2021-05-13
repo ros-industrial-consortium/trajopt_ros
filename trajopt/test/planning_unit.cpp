@@ -57,69 +57,6 @@ public:
   }
 };
 
-TEST_F(PlanningTest, numerical_ik1)  // NOLINT
-{
-  CONSOLE_BRIDGE_logDebug("PlanningTest, numerical_ik1");
-
-  Json::Value root = readJsonFile(std::string(TRAJOPT_DIR) + "/test/data/config/numerical_ik1.json");
-
-  //  plotter_->plotScene();
-
-  ProblemConstructionInfo pci(env_);
-  pci.fromJson(root);
-  pci.basic_info.convex_solver = sco::ModelType::BPMPD;
-  TrajOptProb::Ptr prob = ConstructProblem(pci);
-  ASSERT_TRUE(!!prob);
-
-  sco::BasicTrustRegionSQP opt(prob);
-  //  if (plotting)
-  //  {
-  //    opt.addCallback(PlotCallback(*prob, plotter_));
-  //  }
-
-  CONSOLE_BRIDGE_logDebug("DOF: %d", prob->GetNumDOF());
-  opt.initialize(DblVec(static_cast<size_t>(prob->GetNumDOF()), 0));
-  double tStart = GetClock();
-  CONSOLE_BRIDGE_logDebug("Size: %d", opt.x().size());
-  std::stringstream ss;
-  ss << toVectorXd(opt.x()).transpose();
-  CONSOLE_BRIDGE_logDebug("Initial Vars: %s", ss.str().c_str());
-  Eigen::Isometry3d change_base = prob->GetEnv()->getLinkTransform(prob->GetKin()->getBaseLinkName());
-  Eigen::Isometry3d initial_pose = prob->GetKin()->calcFwdKin(toVectorXd(opt.x()));
-  initial_pose = change_base * initial_pose;
-
-  ss = std::stringstream();
-  ss << initial_pose.translation().transpose();
-  CONSOLE_BRIDGE_logDebug("Initial Position: %s", ss.str().c_str());
-  sco::OptStatus status = opt.optimize();
-  CONSOLE_BRIDGE_logDebug("Status: %s", sco::statusToString(status).c_str());
-  Eigen::Isometry3d final_pose = prob->GetKin()->calcFwdKin(toVectorXd(opt.x()));
-  final_pose = change_base * final_pose;
-
-  Eigen::Isometry3d goal;
-  goal.setIdentity();
-  goal.translation() << 0.4, 0, 0.8;
-  goal.linear() = Eigen::Quaterniond(0, 0, 1, 0).toRotationMatrix();
-
-  for (auto i = 0; i < 4; ++i)
-  {
-    for (auto j = 0; j < 4; ++j)
-    {
-      EXPECT_NEAR(goal(i, j), final_pose(i, j), 1e-5);
-    }
-  }
-
-  ss = std::stringstream();
-  ss << final_pose.translation().transpose();
-  CONSOLE_BRIDGE_logDebug("Final Position: %s", ss.str().c_str());
-
-  ss = std::stringstream();
-  ss << toVectorXd(opt.x()).transpose();
-  CONSOLE_BRIDGE_logDebug("Final Vars: ", ss.str().c_str());
-
-  CONSOLE_BRIDGE_logDebug("planning time: %.3f", GetClock() - tStart);
-}
-
 TEST_F(PlanningTest, arm_around_table)  // NOLINT
 {
   CONSOLE_BRIDGE_logDebug("PlanningTest, arm_around_table");

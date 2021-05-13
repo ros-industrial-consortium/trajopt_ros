@@ -35,7 +35,7 @@ class CastTest : public testing::TestWithParam<const char*>
 {
 public:
   Environment::Ptr env = std::make_shared<Environment>(); /**< Tesseract */
-  Visualization::Ptr plotter_;                             /**< Plotter */
+  Visualization::Ptr plotter_;                            /**< Plotter */
 
   void SetUp() override
   {
@@ -114,17 +114,17 @@ TEST_F(CastTest, boxes)  // NOLINT
   double margin = 0.3;
   trajopt::TrajOptCollisionConfig trajopt_collision_config(margin, margin_coeff);
   trajopt_collision_config.collision_margin_buffer = 0.05;
-//  trajopt_collision_config.longest_valid_segment_length = 100;
+  //  trajopt_collision_config.longest_valid_segment_length = 100;
 
   // 4) Add constraints
-  { // Fix start position
-    std::vector<trajopt::JointPosition::ConstPtr> fixed_vars = {vars[0]};
+  {  // Fix start position
+    std::vector<trajopt::JointPosition::ConstPtr> fixed_vars = { vars[0] };
     auto cnt = std::make_shared<trajopt::JointPosConstraint>(positions[0], fixed_vars);
     nlp.AddConstraintSet(cnt);
   }
 
-  { // Fix end position
-    std::vector<trajopt::JointPosition::ConstPtr> fixed_vars = {vars[2]};
+  {  // Fix end position
+    std::vector<trajopt::JointPosition::ConstPtr> fixed_vars = { vars[2] };
     auto cnt = std::make_shared<trajopt::JointPosConstraint>(positions[2], fixed_vars);
     nlp.AddConstraintSet(cnt);
   }
@@ -135,26 +135,41 @@ TEST_F(CastTest, boxes)  // NOLINT
     if (i == 1)
     {
       collision_evaluator = std::make_shared<trajopt::LVSContinuousCollisionEvaluator>(
-          kin, env, adj_map, Eigen::Isometry3d::Identity(), trajopt_collision_config, ContinuousCollisionEvaluatorType::START_FIXED_END_FREE);
+          kin,
+          env,
+          adj_map,
+          Eigen::Isometry3d::Identity(),
+          trajopt_collision_config,
+          ContinuousCollisionEvaluatorType::START_FIXED_END_FREE);
     }
     else
     {
       collision_evaluator = std::make_shared<trajopt::LVSContinuousCollisionEvaluator>(
-          kin, env, adj_map, Eigen::Isometry3d::Identity(), trajopt_collision_config, ContinuousCollisionEvaluatorType::START_FREE_END_FIXED);
+          kin,
+          env,
+          adj_map,
+          Eigen::Isometry3d::Identity(),
+          trajopt_collision_config,
+          ContinuousCollisionEvaluatorType::START_FREE_END_FIXED);
     }
 
-    auto cnt = std::make_shared<trajopt::ContinuousCollisionConstraintIfopt>(collision_evaluator, GradientCombineMethod::SUM, vars[i-1], vars[i]);
+    auto cnt = std::make_shared<trajopt::ContinuousCollisionConstraintIfopt>(
+        collision_evaluator, GradientCombineMethod::SUM, vars[i - 1], vars[i]);
     nlp.AddConstraintSet(cnt);
 
-    if (i==1)
+    if (i == 1)
     {
-      auto error_calculator = [&](const Eigen::Ref<const Eigen::VectorXd>& x) { return cnt->CalcValues(positions[0], x); };
+      auto error_calculator = [&](const Eigen::Ref<const Eigen::VectorXd>& x) {
+        return cnt->CalcValues(positions[0], x);
+      };
       trajopt::Jacobian num_jac_block = trajopt::calcForwardNumJac(error_calculator, positions[1], 1e-4);
       std::cout << "Numerical Jacobian: \n" << num_jac_block << std::endl;
     }
     else
     {
-      auto error_calculator = [&](const Eigen::Ref<const Eigen::VectorXd>& x) { return cnt->CalcValues(x, positions[2]); };
+      auto error_calculator = [&](const Eigen::Ref<const Eigen::VectorXd>& x) {
+        return cnt->CalcValues(x, positions[2]);
+      };
       trajopt::Jacobian num_jac_block = trajopt::calcForwardNumJac(error_calculator, positions[1], 1e-4);
       std::cout << "Numerical Jacobian: \n" << num_jac_block << std::endl;
     }
@@ -167,7 +182,7 @@ TEST_F(CastTest, boxes)  // NOLINT
   ifopt::IpoptSolver ipopt;
   ipopt.SetOption("derivative_test", "first-order");
   ipopt.SetOption("linear_solver", "mumps");
-//  ipopt.SetOption("jacobian_approximation", "finite-difference-values");
+  //  ipopt.SetOption("jacobian_approximation", "finite-difference-values");
   ipopt.SetOption("jacobian_approximation", "exact");
   ipopt.SetOption("print_level", 5);
 
@@ -178,9 +193,9 @@ TEST_F(CastTest, boxes)  // NOLINT
 
   EXPECT_TRUE(ipopt.GetReturnStatus() == 0);
 
-  TrajArray inputs(3, 2);
+  tesseract_common::TrajArray inputs(3, 2);
   inputs << -1.9, 0, 0, 1.9, 1.9, 3.8;
-  Eigen::Map<TrajArray> results(x.data(), 3, 2);
+  Eigen::Map<tesseract_common::TrajArray> results(x.data(), 3, 2);
 
   tesseract_collision::CollisionCheckConfig config;
   config.type = tesseract_collision::CollisionEvaluatorType::CONTINUOUS;

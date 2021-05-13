@@ -76,7 +76,7 @@ void processInterpolatedCollisionResults(std::vector<tesseract_collision::Contac
       // Contains the contact distance threshold and coefficient for the given link pair
       double dist = collision_config.collision_margin_data.getPairCollisionMargin(pair.first.first, pair.first.second);
       double coeff = collision_config.collision_coeff_data.getPairCollisionCoeff(pair.first.first, pair.first.second);
-      const Eigen::Vector3d data = { dist, collision_config.collision_margin_buffer, coeff};
+      const Eigen::Vector3d data = { dist, collision_config.collision_margin_buffer, coeff };
 
       // Update cc_time and cc_type
       for (auto& r : pair.second)
@@ -123,7 +123,7 @@ void processInterpolatedCollisionResults(std::vector<tesseract_collision::Contac
 }
 
 void removeInvalidContactResults(tesseract_collision::ContactResultVector& contact_results,
-                                 const Eigen::Vector3d &data,
+                                 const Eigen::Vector3d& data,
                                  ContinuousCollisionEvaluatorType evaluator_type)
 {
   auto end = std::remove_if(
@@ -197,7 +197,6 @@ Eigen::VectorXd getLeastSquaresGradient(std::vector<trajopt::GradientResults> gr
   if (num_eq == 0)
     return Eigen::VectorXd::Zero(dof);
 
-
   Eigen::MatrixXd jacobian(3 * num_eq, dof);
   Eigen::VectorXd error(3 * num_eq);
   long cnt = 0;
@@ -219,15 +218,17 @@ Eigen::VectorXd getLeastSquaresGradient(std::vector<trajopt::GradientResults> gr
     }
   }
 
-//  return jacobian.householderQr().solve(error);
+  //  return jacobian.householderQr().solve(error);
   Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
   tesseract_kinematics::solvePInv(jacobian, error, grad_vec);
 
   return grad_vec.normalized();
-//  return jacobian.transpose() * error;
+  //  return jacobian.transpose() * error;
 }
 
-Eigen::VectorXd getWeightedLeastSquaresGradient(std::vector<trajopt::GradientResults> grad_results, long dof, long num_eq)
+Eigen::VectorXd getWeightedLeastSquaresGradient(std::vector<trajopt::GradientResults> grad_results,
+                                                long dof,
+                                                long num_eq)
 {
   if (num_eq == 0)
     return Eigen::VectorXd::Zero(dof);
@@ -252,17 +253,20 @@ Eigen::VectorXd getWeightedLeastSquaresGradient(std::vector<trajopt::GradientRes
       cnt++;
     }
   }
-  //H=(A^T * W * A)^−1 * A^T * W so that y=Hb
+  // H=(A^T * W * A)^−1 * A^T * W so that y=Hb
   Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
   Eigen::MatrixXd weights = error.normalized().asDiagonal();
   Eigen::MatrixXd jacobian_transpose = jacobian.transpose();
-  tesseract_kinematics::solvePInv(jacobian_transpose * weights * jacobian, jacobian_transpose * weights * error, grad_vec);
+  tesseract_kinematics::solvePInv(
+      jacobian_transpose * weights * jacobian, jacobian_transpose * weights * error, grad_vec);
   return grad_vec.normalized();
 
-      //  return (jacobian_transpose * weights * jacobian).householderQr().solve(jacobian_transpose * weights * error);
+  //  return (jacobian_transpose * weights * jacobian).householderQr().solve(jacobian_transpose * weights * error);
 }
 
-Eigen::VectorXd getWeightedLeastSquaresGradient2(std::vector<trajopt::GradientResults> grad_results, long dof, long num_eq)
+Eigen::VectorXd getWeightedLeastSquaresGradient2(std::vector<trajopt::GradientResults> grad_results,
+                                                 long dof,
+                                                 long num_eq)
 {
   if (num_eq == 0)
     return Eigen::VectorXd::Zero(dof);
@@ -276,28 +280,29 @@ Eigen::VectorXd getWeightedLeastSquaresGradient2(std::vector<trajopt::GradientRe
     {
       error(cnt) = grad.error_with_buffer;
       jacobian.row(cnt) = grad.gradients[0].gradient;
-//      long start_idx = cnt * 3;
-//      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[0].translation_vector;
-//      jacobian.middleRows(start_idx, 3) = grad.gradients[0].jacobian;
+      //      long start_idx = cnt * 3;
+      //      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[0].translation_vector;
+      //      jacobian.middleRows(start_idx, 3) = grad.gradients[0].jacobian;
       cnt++;
     }
     if (grad.gradients[1].has_gradient)
     {
       error(cnt) = grad.error_with_buffer;
       jacobian.row(cnt) = grad.gradients[1].gradient;
-//      long start_idx = cnt * 3;
-//      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[1].translation_vector;
-//      jacobian.middleRows(start_idx, 3) = grad.gradients[1].jacobian;
+      //      long start_idx = cnt * 3;
+      //      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[1].translation_vector;
+      //      jacobian.middleRows(start_idx, 3) = grad.gradients[1].jacobian;
       cnt++;
     }
   }
-  //H=(A^T * W * A)^−1 * A^T * W so that y=Hb
+  // H=(A^T * W * A)^−1 * A^T * W so that y=Hb
   Eigen::MatrixXd weights = error.normalized().asDiagonal();
   Eigen::MatrixXd jacobian_transpose = jacobian.transpose();
-//  return (jacobian_transpose * weights * jacobian).householderQr().solve(jacobian_transpose * weights * error);
+  //  return (jacobian_transpose * weights * jacobian).householderQr().solve(jacobian_transpose * weights * error);
 
   Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
-  tesseract_kinematics::solvePInv(jacobian_transpose * weights * jacobian, jacobian_transpose * weights * error, grad_vec);
+  tesseract_kinematics::solvePInv(
+      jacobian_transpose * weights * jacobian, jacobian_transpose * weights * error, grad_vec);
   return grad_vec;
 }
 
@@ -402,8 +407,8 @@ GradientResults getGradient(const Eigen::VectorXd& dofvals,
                             const Eigen::Isometry3d& world_to_base)
 {
   GradientResults results(data);
-//  results.error = std::max<double>((data[0] - contact_result.distance), 0.);
-//  results.error_with_buffer = std::max<double>((data[0] + data[1] - contact_result.distance), 0.);
+  //  results.error = std::max<double>((data[0] - contact_result.distance), 0.);
+  //  results.error_with_buffer = std::max<double>((data[0] + data[1] - contact_result.distance), 0.);
 
   results.error = (data[0] - contact_result.distance);
   results.error_with_buffer = (data[0] + data[1] - contact_result.distance);
@@ -428,11 +433,11 @@ GradientResults getGradient(const Eigen::VectorXd& dofvals0,
                             bool isTimestep1)
 {
   GradientResults results(data);
-//  results.error = std::max<double>((data[0] - contact_result.distance), 0.);
-//  results.error_with_buffer = std::max<double>((data[0] + data[1] - contact_result.distance), 0.);
+  //  results.error = std::max<double>((data[0] - contact_result.distance), 0.);
+  //  results.error_with_buffer = std::max<double>((data[0] + data[1] - contact_result.distance), 0.);
 
   results.error = (data[0] - contact_result.distance);
-  results.error_with_buffer =(data[0] + data[1] - contact_result.distance);
+  results.error_with_buffer = (data[0] + data[1] - contact_result.distance);
 
   Eigen::VectorXd dofvalst = Eigen::VectorXd::Zero(dofvals0.size());
   for (std::size_t i = 0; i < 2; ++i)

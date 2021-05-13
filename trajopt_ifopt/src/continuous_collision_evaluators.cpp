@@ -28,7 +28,8 @@
 
 namespace trajopt
 {
-LVSContinuousCollisionEvaluator::LVSContinuousCollisionEvaluator(tesseract_kinematics::ForwardKinematics::ConstPtr manip,
+LVSContinuousCollisionEvaluator::LVSContinuousCollisionEvaluator(
+    tesseract_kinematics::ForwardKinematics::ConstPtr manip,
     tesseract_environment::Environment::ConstPtr env,
     tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
     const Eigen::Isometry3d& world_to_base,
@@ -64,7 +65,8 @@ LVSContinuousCollisionEvaluator::LVSContinuousCollisionEvaluator(tesseract_kinem
   contact_manager_->setActiveCollisionObjects(adjacency_map_->getActiveLinkNames());
   contact_manager_->setCollisionMarginData(collision_config_.collision_margin_data);
   // Increase the default by the buffer
-  contact_manager_->setDefaultCollisionMarginData(collision_config_.collision_margin_data.getMaxCollisionMargin() + collision_config_.collision_margin_buffer);
+  contact_manager_->setDefaultCollisionMarginData(collision_config_.collision_margin_data.getMaxCollisionMargin() +
+                                                  collision_config_.collision_margin_buffer);
 }
 
 void LVSContinuousCollisionEvaluator::CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
@@ -238,7 +240,8 @@ LVSDiscreteCollisionEvaluator::LVSDiscreteCollisionEvaluator(
   contact_manager_->setActiveCollisionObjects(adjacency_map_->getActiveLinkNames());
   contact_manager_->setCollisionMarginData(collision_config_.collision_margin_data);
   // Increase the default by the buffer
-  contact_manager_->setDefaultCollisionMarginData(collision_config_.collision_margin_data.getMaxCollisionMargin() + collision_config_.collision_margin_buffer);
+  contact_manager_->setDefaultCollisionMarginData(collision_config_.collision_margin_data.getMaxCollisionMargin() +
+                                                  collision_config_.collision_margin_buffer);
 }
 
 void LVSDiscreteCollisionEvaluator::CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,

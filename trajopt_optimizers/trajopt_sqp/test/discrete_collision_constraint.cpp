@@ -36,6 +36,4 @@ TRAJOPT_IGNORE_WARNINGS_POP
 
 namespace trajopt
 {
-
-
 }  // namespace trajopt
