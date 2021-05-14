@@ -50,6 +50,15 @@ bool TrustRegionSQPSolver::init(ifopt::Problem& nlp)
 
   // Initialize optimization parameters
   results_ = SQPResults(nlp.GetNumberOfOptimizationVariables(), nlp.GetNumberOfConstraints());
+  results_.best_var_vals = nlp_->GetVariableValues();
+
+  // Evaluate exact constraint violations (expensive)
+  results_.best_constraint_violations = qp_problem->getExactConstraintViolations();
+
+  // Calculate exact NLP merits (expensive) - TODO: Look into caching for qp_solver->Convexify()
+  results_.best_exact_merit = nlp_->EvaluateCostFunction(results_.best_var_vals.data()) +
+                              results_.best_constraint_violations.dot(results_.merit_error_coeffs);
+
   results_.box_size = Eigen::VectorXd::Ones(nlp.GetNumberOfOptimizationVariables()) * params.initial_trust_box_size;
   qp_problem->setBoxSize(results_.box_size);
   return true;
@@ -91,15 +100,15 @@ void TrustRegionSQPSolver::Solve(ifopt::Problem& nlp)
       qp_solver->updateLinearConstraintsMatrix(qp_problem->getConstraintMatrix());
       qp_solver->updateBounds(qp_problem->getBoundsLower(), qp_problem->getBoundsUpper());
 
-      if (SUPER_DEBUG_MODE)
-        qp_problem->print();
-
       // ---------------------------
       // Trust region loop
       // ---------------------------
       for (int trust_region_iteration = 0; trust_region_iteration < params.max_trust_region_expansions;
            trust_region_iteration++)
       {
+        if (SUPER_DEBUG_MODE)
+          qp_problem->print();
+
         results_.overall_iteration++;
         results_.penalty_iteration = penalty_iteration;
         results_.convexify_iteration = convex_iteration;
@@ -142,6 +151,7 @@ void TrustRegionSQPSolver::Solve(ifopt::Problem& nlp)
         if (results_.exact_merit_improve < 0 || results_.merit_improve_ratio < params.improve_ratio_threshold)
         {
           qp_problem->scaleBoxSize(params.trust_shrink_ratio);
+
           qp_problem->updateNLPVariableBounds();
           qp_solver->updateBounds(qp_problem->getBoundsLower(), qp_problem->getBoundsUpper());
           results_.box_size = qp_problem->getBoxSize();
@@ -152,7 +162,13 @@ void TrustRegionSQPSolver::Solve(ifopt::Problem& nlp)
         {
           results_.best_var_vals = results_.new_var_vals;
           results_.best_exact_merit = results_.new_exact_merit;
-          results_.best_approx_merit = results_.best_approx_merit;
+          results_.best_approx_merit = results_.new_approx_merit;
+          results_.best_constraint_violations = results_.new_constraint_violations;
+
+          if (SUPER_DEBUG_MODE)
+            results_.print();
+
+          nlp.SetVariables(results_.best_var_vals.data());
 
           qp_problem->scaleBoxSize(params.trust_expand_ratio);
           qp_problem->updateNLPVariableBounds();
@@ -219,6 +235,8 @@ void TrustRegionSQPSolver::Solve(ifopt::Problem& nlp)
   }  // Penalty adjustment loop
 
   // Final Cleanup
+  if (SUPER_DEBUG_MODE)
+    results_.print();
   nlp.SetVariables(results_.best_var_vals.data());
 }
 
@@ -229,23 +247,28 @@ SQPStatus TrustRegionSQPSolver::stepOptimization(ifopt::Problem& nlp)
 
   // Solve the QP
   bool succeed = qp_solver->solve();
+
   if (succeed)
   {
     results_.new_var_vals = qp_solver->getSolution();
 
     // Calculate approximate QP merits (cheap)
-    nlp.SetVariables(results_.new_var_vals.data());
+    nlp_->SetVariables(results_.new_var_vals.data());
     results_.new_approx_merit = qp_problem->evaluateTotalConvexCost(results_.new_var_vals);
-    results_.approx_merit_improve = results_.best_approx_merit - results_.new_approx_merit;
+    results_.approx_merit_improve = results_.best_exact_merit - results_.new_approx_merit;
 
     // Evaluate exact constraint violations (expensive)
     results_.new_constraint_violations = qp_problem->getExactConstraintViolations();
 
     // Calculate exact NLP merits (expensive) - TODO: Look into caching for qp_solver->Convexify()
-    results_.new_exact_merit = nlp.EvaluateCostFunction(results_.new_var_vals.data()) +
+    results_.new_exact_merit = nlp_->EvaluateCostFunction(results_.new_var_vals.data()) +
                                results_.new_constraint_violations.dot(results_.merit_error_coeffs);
     results_.exact_merit_improve = results_.best_exact_merit - results_.new_exact_merit;
     results_.merit_improve_ratio = results_.exact_merit_improve / results_.approx_merit_improve;
+
+    // The variable are changed to the new values to calculated data but must be set
+    // to best var vals because the new values may not improve the merit which is determined later.
+    nlp_->SetVariables(results_.best_var_vals.data());
 
     // Print debugging info
     if (verbose)
@@ -253,18 +276,6 @@ SQPStatus TrustRegionSQPSolver::stepOptimization(ifopt::Problem& nlp)
 
     // Call callbacks
     succeed &= callCallbacks();
-
-    // Store variables if they improved the exact merit
-    if (results_.exact_merit_improve > 1e-5)
-    {
-      results_.best_var_vals = results_.new_var_vals;
-      results_.best_exact_merit = results_.new_exact_merit;
-      results_.best_approx_merit = results_.new_approx_merit;
-      results_.best_constraint_violations = results_.new_constraint_violations;
-      nlp_->SetVariables(results_.best_var_vals.data());
-    }
-    if (SUPER_DEBUG_MODE)
-      results_.print();
   }
   else
   {

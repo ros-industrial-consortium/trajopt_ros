@@ -68,7 +68,8 @@ bool OSQPEigenSolver::clear()
 bool OSQPEigenSolver::solve()
 {
   // In order to call initSolver, everything must have already been set, so we call it right before solving
-  solver_.initSolver();
+  if (!solver_.isInitialized())
+    solver_.initSolver();
   if (solver_.solve())
     return true;
 

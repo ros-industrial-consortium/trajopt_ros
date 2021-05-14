@@ -86,7 +86,7 @@ struct SQPResults
     best_var_vals = Eigen::VectorXd::Zero(num_vars);
     new_var_vals = Eigen::VectorXd::Zero(num_vars);
     box_size = Eigen::VectorXd::Ones(num_vars);
-    merit_error_coeffs = Eigen::VectorXd::Ones(num_cnts) * 10;
+    merit_error_coeffs = Eigen::VectorXd::Constant(num_cnts, 10);
   }
   SQPResults() = default;
   /** @brief The lowest cost ever achieved */
@@ -104,11 +104,11 @@ struct SQPResults
   Eigen::VectorXd new_var_vals;
 
   /** @brief Amount the convexified cost improved over the best this iteration */
-  double approx_merit_improve;
+  double approx_merit_improve{ 0 };
   /** @brief Amount the exact cost improved over the best this iteration */
-  double exact_merit_improve;
+  double exact_merit_improve{ 0 };
   /** @brief The amount the cost improved as a ratio of the total cost */
-  double merit_improve_ratio;
+  double merit_improve_ratio{ 0 };
 
   /** @brief Vector defing the box size. The box is var_vals +/- box_size */
   Eigen::VectorXd box_size;

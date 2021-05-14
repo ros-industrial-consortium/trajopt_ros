@@ -339,5 +339,6 @@ void QPProblem::print() const
   std::cout << "Constraint Matrix:\n" << constraint_matrix_.toDense().format(format) << std::endl;
   std::cout << "bounds_lower: " << bounds_lower_.transpose().format(format) << std::endl;
   std::cout << "bounds_upper: " << bounds_upper_.transpose().format(format) << std::endl;
+  std::cout << "NLP values: " << nlp_->GetVariableValues().transpose().format(format) << std::endl;
 }
 }  // namespace trajopt_sqp
