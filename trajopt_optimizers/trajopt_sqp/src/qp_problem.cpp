@@ -37,8 +37,8 @@ void QPProblem::init(ifopt::Problem& nlp)
 
   num_qp_vars_ = num_nlp_vars_;
   num_qp_cnts_ = num_nlp_cnts_ + num_nlp_vars_;
-  box_size_ = Eigen::VectorXd::Ones(num_nlp_vars_) * 1e-1;
-  constraint_merit_coeff_ = Eigen::VectorXd::Ones(num_nlp_cnts_) * 10;
+  box_size_ = Eigen::VectorXd::Constant(num_nlp_vars_, 1e-1);
+  constraint_merit_coeff_ = Eigen::VectorXd::Constant(num_nlp_cnts_, 10);
 
   ////////////////////////////////////////////////////////
   // Get NLP bounds and detect constraint type
@@ -75,8 +75,8 @@ void QPProblem::init(ifopt::Problem& nlp)
   }
 
   // Initialize the constraint bounds
-  bounds_lower_ = Eigen::VectorXd::Ones(num_qp_cnts_) * -INFINITY;
-  bounds_upper_ = Eigen::VectorXd::Ones(num_qp_cnts_) * INFINITY;
+  bounds_lower_ = Eigen::VectorXd::Constant(num_qp_cnts_, -double(INFINITY));
+  bounds_upper_ = Eigen::VectorXd::Constant(num_qp_cnts_, double(INFINITY));
 }
 
 void QPProblem::convexify()
@@ -218,6 +218,7 @@ void QPProblem::updateNLPConstraintBounds()
 
 void QPProblem::updateNLPVariableBounds()
 {
+  // This is eqivalent to BasicTrustRegionSQP::setTrustBoxConstraints
   Eigen::VectorXd x_initial = nlp_->GetVariableValues();
 
   // Calculate box constraints
@@ -251,16 +252,16 @@ void QPProblem::updateSlackVariableBounds()
     if (constraint_types_[static_cast<std::size_t>(i)] == ConstraintType::EQ)
     {
       bounds_lower_[current_cnt_index] = 0;
-      bounds_upper_[current_cnt_index] = INFINITY;
+      bounds_upper_[current_cnt_index] = double(INFINITY);
       bounds_lower_[current_cnt_index + 1] = 0;
-      bounds_upper_[current_cnt_index + 1] = INFINITY;
+      bounds_upper_[current_cnt_index + 1] = double(INFINITY);
 
       current_cnt_index += 2;
     }
     else
     {
       bounds_lower_[current_cnt_index] = 0;
-      bounds_upper_[current_cnt_index] = INFINITY;
+      bounds_upper_[current_cnt_index] = double(INFINITY);
 
       current_cnt_index++;
     }
@@ -319,6 +320,8 @@ Eigen::VectorXd QPProblem::getBoxSize() const { return box_size_; }
 
 void QPProblem::print() const
 {
+  Eigen::IOFormat format(3);
+
   std::cout << "-------------- QPProblem::print() --------------" << std::endl;
   std::cout << "Num NLP Vars: " << num_nlp_vars_ << std::endl;
   std::cout << "Num QP Vars: " << num_qp_vars_ << std::endl;
@@ -327,13 +330,14 @@ void QPProblem::print() const
   for (const auto& cnt : constraint_types_)
     std::cout << static_cast<int>(cnt) << ", ";
 
-  std::cout << "box_size_: " << box_size_.transpose() << std::endl;
-  std::cout << "constraint_merit_coeff_: " << constraint_merit_coeff_.transpose() << std::endl;
+  std::cout << std::endl;
+  std::cout << "box_size_: " << box_size_.transpose().format(format) << std::endl;
+  std::cout << "constraint_merit_coeff_: " << constraint_merit_coeff_.transpose().format(format) << std::endl;
 
-  std::cout << "Hessian:\n" << hessian_.toDense() << std::endl;
-  std::cout << "Gradient: " << gradient_.transpose() << std::endl;
-  std::cout << "Constraint Matrix:\n" << constraint_matrix_.toDense() << std::endl;
-  std::cout << "bounds_lower: " << bounds_lower_.transpose() << std::endl;
-  std::cout << "bounds_upper: " << bounds_upper_.transpose() << std::endl;
+  std::cout << "Hessian:\n" << hessian_.toDense().format(format) << std::endl;
+  std::cout << "Gradient: " << gradient_.transpose().format(format) << std::endl;
+  std::cout << "Constraint Matrix:\n" << constraint_matrix_.toDense().format(format) << std::endl;
+  std::cout << "bounds_lower: " << bounds_lower_.transpose().format(format) << std::endl;
+  std::cout << "bounds_upper: " << bounds_upper_.transpose().format(format) << std::endl;
 }
 }  // namespace trajopt_sqp

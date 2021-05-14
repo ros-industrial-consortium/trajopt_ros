@@ -69,8 +69,8 @@ TEST_F(NumericalIKTest, numerical_ik)  // NOLINT
   // 3) Add Variables
   Eigen::VectorXd cur_position(7);  // env->getCurrentJointValues(forward_kinematics->getJointNames());
   cur_position << 0, 0, 0, -0.001, 0, -0.001, 0;
-  auto var =
-      std::make_shared<trajopt::JointPosition>(cur_position, forward_kinematics->getJointNames(), "Joint_Position_0");
+  auto var = std::make_shared<trajopt::JointPosition>(
+      cur_position, forward_kinematics->getJointNames(), forward_kinematics->getLimits(), "Joint_Position_0");
   nlp.AddVariableSet(var);
 
   // 4) Add constraints

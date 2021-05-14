@@ -17,7 +17,7 @@ TRAJOPT_IGNORE_WARNINGS_POP
 
 namespace sco
 {
-const bool SUPER_DEBUG_MODE = false;
+const bool SUPER_DEBUG_MODE = true;
 
 std::ostream& operator<<(std::ostream& o, const OptResults& r)
 {
