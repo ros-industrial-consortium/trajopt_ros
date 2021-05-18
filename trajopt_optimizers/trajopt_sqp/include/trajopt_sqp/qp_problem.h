@@ -67,10 +67,12 @@ public:
   /** @brief Called by convexify() - helper that updates the slack variable bounds (bottom section) */
   void updateSlackVariableBounds();
 
-  /** @brief Evaluates the cost of the convexified function (ie using the stored gradient and hessian) at var_vals
+  /**
+   * @brief Evaluates the cost of the convexified function (ie using the stored gradient and hessian) at var_vals
    * @param var_vals Point at which the convex cost is calculated. Should be size num_qp_vars
    */
   double evaluateTotalConvexCost(const Eigen::Ref<const Eigen::VectorXd>& var_vals);
+
   /** @brief TODO: This is unimplemented, but it will return the cost associated with each of the costs. Note this will
    * be relatively computationally expensive, as we will have to loop through all the cost components in the problem and
    * calculate their values manually.
@@ -78,6 +80,14 @@ public:
    * @return Cost associated with each cost term in the problem (for debugging)
    */
   Eigen::VectorXd evaluateConvexCosts(const Eigen::Ref<const Eigen::VectorXd>& var_vals);
+
+  Eigen::VectorXd evaluateConvexConstraintViolation(const Eigen::Ref<const Eigen::VectorXd>& var_vals);
+
+  /**
+   * @brief Evaluate NLP constraint violations at the provided var_vals. Values > 0 are violations
+   * @return Vector of constraint violations. Values > 0 are violations
+   */
+  Eigen::VectorXd evaluateExactConstraintViolations(const Eigen::Ref<const Eigen::VectorXd>& var_vals);
 
   /**
    * @brief get the current NLP constraint violations. Values > 0 are violations
@@ -105,6 +115,7 @@ public:
 
   const Eigen::Index& getNumNLPVars() { return num_nlp_vars_; };
   const Eigen::Index& getNumNLPConstraints() { return num_nlp_cnts_; };
+  const Eigen::Index& getNumNLPCosts() { return num_nlp_costs_; };
   const Eigen::Index& getNumQPVars() { return num_qp_vars_; };
   const Eigen::Index& getNumQPConstraints() { return num_qp_cnts_; };
 
@@ -123,6 +134,7 @@ protected:
 
   Eigen::Index num_nlp_vars_;
   Eigen::Index num_nlp_cnts_;
+  Eigen::Index num_nlp_costs_;
   Eigen::Index num_qp_vars_;
   Eigen::Index num_qp_cnts_;
   std::vector<ConstraintType> constraint_types_;
@@ -133,10 +145,22 @@ protected:
 
   Eigen::SparseMatrix<double> hessian_;
   Eigen::VectorXd gradient_;
+  Eigen::VectorXd cost_constant_;
 
   Eigen::SparseMatrix<double> constraint_matrix_;
   Eigen::VectorXd bounds_lower_;
   Eigen::VectorXd bounds_upper_;
+  // This should be the center of the bounds
+  Eigen::VectorXd constraint_constant_;
+
+  /** @brief This calculates the constant expression in the quadratic expression for the constraints */
+  void updateConstraintsConstantExpression();
+
+  /** @brief This calculates the constant expression in the quadratic expression for the costs */
+  void updateCostsConstantExpression();
+
+  /** @brief This will calculate contraint violations given constraint values */
+  Eigen::VectorXd calcConstraintViolations(const Eigen::Ref<const Eigen::VectorXd>& cnt_vals);
 };
 
 }  // namespace trajopt_sqp

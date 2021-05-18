@@ -254,11 +254,15 @@ SQPStatus TrustRegionSQPSolver::stepOptimization(ifopt::Problem& nlp)
 
     // Calculate approximate QP merits (cheap)
     nlp_->SetVariables(results_.new_var_vals.data());
-    results_.new_approx_merit = qp_problem->evaluateTotalConvexCost(results_.new_var_vals);
+
+    results_.new_approx_merit =
+        qp_problem->evaluateTotalConvexCost(results_.new_var_vals) +
+        qp_problem->evaluateConvexConstraintViolation(results_.new_var_vals).dot(results_.merit_error_coeffs);
+
     results_.approx_merit_improve = results_.best_exact_merit - results_.new_approx_merit;
 
     // Evaluate exact constraint violations (expensive)
-    results_.new_constraint_violations = qp_problem->getExactConstraintViolations();
+    results_.new_constraint_violations = qp_problem->evaluateExactConstraintViolations(results_.new_var_vals);
 
     // Calculate exact NLP merits (expensive) - TODO: Look into caching for qp_solver->Convexify()
     results_.new_exact_merit = nlp_->EvaluateCostFunction(results_.new_var_vals.data()) +

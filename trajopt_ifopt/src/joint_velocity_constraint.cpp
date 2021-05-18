@@ -56,22 +56,32 @@ JointVelConstraint::JointVelConstraint(const Eigen::VectorXd& targets,
   // All of the positions should be exactly at their targets
   for (long j = 0; j < n_vars_ - 1; j++)
   {
+    index_map_[position_vars[static_cast<std::size_t>(j)]->GetName()] = j;
     for (long i = 0; i < n_dof_; i++)
     {
       bounds[static_cast<size_t>(i + j * n_dof_)] = ifopt::Bounds(targets[i], targets[i]);
     }
   }
+  /** @todo should include last timestep using backward fiff */
+  index_map_[position_vars.back()->GetName()] = static_cast<Eigen::Index>(position_vars.size()) - 1;
   bounds_ = bounds;
 }
 
 Eigen::VectorXd JointVelConstraint::GetValues() const
 {
+  // i - represents the trajectory timestep index
+  // k - represents the DOF index
+  // var[i, k] - represents the variable index
+  // vel(var[0, 0]) - represents the joint velocity of DOF index 0 at timestep 0
+  // vel(var[1, 1]) - represents the joint velocity of DOF index 1 at timestep 1
+  //
+  // Velocity V = vel(var[0, 0]), vel(var[0, 1]), vel(var[0, 2]), vel(var[1, 0]), vel(var[1, 1]), vel(var[1, 2]), etc
   Eigen::VectorXd velocity(static_cast<size_t>(n_dof_) * (position_vars_.size() - 1));
   for (std::size_t ind = 0; ind < position_vars_.size() - 1; ind++)
   {
     auto vals1 = this->GetVariables()->GetComponent(position_vars_[ind]->GetName())->GetValues();
     auto vals2 = this->GetVariables()->GetComponent(position_vars_[ind + 1]->GetName())->GetValues();
-    Eigen::VectorXd single_step = vals1 - vals2;
+    Eigen::VectorXd single_step = vals2 - vals1;
     velocity.block(n_dof_ * static_cast<Eigen::Index>(ind), 0, n_dof_, 1) = single_step;
   }
 
@@ -83,26 +93,29 @@ std::vector<ifopt::Bounds> JointVelConstraint::GetBounds() const { return bounds
 
 void JointVelConstraint::FillJacobianBlock(std::string var_set, Jacobian& jac_block) const
 {
-  // Loop over all of the variables this constraint uses
-  for (int i = 0; i < n_vars_; i++)
-  {
-    // Only modify the jacobian if this constraint uses var_set
-    if (var_set == position_vars_[static_cast<size_t>(i)]->GetName())
-    {
-      // Reserve enough room in the sparse matrix
-      jac_block.reserve(n_dof_ * 2);
+  //  FillJacobianBlockNumerical(var_set, jac_block);
 
-      // jac block will be (n_vars-1)*n_dof x n_dof
-      for (int j = 0; j < n_dof_; j++)
-      {
-        // The first and last variable are special and only effect the first and last constraint. Everything else
-        // effects 2
-        if (i < n_vars_ - 1)
-          jac_block.coeffRef(i * n_dof_ + j, j) = 1.0;
-        if (i > 0)
-          jac_block.coeffRef((i - 1) * n_dof_ + j, j) = -1.0;
-      }
+  // Check if this constraint use the var_set
+  // Only modify the jacobian if this constraint uses var_set
+  auto it = index_map_.find(var_set);
+  if (it != index_map_.end())
+  {
+    Eigen::Index i = it->second;
+
+    // Reserve enough room in the sparse matrix
+    jac_block.reserve(n_dof_ * 2);
+
+    // jac block will be (n_vars-1)*n_dof x n_dof
+    for (int j = 0; j < n_dof_; j++)
+    {
+      // The first and last variable are special and only effect the first and last constraint. Everything else
+      // effects 2
+      if (i < n_vars_ - 1)
+        jac_block.coeffRef((i * n_dof_) + j, j) = -1.0;
+      if (i > 0)
+        jac_block.coeffRef(((i - 1) * n_dof_) + j, j) = 1.0;
     }
   }
 }
+
 }  // namespace trajopt
