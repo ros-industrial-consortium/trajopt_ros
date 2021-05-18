@@ -306,9 +306,36 @@ Eigen::VectorXd getWeightedLeastSquaresGradient2(std::vector<trajopt::GradientRe
   return grad_vec;
 }
 
+Eigen::VectorXd getAvgGradient(std::vector<trajopt::GradientResults> grad_results, long dof)
+{
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  if (grad_results.empty())
+    return grad_vec;
+
+  long cnt = 0;
+  for (auto& grad : grad_results)
+  {
+    if (grad.gradients[0].has_gradient)
+    {
+      grad_vec += grad.error * grad.gradients[0].gradient;
+      cnt++;
+    }
+
+    if (grad.gradients[1].has_gradient)
+    {
+      grad_vec += grad.error * grad.gradients[1].scale * grad.gradients[1].gradient;
+      cnt++;
+    }
+  }
+  return (grad_vec / cnt);
+}
+
 Eigen::VectorXd getWeightedAvgGradient(std::vector<trajopt::GradientResults> grad_results, long dof)
 {
   Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  if (grad_results.empty())
+    return grad_vec;
+
   double total_weight = 0;
   for (auto& grad : grad_results)
   {

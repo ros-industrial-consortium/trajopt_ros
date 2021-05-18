@@ -40,7 +40,7 @@ DiscreteCollisionConstraintIfopt::DiscreteCollisionConstraintIfopt(DiscreteColli
                                                                    GradientCombineMethod gradient_method,
                                                                    JointPosition::ConstPtr position_var,
                                                                    const std::string& name)
-  : ifopt::ConstraintSet(3, name)
+  : ifopt::ConstraintSet(1, name)
   , position_var_(std::move(position_var))
   , collision_evaluator_(std::move(collision_evaluator))
   , gradient_method_(gradient_method)
@@ -49,7 +49,7 @@ DiscreteCollisionConstraintIfopt::DiscreteCollisionConstraintIfopt(DiscreteColli
   n_dof_ = position_var_->GetRows();
   assert(n_dof_ > 0);
 
-  bounds_ = std::vector<ifopt::Bounds>(3, ifopt::BoundSmallerZero);
+  bounds_ = std::vector<ifopt::Bounds>(1, ifopt::BoundSmallerZero);
 }
 
 Eigen::VectorXd DiscreteCollisionConstraintIfopt::GetValues() const
@@ -109,6 +109,47 @@ Eigen::VectorXd DiscreteCollisionConstraintIfopt::CalcValues(const Eigen::Ref<co
         double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
             dist_result.link_names[0], dist_result.link_names[1]);
         err[0] += std::max<double>((std::pow(dist - dist_result.distance, 2) * coeff), 0.);
+      }
+      break;
+    }
+    case GradientCombineMethod::AVERAGE:
+    {
+      for (tesseract_collision::ContactResult& dist_result : dist_results)
+      {
+        double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
+            dist_result.link_names[0], dist_result.link_names[1]);
+        double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
+            dist_result.link_names[0], dist_result.link_names[1]);
+        double d = std::max<double>(((dist - dist_result.distance) * coeff), 0.);
+        if (d > err[0])
+          err[0] = d;
+      }
+      break;
+    }
+    case GradientCombineMethod::WEIGHTED_AVERAGE:
+    {
+      for (tesseract_collision::ContactResult& dist_result : dist_results)
+      {
+        trajopt::GradientResults result = collision_evaluator_->GetGradient(joint_vals, dist_result);
+
+        double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
+            dist_result.link_names[0], dist_result.link_names[1]);
+        double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
+            dist_result.link_names[0], dist_result.link_names[1]);
+        double d = std::max<double>(((dist - dist_result.distance) * coeff), 0.);
+        if (result.gradients[0].has_gradient)
+        {
+          double wd = (d * result.gradients[0].scale);
+          if (wd > err[0])
+            err[0] = wd;
+        }
+
+        if (result.gradients[1].has_gradient)
+        {
+          double wd = (d * result.gradients[1].scale);
+          if (wd > err[0])
+            err[0] = wd;
+        }
       }
       break;
     }
@@ -182,6 +223,16 @@ void DiscreteCollisionConstraintIfopt::CalcJacobianBlock(const Eigen::Ref<const 
     case GradientCombineMethod::WEIGHTED_SUM:
     {
       grad_vec = getSumGradient(grad_results, n_dof_);
+      break;
+    }
+    case GradientCombineMethod::AVERAGE:
+    {
+      grad_vec = getAvgGradient(grad_results, n_dof_);
+      break;
+    }
+    case GradientCombineMethod::WEIGHTED_AVERAGE:
+    {
+      grad_vec = getWeightedAvgGradient(grad_results, n_dof_);
       break;
     }
     case GradientCombineMethod::LEAST_SQUARES:

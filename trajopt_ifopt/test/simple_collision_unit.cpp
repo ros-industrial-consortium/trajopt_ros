@@ -85,7 +85,7 @@ TEST_F(SimpleCollisionTest, spheres)  // NOLINT
 
   std::vector<ContactResultMap> collisions;
   tesseract_environment::StateSolver::Ptr state_solver = env->getStateSolver();
-  ContinuousContactManager::Ptr manager = env->getContinuousContactManager();
+  DiscreteContactManager::Ptr manager = env->getDiscreteContactManager();
   auto forward_kinematics = env->getManipulatorManager()->getFwdKinematicSolver("manipulator");
   AdjacencyMap::Ptr adjacency_map = std::make_shared<AdjacencyMap>(
       env->getSceneGraph(), forward_kinematics->getActiveLinkNames(), env->getCurrentState()->link_transforms);
@@ -125,7 +125,7 @@ TEST_F(SimpleCollisionTest, spheres)  // NOLINT
           kin, env, adj_map, Eigen::Isometry3d::Identity(), trajopt_collision_config);
 
   auto cnt = std::make_shared<trajopt::DiscreteCollisionConstraintIfopt>(
-      collision_evaluator, GradientCombineMethod::SUM, vars[0]);
+      collision_evaluator, GradientCombineMethod::WEIGHTED_AVERAGE, vars[0]);
   nlp.AddConstraintSet(cnt);
 
   nlp.PrintCurrent();
@@ -154,16 +154,15 @@ TEST_F(SimpleCollisionTest, spheres)  // NOLINT
   inputs << -0.75, 0.75;
   Eigen::Map<tesseract_common::TrajArray> results(x.data(), 1, 2);
 
-  tesseract_collision::CollisionCheckConfig config;
-  config.type = tesseract_collision::CollisionEvaluatorType::CONTINUOUS;
-  bool found =
-      checkTrajectory(collisions, *manager, *state_solver, forward_kinematics->getJointNames(), inputs, config);
+  bool found = checkTrajectory(
+      collisions, *manager, *state_solver, forward_kinematics->getJointNames(), inputs, trajopt_collision_config);
 
   EXPECT_TRUE(found);
   CONSOLE_BRIDGE_logWarn((found) ? ("Initial trajectory is in collision") : ("Initial trajectory is collision free"));
 
   collisions.clear();
-  found = checkTrajectory(collisions, *manager, *state_solver, forward_kinematics->getJointNames(), results, config);
+  found = checkTrajectory(
+      collisions, *manager, *state_solver, forward_kinematics->getJointNames(), results, trajopt_collision_config);
 
   EXPECT_FALSE(found);
   CONSOLE_BRIDGE_logWarn((found) ? ("Final trajectory is in collision") : ("Final trajectory is collision free"));

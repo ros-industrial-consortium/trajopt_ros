@@ -48,8 +48,10 @@ enum class GradientCombineMethod
 {
   SUM = 0,
   WEIGHTED_SUM = 1,
-  LEAST_SQUARES = 2,
-  WEIGHTED_LEAST_SQUARES = 3
+  AVERAGE = 2,
+  WEIGHTED_AVERAGE = 3,
+  LEAST_SQUARES = 4,
+  WEIGHTED_LEAST_SQUARES = 5
 };
 
 /**

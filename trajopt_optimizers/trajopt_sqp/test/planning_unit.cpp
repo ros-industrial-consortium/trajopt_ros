@@ -99,7 +99,7 @@ TEST_F(PlanningTest, arm_around_table)  // NOLINT
     nlp.AddVariableSet(var);
   }
 
-  double margin_coeff = 20;
+  double margin_coeff = 10;
   double margin = 0.025;
   TrajOptCollisionConfig trajopt_collision_config(margin, margin_coeff);
   trajopt_collision_config.collision_margin_buffer = 0.02;
@@ -160,7 +160,7 @@ TEST_F(PlanningTest, arm_around_table)  // NOLINT
     }
 
     auto cnt = std::make_shared<trajopt::ContinuousCollisionConstraintIfopt>(
-        collision_evaluator, GradientCombineMethod::WEIGHTED_LEAST_SQUARES, vars[i - 1], vars[i]);
+        collision_evaluator, GradientCombineMethod::WEIGHTED_AVERAGE, vars[i - 1], vars[i]);
     nlp.AddConstraintSet(cnt);
   }
 

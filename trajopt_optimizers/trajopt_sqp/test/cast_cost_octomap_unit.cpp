@@ -182,7 +182,7 @@ TEST_F(CastOctomapTest, boxes)  // NOLINT
     }
 
     auto cnt = std::make_shared<trajopt::ContinuousCollisionConstraintIfopt>(
-        collision_evaluator, GradientCombineMethod::WEIGHTED_LEAST_SQUARES, vars[i - 1], vars[i]);
+        collision_evaluator, GradientCombineMethod::WEIGHTED_AVERAGE, vars[i - 1], vars[i]);
     nlp.AddConstraintSet(cnt);
   }
 

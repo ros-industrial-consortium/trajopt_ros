@@ -131,7 +131,49 @@ ContinuousCollisionConstraintIfopt::CalcValues(const Eigen::Ref<const Eigen::Vec
             dist_result.link_names[0], dist_result.link_names[1]);
         double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
             dist_result.link_names[0], dist_result.link_names[1]);
-        err[0] += std::max<double>((std::pow(dist - dist_result.distance, 2) * coeff), 0.);
+        err[0] += std::max<double>(((dist - dist_result.distance) * coeff), 0.);
+      }
+      break;
+    }
+    case GradientCombineMethod::AVERAGE:
+    {
+      for (tesseract_collision::ContactResult& dist_result : dist_results)
+      {
+        double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
+            dist_result.link_names[0], dist_result.link_names[1]);
+        double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
+            dist_result.link_names[0], dist_result.link_names[1]);
+        double d = std::max<double>(((dist - dist_result.distance) * coeff), 0.);
+        if (d > err[0])
+          err[0] = d;
+      }
+      break;
+    }
+    case GradientCombineMethod::WEIGHTED_AVERAGE:
+    {
+      for (tesseract_collision::ContactResult& dist_result : dist_results)
+      {
+        trajopt::GradientResults result =
+            collision_evaluator_->GetGradient(joint_vals0, joint_vals1, dist_result, false);
+
+        double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
+            dist_result.link_names[0], dist_result.link_names[1]);
+        double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
+            dist_result.link_names[0], dist_result.link_names[1]);
+        double d = std::max<double>(((dist - dist_result.distance) * coeff), 0.);
+        if (result.gradients[0].has_gradient)
+        {
+          double wd = (d * result.gradients[0].scale);
+          if (wd > err[0])
+            err[0] = wd;
+        }
+
+        if (result.gradients[1].has_gradient)
+        {
+          double wd = (d * result.gradients[1].scale);
+          if (wd > err[0])
+            err[0] = wd;
+        }
       }
       break;
     }
@@ -209,6 +251,16 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockStartFree(
       grad_vec = getSumGradient(grad_results, n_dof_);
       break;
     }
+    case GradientCombineMethod::AVERAGE:
+    {
+      grad_vec = getAvgGradient(grad_results, n_dof_);
+      break;
+    }
+    case GradientCombineMethod::WEIGHTED_AVERAGE:
+    {
+      grad_vec = getWeightedAvgGradient(grad_results, n_dof_);
+      break;
+    }
     case GradientCombineMethod::LEAST_SQUARES:
     {
       grad_vec = getLeastSquaresGradient(grad_results, n_dof_, num_eq);
@@ -265,6 +317,16 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockEndFree(
     case GradientCombineMethod::WEIGHTED_SUM:
     {
       grad_vec = getSumGradient(grad_results, n_dof_);
+      break;
+    }
+    case GradientCombineMethod::AVERAGE:
+    {
+      grad_vec = getAvgGradient(grad_results, n_dof_);
+      break;
+    }
+    case GradientCombineMethod::WEIGHTED_AVERAGE:
+    {
+      grad_vec = getWeightedAvgGradient(grad_results, n_dof_);
       break;
     }
     case GradientCombineMethod::LEAST_SQUARES:
@@ -324,6 +386,16 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockBothFree(Jacobian& jac
     case GradientCombineMethod::WEIGHTED_SUM:
     {
       grad_vec = getSumGradient(grad_results, n_dof_);
+      break;
+    }
+    case GradientCombineMethod::AVERAGE:
+    {
+      grad_vec = getAvgGradient(grad_results, n_dof_);
+      break;
+    }
+    case GradientCombineMethod::WEIGHTED_AVERAGE:
+    {
+      grad_vec = getWeightedAvgGradient(grad_results, n_dof_);
       break;
     }
     case GradientCombineMethod::LEAST_SQUARES:

@@ -88,6 +88,7 @@ Eigen::VectorXd getWeightedLeastSquaresGradient2(std::vector<trajopt::GradientRe
                                                  long num_eq);
 
 /** @brief These were from the original trajopt */
+Eigen::VectorXd getAvgGradient(std::vector<trajopt::GradientResults> grad_results, long dof);
 Eigen::VectorXd getWeightedAvgGradient(std::vector<trajopt::GradientResults> grad_results, long dof);
 Eigen::VectorXd getScaledSumGradient(std::vector<trajopt::GradientResults> grad_results, long dof);
 Eigen::VectorXd getSumGradient(std::vector<trajopt::GradientResults> grad_results, long dof);
