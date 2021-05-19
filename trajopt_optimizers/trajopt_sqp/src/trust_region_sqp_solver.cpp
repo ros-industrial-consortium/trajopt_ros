@@ -77,123 +77,15 @@ void TrustRegionSQPSolver::Solve(ifopt::Problem& nlp)
   // Initialize solver
   init(nlp);
 
-  // ---------------------------
   // Penalty Iteration Loop
-  // ---------------------------
   for (int penalty_iteration = 0; penalty_iteration < params.max_merit_coeff_increases; penalty_iteration++)
   {
-    // ---------------------------
+    results_.penalty_iteration = penalty_iteration;
+    results_.convexify_iteration = 0;
+
     // Convexification loop
-    // ---------------------------
     for (int convex_iteration = 0; convex_iteration < 100; convex_iteration++)
-    {
-      qp_problem->convexify();
-
-      // TODO: Look into not clearing and reinitializing the workspace each iteration. It should be as simple as
-      // removing this
-      qp_solver->clear();
-
-      // Convexify the costs and constraints around their current values
-      qp_solver->init(qp_problem->getNumQPVars(), qp_problem->getNumQPConstraints());
-      qp_solver->updateHessianMatrix(qp_problem->getHessian());
-      qp_solver->updateGradient(qp_problem->getGradient());
-      qp_solver->updateLinearConstraintsMatrix(qp_problem->getConstraintMatrix());
-      qp_solver->updateBounds(qp_problem->getBoundsLower(), qp_problem->getBoundsUpper());
-
-      // ---------------------------
-      // Trust region loop
-      // ---------------------------
-      for (int trust_region_iteration = 0; trust_region_iteration < params.max_trust_region_expansions;
-           trust_region_iteration++)
-      {
-        if (SUPER_DEBUG_MODE)
-          qp_problem->print();
-
-        results_.overall_iteration++;
-        results_.penalty_iteration = penalty_iteration;
-        results_.convexify_iteration = convex_iteration;
-        results_.trust_region_iteration = trust_region_iteration;
-
-        // Take a single step (one QP solve)
-        status_ = stepOptimization(nlp);
-        if (status_ != SQPStatus::RUNNING)
-        {
-          nlp.SetVariables(results_.best_var_vals.data());
-          return;
-        }
-
-        // Check if the entire NLP Converged
-        if (results_.approx_merit_improve < -1e-5)
-        {
-          CONSOLE_BRIDGE_logError("Approximate merit function got worse (%.3e). (convexification is probably wrong to "
-                                  "zeroth order)",
-                                  results_.approx_merit_improve);
-        }
-        if (results_.approx_merit_improve < params.min_approx_improve)
-        {
-          CONSOLE_BRIDGE_logInform("Converged because improvement was small (%.3e < %.3e)",
-                                   results_.approx_merit_improve,
-                                   params.min_approx_improve);
-          status_ = SQPStatus::NLP_CONVERGED;
-          break;
-        }
-        if (results_.approx_merit_improve / results_.best_exact_merit < params.min_approx_improve_frac)
-        {
-          CONSOLE_BRIDGE_logInform("Converged because improvement ratio was small (%.3e < %.3e)",
-                                   results_.approx_merit_improve / results_.best_exact_merit,
-                                   params.min_approx_improve_frac);
-          status_ = SQPStatus::NLP_CONVERGED;
-          break;
-        }
-
-        // Check if the bounding trust region needs to be shrunk
-        // This happens if the exact solution got worse or if the QP approximation deviates from the exact by too much
-        if (results_.exact_merit_improve < 0 || results_.merit_improve_ratio < params.improve_ratio_threshold)
-        {
-          qp_problem->scaleBoxSize(params.trust_shrink_ratio);
-
-          qp_problem->updateNLPVariableBounds();
-          qp_solver->updateBounds(qp_problem->getBoundsLower(), qp_problem->getBoundsUpper());
-          results_.box_size = qp_problem->getBoxSize();
-
-          CONSOLE_BRIDGE_logInform("Shrunk trust region. new box size: %.4f", results_.box_size[0]);
-        }
-        else
-        {
-          results_.best_var_vals = results_.new_var_vals;
-          results_.best_exact_merit = results_.new_exact_merit;
-          results_.best_approx_merit = results_.new_approx_merit;
-          results_.best_constraint_violations = results_.new_constraint_violations;
-
-          if (SUPER_DEBUG_MODE)
-            results_.print();
-
-          nlp.SetVariables(results_.best_var_vals.data());
-
-          qp_problem->scaleBoxSize(params.trust_expand_ratio);
-          qp_problem->updateNLPVariableBounds();
-          results_.box_size = qp_problem->getBoxSize();
-          CONSOLE_BRIDGE_logInform("Expanded trust region. new box size: %.4f", results_.box_size[0]);
-          break;
-        }
-      }  // Trust region loop
-
-      // Check if the NLP has converged
-      if (status_ == SQPStatus::NLP_CONVERGED)
-        break;
-      if (results_.box_size.maxCoeff() < params.min_trust_box_size)
-      {
-        CONSOLE_BRIDGE_logInform("Converged because trust region is tiny");
-        status_ = SQPStatus::NLP_CONVERGED;
-        break;
-      }
-      if (results_.overall_iteration >= params.max_iterations)
-      {
-        CONSOLE_BRIDGE_logInform("Iteration limit");
-        status_ = SQPStatus::ITERATION_LIMIT;
-        break;
-      }
-    }
+      stepSQPSolver();
 
     // ---------------------------
     // Penalty Adjustment
@@ -240,11 +132,122 @@ void TrustRegionSQPSolver::Solve(ifopt::Problem& nlp)
   nlp.SetVariables(results_.best_var_vals.data());
 }
 
-SQPStatus TrustRegionSQPSolver::stepOptimization(ifopt::Problem& nlp)
+void TrustRegionSQPSolver::stepSQPSolver()
 {
-  // TODO: Think about removing nlp_
-  nlp_ = &nlp;
+  results_.convexify_iteration++;
+  qp_problem->convexify();
 
+  // TODO: Look into not clearing and reinitializing the workspace each iteration. It should be as simple as
+  // removing this
+  qp_solver->clear();
+
+  // Convexify the costs and constraints around their current values
+  qp_solver->init(qp_problem->getNumQPVars(), qp_problem->getNumQPConstraints());
+  qp_solver->updateHessianMatrix(qp_problem->getHessian());
+  qp_solver->updateGradient(qp_problem->getGradient());
+  qp_solver->updateLinearConstraintsMatrix(qp_problem->getConstraintMatrix());
+  qp_solver->updateBounds(qp_problem->getBoundsLower(), qp_problem->getBoundsUpper());
+
+  // Trust region loop
+  runTrustRegionLoop();
+
+  // Check if the NLP has converged
+  if (status_ == SQPStatus::NLP_CONVERGED)
+    return;
+  if (results_.box_size.maxCoeff() < params.min_trust_box_size)
+  {
+    CONSOLE_BRIDGE_logInform("Converged because trust region is tiny");
+    status_ = SQPStatus::NLP_CONVERGED;
+    return;
+  }
+  if (results_.overall_iteration >= params.max_iterations)
+  {
+    CONSOLE_BRIDGE_logInform("Iteration limit");
+    status_ = SQPStatus::ITERATION_LIMIT;
+    return;
+  }
+}
+
+void TrustRegionSQPSolver::runTrustRegionLoop()
+{
+  for (int trust_region_iteration = 0; trust_region_iteration < params.max_trust_region_expansions;
+       trust_region_iteration++)
+  {
+    if (SUPER_DEBUG_MODE)
+      qp_problem->print();
+
+    results_.overall_iteration++;
+    results_.trust_region_iteration = trust_region_iteration;
+
+    // Solve the current QP problem
+    status_ = solveQPProblem();
+    if (status_ != SQPStatus::RUNNING)
+    {
+      nlp_->SetVariables(results_.best_var_vals.data());
+      return;
+    }
+
+    // Check if the entire NLP Converged
+    if (results_.approx_merit_improve < -1e-5)
+    {
+      CONSOLE_BRIDGE_logError("Approximate merit function got worse (%.3e). (convexification is probably wrong to "
+                              "zeroth order)",
+                              results_.approx_merit_improve);
+    }
+
+    if (results_.approx_merit_improve < params.min_approx_improve)
+    {
+      CONSOLE_BRIDGE_logInform("Converged because improvement was small (%.3e < %.3e)",
+                               results_.approx_merit_improve,
+                               params.min_approx_improve);
+      status_ = SQPStatus::NLP_CONVERGED;
+      return;
+    }
+
+    if (results_.approx_merit_improve / results_.best_exact_merit < params.min_approx_improve_frac)
+    {
+      CONSOLE_BRIDGE_logInform("Converged because improvement ratio was small (%.3e < %.3e)",
+                               results_.approx_merit_improve / results_.best_exact_merit,
+                               params.min_approx_improve_frac);
+      status_ = SQPStatus::NLP_CONVERGED;
+      return;
+    }
+
+    // Check if the bounding trust region needs to be shrunk
+    // This happens if the exact solution got worse or if the QP approximation deviates from the exact by too much
+    if (results_.exact_merit_improve < 0 || results_.merit_improve_ratio < params.improve_ratio_threshold)
+    {
+      qp_problem->scaleBoxSize(params.trust_shrink_ratio);
+
+      qp_problem->updateNLPVariableBounds();
+      qp_solver->updateBounds(qp_problem->getBoundsLower(), qp_problem->getBoundsUpper());
+      results_.box_size = qp_problem->getBoxSize();
+
+      CONSOLE_BRIDGE_logInform("Shrunk trust region. new box size: %.4f", results_.box_size[0]);
+    }
+    else
+    {
+      results_.best_var_vals = results_.new_var_vals;
+      results_.best_exact_merit = results_.new_exact_merit;
+      results_.best_approx_merit = results_.new_approx_merit;
+      results_.best_constraint_violations = results_.new_constraint_violations;
+
+      if (SUPER_DEBUG_MODE)
+        results_.print();
+
+      nlp_->SetVariables(results_.best_var_vals.data());
+
+      qp_problem->scaleBoxSize(params.trust_expand_ratio);
+      qp_problem->updateNLPVariableBounds();
+      results_.box_size = qp_problem->getBoxSize();
+      CONSOLE_BRIDGE_logInform("Expanded trust region. new box size: %.4f", results_.box_size[0]);
+      return;
+    }
+  }  // Trust region loop
+}
+
+SQPStatus TrustRegionSQPSolver::solveQPProblem()
+{
   // Solve the QP
   bool succeed = qp_solver->solve();
 

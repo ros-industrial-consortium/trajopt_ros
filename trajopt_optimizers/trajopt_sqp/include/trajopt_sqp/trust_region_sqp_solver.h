@@ -55,10 +55,23 @@ public:
   void Solve(ifopt::Problem& nlp) override;
 
   /**
-   * @brief Take a single QP optimization step, storing the results and calling callbacks
-   * @param nlp
+   * @brief Run a single convexification step which calls runTrustRegionLoop
+   * @warning This should not normally be call directly, but exposed for online planning
    */
-  SQPStatus stepOptimization(ifopt::Problem& nlp);
+  void stepSQPSolver();
+
+  /**
+   * @brief Run trust region loop which calls stepOptimization adjusting box size
+   * @warning This should not normally be call directly, but exposed for online planning
+   */
+  void runTrustRegionLoop();
+
+  /**
+   * @brief Solve the current QP Problem, storing the results and calling callbacks
+   * @warning This should not normally be call directly, but exposed for online planning
+   * @return SQP Status
+   */
+  SQPStatus solveQPProblem();
 
   /**
    * @brief Calls all registered callbacks with the current state of of the problem
