@@ -307,56 +307,26 @@ bool TrustRegionSQPSolver::callCallbacks()
 void TrustRegionSQPSolver::printStepInfo() const
 {
   // Print Header
-  std::printf("\n%15s | %10s===%10s===%10s===%10s===%10s===%10s\n",
-              "",
-              "==========",
-              "==========",
-              "==========",
-              "==========",
-              "==========",
-              "==========");
-  std::printf("                |                              ROS Industrial \n");
-  std::printf("                |                         TrajOpt Motion Planning \n");
-  std::printf("%15s | %10s===%10s===%10s===%10s===%10s===%10s\n",
-              "",
-              "==========",
-              "==========",
-              "==========",
-              "==========",
-              "==========",
-              "==========");
-  std::printf("%15s | %11s %1d/%2d/%2d/%3d\n",
-              "",
-              "Iteration:",
-              results_.penalty_iteration,
+  std::printf("\n| %s |\n", std::string(75, '=').c_str());
+  std::printf("| %s %s %s |\n", std::string(29, ' ').c_str(), "ROS Industrial", std::string(30, ' ').c_str());
+  std::printf("| %s %s %s |\n", std::string(25, ' ').c_str(), "TrajOpt Motion Planning", std::string(25, ' ').c_str());
+  std::printf("| %s |\n", std::string(75, '=').c_str());
+  std::printf("| %s %s %s |\n", std::string(32, ' ').c_str(), "Iteration", std::string(32, ' ').c_str());
+  std::printf("| %s |\n", std::string(75, '-').c_str());
+  std::printf("| %12s: %-2d | %12s: %-2d | %13s: %-2d | %12s: %-3d |\n",
+              "Overall",
+              results_.overall_iteration,
+              "Convexify",
               results_.convexify_iteration,
+              "Trust Region",
               results_.trust_region_iteration,
-              results_.overall_iteration);
-  std::printf("%15s | %10s===%10s===%10s===%10s===%10s===%10s\n",
-              "",
-              "==========",
-              "==========",
-              "==========",
-              "==========",
-              "==========",
-              "==========");
-  std::printf("%15s | %10s | %10s | %10s | %10s | %10s | %10s\n",
-              "",
-              "merit",
-              "oldexact",
-              "new_exact",
-              "dapprox",
-              "dexact",
-              "ratio");
+              "Penalty",
+              results_.penalty_iteration);
+  std::printf("| %s |\n", std::string(75, '=').c_str());
+  std::printf(
+      "| %10s | %10s | %10s | %10s | %10s | %10s |\n", "merit", "oldexact", "new_exact", "dapprox", "dexact", "ratio");
   // Costs
-  std::printf("%15s | %10s---%10s---%10s---%10s---%10s---%10s\n",
-              "COSTS",
-              "----------",
-              "----------",
-              "----------",
-              "----------",
-              "----------",
-              "----------");
+  std::printf("| %s | COSTS\n", std::string(75, '-').c_str());
   std::vector<ifopt::Component::Ptr> costs = nlp_->GetCosts().GetComponents();
   // Loop over cost sets
   Eigen::Index cost_number = 0;
@@ -368,23 +338,23 @@ void TrustRegionSQPSolver::printStepInfo() const
       double approx_improve = 0;  // old_cost_vals[i] - model_cost_vals[i];
       double exact_improve = 0;   // old_cost_vals[i] - new_cost_vals[i];
       if (fabs(approx_improve) > 1e-8)
-        std::printf("%15s | %10s | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e\n",
-                    (cost->GetName() + "_" + std::to_string(j)).c_str(),
+        std::printf("| %10s | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %-15s \n",
                     "----------",
                     results_.best_exact_merit,
                     results_.new_exact_merit,
                     approx_improve,
                     exact_improve,
-                    exact_improve / approx_improve);
+                    exact_improve / approx_improve,
+                    (cost->GetName() + "_" + std::to_string(j)).c_str());
       else
-        std::printf("%15s | %10s | %10.3e | %10.3e | %10.3e | %10.3e | %10s\n",
-                    (cost->GetName() + "_" + std::to_string(j)).c_str(),
+        std::printf("| %10s | %10.3e | %10.3e | %10.3e | %10.3e | %10s | %-15s\n",
                     "----------",
                     results_.best_exact_merit,
                     results_.new_exact_merit,
                     approx_improve,
                     exact_improve,
-                    "  ------  ");
+                    "  ------  ",
+                    (cost->GetName() + "_" + std::to_string(j)).c_str());
       cost_number++;
     }
   }
@@ -393,14 +363,7 @@ void TrustRegionSQPSolver::printStepInfo() const
   // If we want to print the names we will have to add a getConstraints function to IFOPT
   if (results_.new_constraint_violations.size() != 0)
   {
-    std::printf("%15s | %10s---%10s---%10s---%10s---%10s---%10s\n",
-                "CONSTRAINTS",
-                "----------",
-                "----------",
-                "----------",
-                "----------",
-                "----------",
-                "----------");
+    std::printf("| %s | CONSTRAINTS\n", std::string(75, '-').c_str());
     Eigen::VectorXd exact_cnt_improve = results_.best_constraint_violations - results_.new_constraint_violations;
     std::vector<ifopt::Component::Ptr> constraints = nlp_->GetConstraints().GetComponents();
     // Loop over constraint sets
@@ -412,45 +375,38 @@ void TrustRegionSQPSolver::printStepInfo() const
       {
         double approx_improve = 0;  // old_cnt_viols[i] - model_cnt_viols[i];  // TODO
         if (fabs(approx_improve) > 1e-8)
-          std::printf("%15s | %10.3e | %10.3e | %10.3e | %10s | %10.3e | %10.3e\n",
-                      (cnt->GetName() + "_" + std::to_string(j)).c_str(),
+          std::printf("| %10.3e | %10.3e | %10.3e | %10s | %10.3e | %10.3e | %-15s\n",
                       results_.merit_error_coeffs[cnt_number],
                       results_.merit_error_coeffs[cnt_number] * results_.best_constraint_violations[cnt_number],
                       results_.merit_error_coeffs[cnt_number] * results_.new_constraint_violations[cnt_number],
                       "  ------  ",
                       results_.merit_error_coeffs[cnt_number] * exact_cnt_improve[cnt_number],
-                      exact_cnt_improve[cnt_number] / approx_improve);
+                      exact_cnt_improve[cnt_number] / approx_improve,
+                      (cnt->GetName() + "_" + std::to_string(j)).c_str());
         else
-          std::printf("%15s | %10.3e | %10.3e | %10.3e | %10s | %10.3e | %10s\n",
-                      (cnt->GetName() + "_" + std::to_string(j)).c_str(),
+          std::printf("| %10.3e | %10.3e | %10.3e | %10s | %10.3e | %10s | %-15s \n",
                       results_.merit_error_coeffs[cnt_number],
                       results_.merit_error_coeffs[cnt_number] * results_.best_constraint_violations[cnt_number],
                       results_.merit_error_coeffs[cnt_number] * results_.new_constraint_violations[cnt_number],
                       "  ------  ",
                       results_.merit_error_coeffs[cnt_number] * exact_cnt_improve[cnt_number],
-                      "  ------  ");
+                      "  ------  ",
+                      (cnt->GetName() + "_" + std::to_string(j)).c_str());
         cnt_number++;
       }
     }
   }
 
   // Total
-  std::printf("%15s | %10s===%10s===%10s===%10s===%10s===%10s\n",
-              "",
-              "==========",
-              "==========",
-              "==========",
-              "==========",
-              "==========",
-              "==========");
-  std::printf("%15s | %10s | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e\n",
-              "TOTAL",
+  std::printf("| %s |\n", std::string(75, '=').c_str());
+  std::printf("| %10s | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | TOTAL\n",
               "----------",
               results_.best_exact_merit,
               results_.new_exact_merit,
               results_.approx_merit_improve,
               results_.exact_merit_improve,
               results_.merit_improve_ratio);
+  std::printf("| %s |\n", std::string(75, '=').c_str());
 }
 
 }  // namespace trajopt_sqp

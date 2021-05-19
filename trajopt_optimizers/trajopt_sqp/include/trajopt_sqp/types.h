@@ -149,7 +149,7 @@ struct SQPResults
     std::cout << "convexify_iteration: " << convexify_iteration << std::endl;
     std::cout << "trust_region_iteration: " << trust_region_iteration << std::endl;
     std::cout << "overall_iteration: " << overall_iteration << std::endl;
-  };
+  }
 };
 
 /**
