@@ -85,45 +85,27 @@ void TrustRegionSQPSolver::Solve(ifopt::Problem& nlp)
 
     // Convexification loop
     for (int convex_iteration = 0; convex_iteration < 100; convex_iteration++)
-      stepSQPSolver();
-
-    // ---------------------------
-    // Penalty Adjustment
-    // ---------------------------
-
-    // Check if constrainsts are satisfied
-    if (results_.new_constraint_violations.size() == 0)
     {
-      CONSOLE_BRIDGE_logInform("Optimization has converged and there are no constraints");
-      break;
-    }
+      if (stepSQPSolver())
+        break;
 
-    if (results_.new_constraint_violations.maxCoeff() < params.cnt_tolerance)
-    {
-      CONSOLE_BRIDGE_logInform("woo-hoo! constraints are satisfied (to tolerance %.2e)", params.cnt_tolerance);
-      break;
-    }
-
-    if (params.inflate_constraints_individually)
-    {
-      assert(results_.new_constraint_violations.size() == results_.merit_error_coeffs.size());
-      for (Eigen::Index idx = 0; idx < results_.new_constraint_violations.size(); idx++)
+      if (results_.overall_iteration >= params.max_iterations)
       {
-        if (results_.new_constraint_violations[idx] > params.cnt_tolerance)
-        {
-          CONSOLE_BRIDGE_logInform("Not all constraints are satisfied. Increasing constraint penalties for %d", idx);
-          results_.merit_error_coeffs[idx] *= params.merit_coeff_increase_ratio;
-        }
+        CONSOLE_BRIDGE_logInform("Iteration limit");
+        status_ = SQPStatus::ITERATION_LIMIT;
+        break;
       }
     }
-    else
-    {
-      CONSOLE_BRIDGE_logInform("Not all constraints are satisfied. Increasing constraint penalties uniformly");
-      results_.merit_error_coeffs *= params.merit_coeff_increase_ratio;
-    }
-    results_.box_size = Eigen::VectorXd::Ones(results_.box_size.size()) *
-                        fmax(results_.box_size[0], params.min_trust_box_size / params.trust_shrink_ratio * 1.5);
 
+    // Check if constraints are satisfied
+    if (verifySQPSolverConvergence())
+      break;
+
+    // ---------------------------
+    // Constraints are not satisfied!
+    // Penalty Adjustment
+    // ---------------------------
+    adjustPenalty();
   }  // Penalty adjustment loop
 
   // Final Cleanup
@@ -132,7 +114,48 @@ void TrustRegionSQPSolver::Solve(ifopt::Problem& nlp)
   nlp.SetVariables(results_.best_var_vals.data());
 }
 
-void TrustRegionSQPSolver::stepSQPSolver()
+bool TrustRegionSQPSolver::verifySQPSolverConvergence()
+{
+  // Check if constrainsts are satisfied
+  if (results_.new_constraint_violations.size() == 0)
+  {
+    CONSOLE_BRIDGE_logInform("Optimization has converged and there are no constraints");
+    return true;
+  }
+
+  if (results_.new_constraint_violations.maxCoeff() < params.cnt_tolerance)
+  {
+    CONSOLE_BRIDGE_logInform("woo-hoo! constraints are satisfied (to tolerance %.2e)", params.cnt_tolerance);
+    return true;
+  }
+
+  return false;
+}
+
+void TrustRegionSQPSolver::adjustPenalty()
+{
+  if (params.inflate_constraints_individually)
+  {
+    assert(results_.new_constraint_violations.size() == results_.merit_error_coeffs.size());
+    for (Eigen::Index idx = 0; idx < results_.new_constraint_violations.size(); idx++)
+    {
+      if (results_.new_constraint_violations[idx] > params.cnt_tolerance)
+      {
+        CONSOLE_BRIDGE_logInform("Not all constraints are satisfied. Increasing constraint penalties for %d", idx);
+        results_.merit_error_coeffs[idx] *= params.merit_coeff_increase_ratio;
+      }
+    }
+  }
+  else
+  {
+    CONSOLE_BRIDGE_logInform("Not all constraints are satisfied. Increasing constraint penalties uniformly");
+    results_.merit_error_coeffs *= params.merit_coeff_increase_ratio;
+  }
+  results_.box_size = Eigen::VectorXd::Ones(results_.box_size.size()) *
+                      fmax(results_.box_size[0], params.min_trust_box_size / params.trust_shrink_ratio * 1.5);
+}
+
+bool TrustRegionSQPSolver::stepSQPSolver()
 {
   results_.convexify_iteration++;
   qp_problem->convexify();
@@ -153,19 +176,15 @@ void TrustRegionSQPSolver::stepSQPSolver()
 
   // Check if the NLP has converged
   if (status_ == SQPStatus::NLP_CONVERGED)
-    return;
+    return true;
+
   if (results_.box_size.maxCoeff() < params.min_trust_box_size)
   {
     CONSOLE_BRIDGE_logInform("Converged because trust region is tiny");
     status_ = SQPStatus::NLP_CONVERGED;
-    return;
+    return true;
   }
-  if (results_.overall_iteration >= params.max_iterations)
-  {
-    CONSOLE_BRIDGE_logInform("Iteration limit");
-    status_ = SQPStatus::ITERATION_LIMIT;
-    return;
-  }
+  return false;
 }
 
 void TrustRegionSQPSolver::runTrustRegionLoop()

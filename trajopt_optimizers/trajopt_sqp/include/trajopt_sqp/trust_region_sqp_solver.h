@@ -57,8 +57,21 @@ public:
   /**
    * @brief Run a single convexification step which calls runTrustRegionLoop
    * @warning This should not normally be call directly, but exposed for online planning
+   * @return True the QP solve converged, but does not mean the SQP solver has converged.
    */
-  void stepSQPSolver();
+  bool stepSQPSolver();
+
+  /**
+   * @brief Check if the SQPSolver constraints are satisfied
+   * @warning This should not normally be call directly, but exposed for online planning
+   */
+  bool verifySQPSolverConvergence();
+
+  /**
+   * @brief The SQPSolver reported convergence but constarts are not satisfied so this function
+   * is used to increases the penalty on the constraints.
+   */
+  void adjustPenalty();
 
   /**
    * @brief Run trust region loop which calls stepOptimization adjusting box size
