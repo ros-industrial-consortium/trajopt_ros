@@ -183,6 +183,11 @@ void CartLineConstraint::SetLine(const Eigen::Isometry3d& Point_A, const Eigen::
   line_ = point_b_.translation() - point_a_.translation();
 }
 
+std::pair<Eigen::Isometry3d, Eigen::Isometry3d> CartLineConstraint::GetLine()
+{
+  return std::make_pair(point_a_, point_b_);
+}
+
 Eigen::Isometry3d CartLineConstraint::GetCurrentPose()
 {
   Eigen::VectorXd joint_vals = this->GetVariables()->GetComponent(position_var_->GetName())->GetValues();

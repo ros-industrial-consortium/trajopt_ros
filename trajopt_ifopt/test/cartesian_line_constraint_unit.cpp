@@ -66,9 +66,15 @@ public:
     nlp.AddVariableSet(var0);
 
     // Add constraints
-    auto target_pose_1 = Eigen::Isometry3d::Identity();
-    auto target_pose_2 = target_pose_1.translate(Eigen::Vector3d(1.0, 0, 0));
-    constraint = std::make_shared<trajopt::CartLineConstraint>(target_pose_1, target_pose_2, kinematic_info, var0);
+    Eigen::VectorXd joint_position = Eigen::VectorXd::Ones(n_dof);
+    Eigen::Isometry3d target_pose = forward_kinematics->calcFwdKin(joint_position);
+
+    Eigen::Isometry3d line_start_pose = target_pose;
+    line_start_pose.translation() = line_start_pose.translation() + Eigen::Vector3d(-0.5, 0.0, 0.0);
+    Eigen::Isometry3d line_end_pose = target_pose;
+    line_end_pose.translation() =  line_end_pose.translation() + Eigen::Vector3d(0.5, 0.0, 0.0);
+
+    constraint = std::make_shared<trajopt::CartLineConstraint>(line_start_pose, line_end_pose, kinematic_info, var0);
     nlp.AddConstraintSet(constraint);
   }
 };
@@ -80,23 +86,10 @@ TEST_F(CartesianLineConstraintUnit, GetValue)  // NOLINT
 
   //Run FK to get target pose
   Eigen::VectorXd joint_position = Eigen::VectorXd::Ones(n_dof);
-  Eigen::Isometry3d target_pose = forward_kinematics->calcFwdKin(joint_position);
+  //stored for later use
+  Eigen::Isometry3d line_start_pose = constraint->GetLine().first;
+  Eigen::Isometry3d line_end_pose = constraint->GetLine().second;
 
-  auto var0 = std::make_shared<trajopt::JointPosition>(joint_position, forward_kinematics->getJointNames(), "Joint_Position_0");
-  nlp.AddVariableSet(var0);
-
-  // Set the line endpoints st the target pose is on the line
-  Eigen::Isometry3d line_start_pose = target_pose;
-  line_start_pose.translation() = line_start_pose.translation() + Eigen::Vector3d(-0.5, 0.0, 0.0);
-
-  Eigen::Isometry3d line_end_pose = target_pose;
-  line_end_pose.translation() =  line_end_pose.translation() + Eigen::Vector3d(0.5, 0.0, 0.0);
-
-  constraint = std::make_shared<trajopt::CartLineConstraint>(line_start_pose, line_end_pose, kinematic_info, var0);
-  nlp.AddConstraintSet(constraint);
-  // Set the joints to the joint position that should satisfy it
-  nlp.SetVariables(target_pose.data());
-  nlp.AddConstraintSet(constraint);
   usleep(100000* 100); //sleep so debugger has time to attach
   // Given a joint position at the target, the error should be 0
   {
@@ -105,7 +98,6 @@ TEST_F(CartesianLineConstraintUnit, GetValue)  // NOLINT
     EXPECT_GT(error.minCoeff(), -1e-3) << error.minCoeff();
   }
 
-  //Fails
   {
     auto error = constraint->GetValues();
     EXPECT_LT(error.maxCoeff(), 1e-3);

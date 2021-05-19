@@ -134,6 +134,8 @@ public:
 
   void SetLine(const Eigen::Isometry3d& Point_A, const Eigen::Isometry3d& Point_B);
 
+  std::pair<Eigen::Isometry3d, Eigen::Isometry3d> GetLine();
+
   void SetTargetPose(const Eigen::Isometry3d& target_pose);
 
   /**
