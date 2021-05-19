@@ -228,13 +228,12 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockStartFree(
 
   // Get gradients for all contacts
   long num_eq{ 0 };
-  std::vector<trajopt::GradientResults> grad_results;
-  grad_results.reserve(dist_results.size());
+  GradientResultsSet grad_set(dist_results.size());
   for (tesseract_collision::ContactResult& dist_result : dist_results)
   {
     trajopt::GradientResults result = collision_evaluator_->GetGradient(joint_vals0, joint_vals1, dist_result, false);
     num_eq += (result.gradients[0].has_gradient + result.gradients[1].has_gradient);
-    grad_results.push_back(result);
+    grad_set.add(result);
   }
 
   // Convert GradientResults to jacobian
@@ -243,33 +242,33 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockStartFree(
   {
     case GradientCombineMethod::SUM:
     {
-      grad_vec = getSumGradient(grad_results, n_dof_);
+      grad_vec = getSumGradient(grad_set, n_dof_);
       break;
     }
     case GradientCombineMethod::WEIGHTED_SUM:
     {
-      grad_vec = getSumGradient(grad_results, n_dof_);
+      grad_vec = getSumGradient(grad_set, n_dof_);
       break;
     }
     case GradientCombineMethod::AVERAGE:
     {
-      grad_vec = getAvgGradient(grad_results, n_dof_);
+      grad_vec = getAvgGradient(grad_set, n_dof_);
       break;
     }
     case GradientCombineMethod::WEIGHTED_AVERAGE:
     {
-      grad_vec = getWeightedAvgGradient(grad_results, n_dof_);
+      grad_vec = getWeightedAvgGradient(grad_set, n_dof_);
       break;
     }
     case GradientCombineMethod::LEAST_SQUARES:
     {
-      grad_vec = getLeastSquaresGradient(grad_results, n_dof_, num_eq);
+      grad_vec = getLeastSquaresGradient(grad_set, n_dof_, num_eq);
       break;
     }
     case GradientCombineMethod::WEIGHTED_LEAST_SQUARES:
     {
-      grad_vec = getWeightedLeastSquaresGradient(grad_results, n_dof_, num_eq);
-      // grad_vec = getWeightedLeastSquaresGradient2(grad_results, n_dof_, num_eq);
+      grad_vec = getWeightedLeastSquaresGradient(grad_set, n_dof_, num_eq);
+      // grad_vec = getWeightedLeastSquaresGradient2(grad_set, n_dof_, num_eq);
       break;
     }
   }
@@ -296,13 +295,12 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockEndFree(
 
   // Get gradients for all contacts
   long num_eq{ 0 };
-  std::vector<trajopt::GradientResults> grad_results;
-  grad_results.reserve(dist_results.size());
+  GradientResultsSet grad_set(dist_results.size());
   for (tesseract_collision::ContactResult& dist_result : dist_results)
   {
     trajopt::GradientResults result = collision_evaluator_->GetGradient(joint_vals0, joint_vals1, dist_result, false);
     num_eq += (result.gradients[0].has_gradient + result.gradients[1].has_gradient);
-    grad_results.push_back(result);
+    grad_set.add(result);
   }
 
   // Convert GradientResults to jacobian
@@ -311,33 +309,33 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockEndFree(
   {
     case GradientCombineMethod::SUM:
     {
-      grad_vec = getSumGradient(grad_results, n_dof_);
+      grad_vec = getSumGradient(grad_set, n_dof_);
       break;
     }
     case GradientCombineMethod::WEIGHTED_SUM:
     {
-      grad_vec = getSumGradient(grad_results, n_dof_);
+      grad_vec = getSumGradient(grad_set, n_dof_);
       break;
     }
     case GradientCombineMethod::AVERAGE:
     {
-      grad_vec = getAvgGradient(grad_results, n_dof_);
+      grad_vec = getAvgGradient(grad_set, n_dof_);
       break;
     }
     case GradientCombineMethod::WEIGHTED_AVERAGE:
     {
-      grad_vec = getWeightedAvgGradient(grad_results, n_dof_);
+      grad_vec = getWeightedAvgGradient(grad_set, n_dof_);
       break;
     }
     case GradientCombineMethod::LEAST_SQUARES:
     {
-      grad_vec = getLeastSquaresGradient(grad_results, n_dof_, num_eq);
+      grad_vec = getLeastSquaresGradient(grad_set, n_dof_, num_eq);
       break;
     }
     case GradientCombineMethod::WEIGHTED_LEAST_SQUARES:
     {
-      grad_vec = getWeightedLeastSquaresGradient(grad_results, n_dof_, num_eq);
-      // grad_vec = getWeightedLeastSquaresGradient2(grad_results, n_dof_, num_eq);
+      grad_vec = getWeightedLeastSquaresGradient(grad_set, n_dof_, num_eq);
+      // grad_vec = getWeightedLeastSquaresGradient2(grad_set, n_dof_, num_eq);
       break;
     }
   }
@@ -364,14 +362,12 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockBothFree(Jacobian& jac
 
   // Get gradients for all contacts
   long num_eq{ 0 };
-  std::vector<trajopt::GradientResults> grad_results;
-  grad_results.reserve(dist_results.size());
+  GradientResultsSet grad_set(dist_results.size());
   for (tesseract_collision::ContactResult& dist_result : dist_results)
   {
-    trajopt::GradientResults result =
-        collision_evaluator_->GetGradient(joint_vals0, joint_vals1, dist_result, isTimestep1);
+    GradientResults result = collision_evaluator_->GetGradient(joint_vals0, joint_vals1, dist_result, isTimestep1);
     num_eq += (result.gradients[0].has_gradient + result.gradients[1].has_gradient);
-    grad_results.push_back(result);
+    grad_set.add(result);
   }
 
   // Convert GradientResults to jacobian
@@ -380,33 +376,33 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockBothFree(Jacobian& jac
   {
     case GradientCombineMethod::SUM:
     {
-      grad_vec = getSumGradient(grad_results, n_dof_);
+      grad_vec = getSumGradient(grad_set, n_dof_);
       break;
     }
     case GradientCombineMethod::WEIGHTED_SUM:
     {
-      grad_vec = getSumGradient(grad_results, n_dof_);
+      grad_vec = getSumGradient(grad_set, n_dof_);
       break;
     }
     case GradientCombineMethod::AVERAGE:
     {
-      grad_vec = getAvgGradient(grad_results, n_dof_);
+      grad_vec = getAvgGradient(grad_set, n_dof_);
       break;
     }
     case GradientCombineMethod::WEIGHTED_AVERAGE:
     {
-      grad_vec = getWeightedAvgGradient(grad_results, n_dof_);
+      grad_vec = getWeightedAvgGradient(grad_set, n_dof_);
       break;
     }
     case GradientCombineMethod::LEAST_SQUARES:
     {
-      grad_vec = getLeastSquaresGradient(grad_results, n_dof_, num_eq);
+      grad_vec = getLeastSquaresGradient(grad_set, n_dof_, num_eq);
       break;
     }
     case GradientCombineMethod::WEIGHTED_LEAST_SQUARES:
     {
-      grad_vec = getWeightedLeastSquaresGradient(grad_results, n_dof_, num_eq);
-      // grad_vec = getWeightedLeastSquaresGradient2(grad_results, n_dof_, num_eq);
+      grad_vec = getWeightedLeastSquaresGradient(grad_set, n_dof_, num_eq);
+      // grad_vec = getWeightedLeastSquaresGradient2(grad_set, n_dof_, num_eq);
       break;
     }
   }

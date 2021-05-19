@@ -176,10 +176,10 @@ struct GradientResults
   /** @brief The gradient results data for LinkA and LinkB */
   std::array<LinkGradientResults, 2> gradients;
 
-  /** @brief The error std::max<double>(((dist - dist_result.distance) * coeff), 0.) */
+  /** @brief The error (dist - dist_result.distance) */
   double error{ 0 };
 
-  /** @brief The error std::max<double>(((dist + buffer - dist_result.distance) * coeff), 0.) */
+  /** @brief The error (dist + buffer - dist_result.distance) */
   double error_with_buffer{ 0 };
 
   /**
@@ -189,6 +189,52 @@ struct GradientResults
    * [2] coefficent
    */
   Eigen::Vector3d data;
+};
+
+/** @brief A set of gradient results */
+struct GradientResultsSet
+{
+  GradientResultsSet(std::size_t reserve) { results.reserve(reserve); }
+
+  /** @brief The max error in the gradient_results */
+  double max_error{ 0 };
+
+  /** @brief The max error with buffer in the gradient_results */
+  double max_error_with_buffer{ 0 };
+
+  /** @brief The max scaled error in the gradient_results */
+  double max_scaled_error{ 0 };
+
+  /** @brief The max scaled error with buffer in the gradient_results */
+  double max_scaled_error_with_buffer{ 0 };
+
+  /** @brief The stored gradient results for this set */
+  std::vector<GradientResults> results;
+
+  void add(const GradientResults& gradient_result)
+  {
+    if (gradient_result.error > max_error)
+      max_error = gradient_result.error;
+
+    if (gradient_result.error_with_buffer > max_error_with_buffer)
+      max_error_with_buffer = gradient_result.error_with_buffer;
+
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+      if (gradient_result.gradients[i].has_gradient)
+      {
+        double scaled_error = gradient_result.gradients[i].scale * gradient_result.error;
+        if (scaled_error > max_scaled_error)
+          max_scaled_error = scaled_error;
+
+        double scaled_error_with_buffer = gradient_result.gradients[i].scale * gradient_result.error_with_buffer;
+        if (scaled_error_with_buffer > max_scaled_error_with_buffer)
+          max_scaled_error_with_buffer = scaled_error_with_buffer;
+      }
+    }
+
+    results.push_back(gradient_result);
+  }
 };
 }  // namespace trajopt
 #endif  // TRAJOPT_IFOPT_COLLISION_TYPES_H

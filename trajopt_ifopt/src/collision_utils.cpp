@@ -192,7 +192,7 @@ void removeInvalidContactResults(tesseract_collision::ContactResultVector& conta
   contact_results.erase(end, contact_results.end());
 }
 
-Eigen::VectorXd getLeastSquaresGradient(std::vector<trajopt::GradientResults> grad_results, long dof, long num_eq)
+Eigen::VectorXd getLeastSquaresGradient(const GradientResultsSet& grad_results_set, long dof, long num_eq)
 {
   if (num_eq == 0)
     return Eigen::VectorXd::Zero(dof);
@@ -200,21 +200,17 @@ Eigen::VectorXd getLeastSquaresGradient(std::vector<trajopt::GradientResults> gr
   Eigen::MatrixXd jacobian(3 * num_eq, dof);
   Eigen::VectorXd error(3 * num_eq);
   long cnt = 0;
-  for (const auto& grad : grad_results)
+  for (const auto& grad : grad_results_set.results)
   {
-    if (grad.gradients[0].has_gradient)
+    for (std::size_t i = 0; i < 2; ++i)
     {
-      long start_idx = cnt * 3;
-      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[0].translation_vector;
-      jacobian.middleRows(start_idx, 3) = grad.gradients[0].jacobian;
-      cnt++;
-    }
-    if (grad.gradients[1].has_gradient)
-    {
-      long start_idx = cnt * 3;
-      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[1].translation_vector;
-      jacobian.middleRows(start_idx, 3) = grad.gradients[1].jacobian;
-      cnt++;
+      if (grad.gradients[i].has_gradient)
+      {
+        long start_idx = cnt * 3;
+        error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
+        jacobian.middleRows(start_idx, 3) = grad.gradients[i].jacobian;
+        cnt++;
+      }
     }
   }
 
@@ -226,9 +222,7 @@ Eigen::VectorXd getLeastSquaresGradient(std::vector<trajopt::GradientResults> gr
   //  return jacobian.transpose() * error;
 }
 
-Eigen::VectorXd getWeightedLeastSquaresGradient(std::vector<trajopt::GradientResults> grad_results,
-                                                long dof,
-                                                long num_eq)
+Eigen::VectorXd getWeightedLeastSquaresGradient(const GradientResultsSet& grad_results_set, long dof, long num_eq)
 {
   if (num_eq == 0)
     return Eigen::VectorXd::Zero(dof);
@@ -236,21 +230,17 @@ Eigen::VectorXd getWeightedLeastSquaresGradient(std::vector<trajopt::GradientRes
   Eigen::MatrixXd jacobian(3 * num_eq, dof);
   Eigen::VectorXd error(3 * num_eq);
   long cnt = 0;
-  for (const auto& grad : grad_results)
+  for (const auto& grad : grad_results_set.results)
   {
-    if (grad.gradients[0].has_gradient)
+    for (std::size_t i = 0; i < 2; ++i)
     {
-      long start_idx = cnt * 3;
-      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[0].translation_vector;
-      jacobian.middleRows(start_idx, 3) = grad.gradients[0].jacobian;
-      cnt++;
-    }
-    if (grad.gradients[1].has_gradient)
-    {
-      long start_idx = cnt * 3;
-      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[1].translation_vector;
-      jacobian.middleRows(start_idx, 3) = grad.gradients[1].jacobian;
-      cnt++;
+      if (grad.gradients[i].has_gradient)
+      {
+        long start_idx = cnt * 3;
+        error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
+        jacobian.middleRows(start_idx, 3) = grad.gradients[i].jacobian;
+        cnt++;
+      }
     }
   }
   // H=(A^T * W * A)^−1 * A^T * W so that y=Hb
@@ -264,9 +254,7 @@ Eigen::VectorXd getWeightedLeastSquaresGradient(std::vector<trajopt::GradientRes
   //  return (jacobian_transpose * weights * jacobian).householderQr().solve(jacobian_transpose * weights * error);
 }
 
-Eigen::VectorXd getWeightedLeastSquaresGradient2(std::vector<trajopt::GradientResults> grad_results,
-                                                 long dof,
-                                                 long num_eq)
+Eigen::VectorXd getWeightedLeastSquaresGradient2(const GradientResultsSet& grad_results_set, long dof, long num_eq)
 {
   if (num_eq == 0)
     return Eigen::VectorXd::Zero(dof);
@@ -274,25 +262,19 @@ Eigen::VectorXd getWeightedLeastSquaresGradient2(std::vector<trajopt::GradientRe
   Eigen::MatrixXd jacobian(num_eq, dof);
   Eigen::VectorXd error(num_eq);
   long cnt = 0;
-  for (const auto& grad : grad_results)
+  for (const auto& grad : grad_results_set.results)
   {
-    if (grad.gradients[0].has_gradient)
+    for (std::size_t i = 0; i < 2; ++i)
     {
-      error(cnt) = grad.error_with_buffer;
-      jacobian.row(cnt) = grad.gradients[0].gradient;
-      //      long start_idx = cnt * 3;
-      //      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[0].translation_vector;
-      //      jacobian.middleRows(start_idx, 3) = grad.gradients[0].jacobian;
-      cnt++;
-    }
-    if (grad.gradients[1].has_gradient)
-    {
-      error(cnt) = grad.error_with_buffer;
-      jacobian.row(cnt) = grad.gradients[1].gradient;
-      //      long start_idx = cnt * 3;
-      //      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[1].translation_vector;
-      //      jacobian.middleRows(start_idx, 3) = grad.gradients[1].jacobian;
-      cnt++;
+      if (grad.gradients[i].has_gradient)
+      {
+        error(cnt) = grad.error_with_buffer;
+        jacobian.row(cnt) = grad.gradients[i].gradient;
+        //      long start_idx = cnt * 3;
+        //      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
+        //      jacobian.middleRows(start_idx, 3) = grad.gradients[i].jacobian;
+        cnt++;
+      }
     }
   }
   // H=(A^T * W * A)^−1 * A^T * W so that y=Hb
@@ -306,76 +288,73 @@ Eigen::VectorXd getWeightedLeastSquaresGradient2(std::vector<trajopt::GradientRe
   return grad_vec;
 }
 
-Eigen::VectorXd getAvgGradient(std::vector<trajopt::GradientResults> grad_results, long dof)
+Eigen::VectorXd getAvgGradient(const GradientResultsSet& grad_results_set, long dof)
 {
   Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
-  if (grad_results.empty())
+  if (grad_results_set.results.empty())
     return grad_vec;
 
   long cnt = 0;
-  for (auto& grad : grad_results)
+  for (auto& grad : grad_results_set.results)
   {
-    if (grad.gradients[0].has_gradient)
+    for (std::size_t i = 0; i < 2; ++i)
     {
-      grad_vec += grad.error * grad.gradients[0].gradient;
-      cnt++;
-    }
-
-    if (grad.gradients[1].has_gradient)
-    {
-      grad_vec += grad.error * grad.gradients[1].scale * grad.gradients[1].gradient;
-      cnt++;
+      if (grad.gradients[i].has_gradient)
+      {
+        grad_vec += grad.gradients[i].scale * grad.gradients[i].gradient;
+        cnt++;
+      }
     }
   }
   return (grad_vec / cnt);
 }
 
-Eigen::VectorXd getWeightedAvgGradient(std::vector<trajopt::GradientResults> grad_results, long dof)
+Eigen::VectorXd getWeightedAvgGradient(const GradientResultsSet& grad_results_set, long dof)
 {
   Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
-  if (grad_results.empty())
+  if (grad_results_set.results.empty())
     return grad_vec;
 
   double total_weight = 0;
-  for (auto& grad : grad_results)
+  for (auto& grad : grad_results_set.results)
   {
-    if (grad.gradients[0].has_gradient)
+    for (std::size_t i = 0; i < 2; ++i)
     {
-      total_weight += (grad.error * grad.gradients[0].scale);
-      grad_vec += grad.error * grad.gradients[0].scale * grad.gradients[0].gradient;
-    }
-
-    if (grad.gradients[1].has_gradient)
-    {
-      total_weight += (grad.error * grad.gradients[1].scale);
-      grad_vec += grad.error * grad.gradients[1].scale * grad.gradients[1].gradient;
+      if (grad.gradients[i].has_gradient)
+      {
+        double w = std::max(grad.error_with_buffer, 0.0) * grad.gradients[i].scale;
+        total_weight += w;
+        grad_vec += w * grad.gradients[i].gradient;
+      }
     }
   }
   return (1.0 / total_weight) * grad_vec;
 }
 
-Eigen::VectorXd getScaledSumGradient(std::vector<trajopt::GradientResults> grad_results, long dof)
+Eigen::VectorXd getScaledSumGradient(const GradientResultsSet& grad_results_set, long dof)
 {
   Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
-  for (auto& grad : grad_results)
+  for (auto& grad : grad_results_set.results)
   {
-    if (grad.gradients[0].has_gradient)
-      grad_vec += grad.gradients[0].scale * grad.gradients[0].gradient;
-    if (grad.gradients[1].has_gradient)
-      grad_vec += grad.gradients[1].scale * grad.gradients[1].gradient;
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+      if (grad.gradients[i].has_gradient)
+        grad_vec += grad.gradients[i].scale * grad.gradients[i].gradient;
+    }
   }
   return grad_vec;
 }
 
-Eigen::VectorXd getSumGradient(std::vector<trajopt::GradientResults> grad_results, long dof)
+Eigen::VectorXd getSumGradient(const GradientResultsSet& grad_results_set, long dof)
 {
   Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
-  for (auto& grad : grad_results)
+  for (auto& grad : grad_results_set.results)
   {
-    if (grad.gradients[0].has_gradient)
-      grad_vec += grad.gradients[0].gradient;
-    if (grad.gradients[1].has_gradient)
-      grad_vec += grad.gradients[1].gradient;
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+      if (grad.gradients[i].has_gradient)
+        grad_vec += grad.gradients[i].gradient;
+    }
   }
   return grad_vec;
 }
@@ -434,9 +413,6 @@ GradientResults getGradient(const Eigen::VectorXd& dofvals,
                             const Eigen::Isometry3d& world_to_base)
 {
   GradientResults results(data);
-  //  results.error = std::max<double>((data[0] - contact_result.distance), 0.);
-  //  results.error_with_buffer = std::max<double>((data[0] + data[1] - contact_result.distance), 0.);
-
   results.error = (data[0] - contact_result.distance);
   results.error_with_buffer = (data[0] + data[1] - contact_result.distance);
   for (std::size_t i = 0; i < 2; ++i)
@@ -460,9 +436,6 @@ GradientResults getGradient(const Eigen::VectorXd& dofvals0,
                             bool isTimestep1)
 {
   GradientResults results(data);
-  //  results.error = std::max<double>((data[0] - contact_result.distance), 0.);
-  //  results.error_with_buffer = std::max<double>((data[0] + data[1] - contact_result.distance), 0.);
-
   results.error = (data[0] - contact_result.distance);
   results.error_with_buffer = (data[0] + data[1] - contact_result.distance);
 

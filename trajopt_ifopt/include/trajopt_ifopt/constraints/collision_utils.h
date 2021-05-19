@@ -70,7 +70,7 @@ void removeInvalidContactResults(tesseract_collision::ContactResultVector& conta
  * @param num_eq The number equations
  * @return A gradient
  */
-Eigen::VectorXd getLeastSquaresGradient(std::vector<trajopt::GradientResults> grad_results, long dof, long num_eq);
+Eigen::VectorXd getLeastSquaresGradient(const GradientResultsSet& grad_results_set, long dof, long num_eq);
 
 /**
  * @brief This takes a vector of gradient results and outputs a single gradient using weighted least squares
@@ -80,18 +80,14 @@ Eigen::VectorXd getLeastSquaresGradient(std::vector<trajopt::GradientResults> gr
  * @param num_eq The number equations
  * @return A gradient
  */
-Eigen::VectorXd getWeightedLeastSquaresGradient(std::vector<trajopt::GradientResults> grad_results,
-                                                long dof,
-                                                long num_eq);
-Eigen::VectorXd getWeightedLeastSquaresGradient2(std::vector<trajopt::GradientResults> grad_results,
-                                                 long dof,
-                                                 long num_eq);
+Eigen::VectorXd getWeightedLeastSquaresGradient(const GradientResultsSet& grad_results_set, long dof, long num_eq);
+Eigen::VectorXd getWeightedLeastSquaresGradient2(const GradientResultsSet& grad_results_set, long dof, long num_eq);
 
 /** @brief These were from the original trajopt */
-Eigen::VectorXd getAvgGradient(std::vector<trajopt::GradientResults> grad_results, long dof);
-Eigen::VectorXd getWeightedAvgGradient(std::vector<trajopt::GradientResults> grad_results, long dof);
-Eigen::VectorXd getScaledSumGradient(std::vector<trajopt::GradientResults> grad_results, long dof);
-Eigen::VectorXd getSumGradient(std::vector<trajopt::GradientResults> grad_results, long dof);
+Eigen::VectorXd getAvgGradient(const GradientResultsSet& grad_results_set, long dof);
+Eigen::VectorXd getWeightedAvgGradient(const GradientResultsSet& grad_results_set, long dof);
+Eigen::VectorXd getScaledSumGradient(const GradientResultsSet& grad_results_set, long dof);
+Eigen::VectorXd getSumGradient(const GradientResultsSet& grad_results_set, long dof);
 
 /**
  * @brief Extracts the gradient information based on the contact results
