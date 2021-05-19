@@ -34,7 +34,7 @@
 
 namespace trajopt_sqp
 {
-const bool SUPER_DEBUG_MODE = true;
+const bool SUPER_DEBUG_MODE = false;
 
 TrustRegionSQPSolver::TrustRegionSQPSolver(QPSolver::Ptr qp_solver) : qp_solver(std::move(qp_solver))
 {
@@ -339,7 +339,11 @@ void TrustRegionSQPSolver::printStepInfo() const
   std::printf("| %s %s %s |\n", std::string(29, ' ').c_str(), "ROS Industrial", std::string(30, ' ').c_str());
   std::printf("| %s %s %s |\n", std::string(25, ' ').c_str(), "TrajOpt Motion Planning", std::string(25, ' ').c_str());
   std::printf("| %s |\n", std::string(75, '=').c_str());
-  std::printf("| %s %s (Box Size: %-3.9f) %s |\n", std::string(20, ' ').c_str(), "Iteration", results_.box_size(0), std::string(20, ' ').c_str());
+  std::printf("| %s %s (Box Size: %-3.9f) %s |\n",
+              std::string(20, ' ').c_str(),
+              "Iteration",
+              results_.box_size(0),
+              std::string(20, ' ').c_str());
   std::printf("| %s |\n", std::string(75, '-').c_str());
   std::printf("| %11s: %-3d | %11s: %-3d | %13s: %-2d | %12s: %-3d |\n",
               "Overall",
