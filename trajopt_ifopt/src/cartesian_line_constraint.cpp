@@ -59,18 +59,15 @@ CartLineConstraint::CartLineConstraint(const Eigen::Isometry3d& origin_pose,
 Eigen::VectorXd CartLineConstraint::CalcValues(const Eigen::Ref<const Eigen::VectorXd>& joint_vals) const
 {
   Eigen::Isometry3d new_pose = kinematic_info_->manip->calcFwdKin(joint_vals);
-
   new_pose = kinematic_info_->world_to_base * new_pose * kinematic_info_->kin_link->transform * kinematic_info_->tcp;
 
   // For Jacobian Calc, we need the inverse of the nearest point, D, to new Pose, C, on the constraint line AB
-
   Eigen::Isometry3d line_point = GetLinePoint(new_pose);
   // pose error is the vector from the new_pose to nearest point on line AB, line_point
-  //old line_constraint method:
-  //Eigen::Vector3d cart_pose_err = (line_point.translation() - new_pose.translation()).array().abs();
   //the below method is equivalent to the position constraint; using the line point as the target point
   Eigen::Isometry3d pose_err = line_point.inverse() * new_pose;
-  Eigen::VectorXd err = concat(pose_err.translation(), calcRotationalError(pose_err.rotation()));
+  Eigen::Vector3d cart_pose_err = (line_point.translation() - new_pose.translation()).array().abs();
+  Eigen::VectorXd err = concat(cart_pose_err, calcRotationalError(pose_err.rotation()));
   return err;
 }
 
@@ -198,11 +195,13 @@ Eigen::Isometry3d CartLineConstraint::GetCurrentPose()
 Eigen::Isometry3d CartLineConstraint::GetLinePoint(const Eigen::Isometry3d& test_point) const
 {
   // distance 1; distance from new pose to first point on line
-  Eigen::Vector3d d1 = (point_a_.translation() - test_point.translation()).array().abs();
+  Eigen::Vector3d d1 = (test_point.translation()- point_b_.translation()).array().abs();
 
   // Point D, the nearest point on line AB to point C, can be found with:
   // (AC - (AC * AB)) * AB
+  //Eigen::Vector3d line_point_pos = (d1 - (d1 * line_)) * line_;
   Eigen::Isometry3d line_point;
+  //line_point.translation() = line_point_pos;
   Eigen::Vector3d line_norm = line_ / line_.squaredNorm();
   double mag = d1.dot(line_norm);
 
