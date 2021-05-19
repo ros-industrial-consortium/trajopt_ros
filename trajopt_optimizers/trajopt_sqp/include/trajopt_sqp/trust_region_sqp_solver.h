@@ -87,6 +87,13 @@ public:
   SQPStatus solveQPProblem();
 
   /**
+   * @brief Set the trust region box size
+   * @warning This should not normally be call directly, but exposed for online planning
+   * @param box_size The box size
+   */
+  void setBoxSize(double box_size);
+
+  /**
    * @brief Calls all registered callbacks with the current state of of the problem
    * @return Returns false if any single callback returned false
    */

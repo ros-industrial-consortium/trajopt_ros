@@ -59,9 +59,15 @@ bool TrustRegionSQPSolver::init(ifopt::Problem& nlp)
   results_.best_exact_merit = nlp_->EvaluateCostFunction(results_.best_var_vals.data()) +
                               results_.best_constraint_violations.dot(results_.merit_error_coeffs);
 
-  results_.box_size = Eigen::VectorXd::Ones(nlp.GetNumberOfOptimizationVariables()) * params.initial_trust_box_size;
-  qp_problem->setBoxSize(results_.box_size);
+  setBoxSize(params.initial_trust_box_size);
   return true;
+}
+
+void TrustRegionSQPSolver::setBoxSize(double box_size)
+{
+  results_.box_size = Eigen::VectorXd::Constant(nlp_->GetNumberOfOptimizationVariables(), box_size);
+  qp_problem->setBoxSize(results_.box_size);
+  qp_problem->updateNLPVariableBounds(); /** @todo should setBoxSize do this? */
 }
 
 void TrustRegionSQPSolver::registerCallback(const SQPCallback::Ptr& callback) { callbacks_.push_back(callback); }
@@ -196,7 +202,7 @@ void TrustRegionSQPSolver::runTrustRegionLoop()
       qp_problem->print();
 
     results_.overall_iteration++;
-    results_.trust_region_iteration = trust_region_iteration;
+    results_.trust_region_iteration = trust_region_iteration + 1;
 
     // Solve the current QP problem
     status_ = solveQPProblem();
@@ -333,9 +339,9 @@ void TrustRegionSQPSolver::printStepInfo() const
   std::printf("| %s %s %s |\n", std::string(29, ' ').c_str(), "ROS Industrial", std::string(30, ' ').c_str());
   std::printf("| %s %s %s |\n", std::string(25, ' ').c_str(), "TrajOpt Motion Planning", std::string(25, ' ').c_str());
   std::printf("| %s |\n", std::string(75, '=').c_str());
-  std::printf("| %s %s %s |\n", std::string(32, ' ').c_str(), "Iteration", std::string(32, ' ').c_str());
+  std::printf("| %s %s (Box Size: %-3.9f) %s |\n", std::string(20, ' ').c_str(), "Iteration", results_.box_size(0), std::string(20, ' ').c_str());
   std::printf("| %s |\n", std::string(75, '-').c_str());
-  std::printf("| %12s: %-2d | %12s: %-2d | %13s: %-2d | %12s: %-3d |\n",
+  std::printf("| %11s: %-3d | %11s: %-3d | %13s: %-2d | %12s: %-3d |\n",
               "Overall",
               results_.overall_iteration,
               "Convexify",
@@ -348,10 +354,20 @@ void TrustRegionSQPSolver::printStepInfo() const
   std::printf(
       "| %10s | %10s | %10s | %10s | %10s | %10s |\n", "merit", "oldexact", "new_exact", "dapprox", "dexact", "ratio");
   // Costs
-  std::printf("| %s | COSTS\n", std::string(75, '-').c_str());
-  std::vector<ifopt::Component::Ptr> costs = nlp_->GetCosts().GetComponents();
+  std::printf("| %s | SUM COSTS + SUM CONSTRAINTS\n", std::string(75, '-').c_str());
+  std::printf("| %10s | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e |\n",
+              "----------",
+              results_.best_exact_merit,
+              results_.new_exact_merit,
+              results_.approx_merit_improve,
+              results_.exact_merit_improve,
+              results_.merit_improve_ratio);
+
+  // Costs
+  std::printf("| %s | INDIVIDUAL COSTS\n", std::string(75, '-').c_str());
   // Loop over cost sets
   Eigen::Index cost_number = 0;
+  std::vector<ifopt::Component::Ptr> costs = nlp_->GetCosts().GetComponents();
   for (const auto& cost : costs)
   {
     // Loop over each constraint in the set
