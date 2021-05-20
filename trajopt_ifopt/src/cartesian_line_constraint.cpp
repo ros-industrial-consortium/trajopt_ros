@@ -64,7 +64,7 @@ Eigen::VectorXd CartLineConstraint::CalcValues(const Eigen::Ref<const Eigen::Vec
   // For Jacobian Calc, we need the inverse of the nearest point, D, to new Pose, C, on the constraint line AB
   Eigen::Isometry3d line_point = GetLinePoint(new_pose);
   // pose error is the vector from the new_pose to nearest point on line AB, line_point
-  //the below method is equivalent to the position constraint; using the line point as the target point
+  // the below method is equivalent to the position constraint; using the line point as the target point
   Eigen::Isometry3d pose_err = line_point.inverse() * new_pose;
   Eigen::Vector3d cart_pose_err = (line_point.translation() - new_pose.translation()).array().abs();
   Eigen::VectorXd err = concat(cart_pose_err, calcRotationalError(pose_err.rotation()));
@@ -86,7 +86,8 @@ void CartLineConstraint::SetBounds(const std::vector<ifopt::Bounds>& bounds)
   bounds_ = bounds;
 }
 
-void CartLineConstraint::CalcJacobianBlock(const Eigen::Ref<const Eigen::VectorXd>& joint_vals, Jacobian& jac_block) const
+void CartLineConstraint::CalcJacobianBlock(const Eigen::Ref<const Eigen::VectorXd>& joint_vals,
+                                           Jacobian& jac_block) const
 {
   if (use_numeric_differentiation)
   {
@@ -196,17 +197,18 @@ Eigen::Isometry3d CartLineConstraint::GetCurrentPose()
   return new_pose;
 }
 
-//this has to be const because it is used in const functions, it would be nicer if this could store a member line_point_
+// this has to be const because it is used in const functions, it would be nicer if this could store a member
+// line_point_
 Eigen::Isometry3d CartLineConstraint::GetLinePoint(const Eigen::Isometry3d& test_point) const
 {
   // distance 1; distance from new pose to first point on line
-  Eigen::Vector3d d1 = (test_point.translation()- point_b_.translation()).array().abs();
+  Eigen::Vector3d d1 = (test_point.translation() - point_b_.translation()).array().abs();
 
   // Point D, the nearest point on line AB to point C, can be found with:
   // (AC - (AC * AB)) * AB
-  //Eigen::Vector3d line_point_pos = (d1 - (d1 * line_)) * line_;
+  // Eigen::Vector3d line_point_pos = (d1 - (d1 * line_)) * line_;
   Eigen::Isometry3d line_point;
-  //line_point.translation() = line_point_pos;
+  // line_point.translation() = line_point_pos;
   Eigen::Vector3d line_norm = line_ / line_.squaredNorm();
   double mag = d1.dot(line_norm);
 
@@ -224,7 +226,7 @@ Eigen::Isometry3d CartLineConstraint::GetLinePoint(const Eigen::Isometry3d& test
     line_point.translation() = point_a_.translation() + mag * line_norm;
   }
 
-  //The orientation of the line_point is found using quaternion SLERP
+  // The orientation of the line_point is found using quaternion SLERP
   Eigen::Quaterniond quat_a(point_a_.rotation());
   Eigen::Quaterniond quat_b(point_b_.rotation());
   Eigen::Quaterniond slerp = quat_a.slerp(mag, quat_b);

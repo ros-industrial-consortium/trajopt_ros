@@ -72,7 +72,7 @@ public:
     Eigen::Isometry3d line_start_pose = target_pose;
     line_start_pose.translation() = line_start_pose.translation() + Eigen::Vector3d(-0.5, 0.0, 0.0);
     Eigen::Isometry3d line_end_pose = target_pose;
-    line_end_pose.translation() =  line_end_pose.translation() + Eigen::Vector3d(0.5, 0.0, 0.0);
+    line_end_pose.translation() = line_end_pose.translation() + Eigen::Vector3d(0.5, 0.0, 0.0);
 
     constraint = std::make_shared<trajopt::CartLineConstraint>(line_start_pose, line_end_pose, kinematic_info, var0);
     nlp.AddConstraintSet(constraint);
@@ -84,13 +84,12 @@ TEST_F(CartesianLineConstraintUnit, GetValue)  // NOLINT
 {
   CONSOLE_BRIDGE_logDebug("CartesianPositionConstraintUnit, GetValue");
 
-  //Run FK to get target pose
+  // Run FK to get target pose
   Eigen::VectorXd joint_position = Eigen::VectorXd::Ones(n_dof);
-  //stored for later use
+  // stored for later use
   Eigen::Isometry3d line_start_pose = constraint->GetLine().first;
   Eigen::Isometry3d line_end_pose = constraint->GetLine().second;
 
-  usleep(100000* 100); //sleep so debugger has time to attach
   // Given a joint position at the target, the error should be 0
   {
     auto error = constraint->CalcValues(joint_position);
@@ -166,7 +165,7 @@ TEST_F(CartesianLineConstraintUnit, FillJacobian)  // NOLINT
   }
 }
 
- /**
+/**
  * @brief Checks that the Bounds are set correctly
  */
 TEST_F(CartesianLineConstraintUnit, GetSetBounds)  // NOLINT

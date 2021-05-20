@@ -55,10 +55,10 @@ struct CartLineKinematicInfo
 
   CartLineKinematicInfo() = default;
   CartLineKinematicInfo(tesseract_kinematics::ForwardKinematics::ConstPtr manip,
-                       tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
-                       const Eigen::Isometry3d& world_to_base,
-                       std::string link,
-                       const Eigen::Isometry3d& tcp = Eigen::Isometry3d::Identity())
+                        tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
+                        const Eigen::Isometry3d& world_to_base,
+                        std::string link,
+                        const Eigen::Isometry3d& tcp = Eigen::Isometry3d::Identity())
     : manip(std::move(manip))
     , adjacency_map(std::move(adjacency_map))
     , world_to_base(world_to_base)
@@ -171,8 +171,8 @@ public:
    * @return
    */
   Eigen::Isometry3d GetLinePoint(const Eigen::Isometry3d& test_point) const;
-private:
 
+private:
   /** @brief The number of joints in a single JointPosition */
   long n_dof_;
 
