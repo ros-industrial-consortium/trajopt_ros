@@ -73,14 +73,21 @@ public:
    */
   double evaluateTotalConvexCost(const Eigen::Ref<const Eigen::VectorXd>& var_vals);
 
-  /** @brief TODO: This is unimplemented, but it will return the cost associated with each of the costs. Note this will
-   * be relatively computationally expensive, as we will have to loop through all the cost components in the problem and
-   * calculate their values manually.
+  /**
+   * @brief Evaluated the cost of the convexified function (ie using the stored gradient and hessian) at var_vals
+   * @note This will be relatively computationally expensive, as we will have to loop through all the cost components in
+   * the problem and calculate their values manually.
    * @param var_vals Point at which the convex cost is calculated. Should be size num_qp_vars
    * @return Cost associated with each cost term in the problem (for debugging)
    */
   Eigen::VectorXd evaluateConvexCosts(const Eigen::Ref<const Eigen::VectorXd>& var_vals);
 
+  /**
+   * @brief Evaluated the costraint violation of the convexified function (ie using the stored constraint matrix) at
+   * var_vals
+   * @param var_vals
+   * @return
+   */
   Eigen::VectorXd evaluateConvexConstraintViolation(const Eigen::Ref<const Eigen::VectorXd>& var_vals);
 
   /**

@@ -87,11 +87,13 @@ void QPProblem::convexify()
 
   updateGradient();
 
+  linearizeConstraints();
+
+  // The three above must be called before rest to update internal data
+
   updateCostsConstantExpression();
 
   updateConstraintsConstantExpression();
-
-  linearizeConstraints();
 
   updateNLPConstraintBounds();
 
@@ -196,6 +198,19 @@ void QPProblem::updateCostsConstantExpression()
   Eigen::VectorXd x_initial = nlp_->GetVariableValues().head(num_nlp_vars_);
   Eigen::VectorXd cost_initial_value = nlp_->GetCosts().GetValues();
 
+  // In the case of a QP problem the costs and constraints are represented as
+  // quadratic functions is f(x) = a + b * x + c * x^2.
+  // When convexifying the function it need to produce the same cost values at the values used to calculate
+  // the Jacobian and Hessian, so f(x_initial) = a + b * x + c * x^2 = cost_initial_value.
+  // Therefore a = cost_initial_value - b * x - c * x^2
+  //     where: b = gradient_
+  //            c = hessian_
+  //            x = x_initial
+  //            a = quadratic constant (cost_constant_)
+  //
+  // Note: This is not used by the QP solver directly but by the Trust Regions Solver
+  //       to calculate the merit of the solve.
+
   // The block excludes the slack variables
   Eigen::VectorXd result_quad = x_initial.transpose() * hessian_.block(0, 0, num_nlp_vars_, num_nlp_vars_) * x_initial;
   Eigen::VectorXd result_lin = x_initial.transpose() * gradient_.block(0, 0, num_nlp_vars_, num_nlp_costs_);
@@ -209,18 +224,24 @@ void QPProblem::updateConstraintsConstantExpression()
 
   // Get values about which we will linearize
   Eigen::VectorXd x_initial = nlp_->GetVariableValues().head(num_nlp_vars_);
-  /** @todo Why not use nlp_->GetConstraints().GetValues()? */
-  Eigen::VectorXd cnt_initial_value = nlp_->EvaluateConstraints(x_initial.data());
+  Eigen::VectorXd cnt_initial_value = nlp_->GetConstraints().GetValues();
 
-  // d = collision distance
-  // T = distance threshhold
-  // J = Jacobian
-  // x = initial values
-  // Original trajopt Affine constant = T - d - (J * x)
-  // Trajopt ifopt cnt_initial_value = T - d, so the following is correct.
+  // In the case of a QP problem the costs and constraints are represented as
+  // quadratic functions is f(x) = a + b * x + c * x^2.
+  // Currently for constraints we do not leverage the Hessian so the quadratic
+  // function is f(x) = a + b * x
+  // When convexifying the function it need to produce the same constraint values at the values used to calculate
+  // the jacobian, so f(x_initial) = a + b * x = cnt_initial_value.
+  // Therefore a = cnt_initial_value - b * x
+  //     where: b = jac (calculated below)
+  //            x = x_initial
+  //            a = quadratic constant (constraint_constant_)
+  //
+  // Note: This is not used by the QP solver directly but by the Trust Regions Solver
+  //       to calculate the merit of the solve.
 
   // The block excludes the slack variables
-  Eigen::SparseMatrix<double> jac = nlp_->GetJacobianOfConstraints().block(0, 0, num_nlp_cnts_, num_nlp_vars_);
+  Eigen::SparseMatrix<double> jac = constraint_matrix_.block(0, 0, num_nlp_cnts_, num_nlp_vars_);
   constraint_constant_ = (cnt_initial_value - jac * x_initial);
 }
 

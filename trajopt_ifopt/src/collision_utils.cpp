@@ -154,30 +154,6 @@ void removeInvalidContactResults(tesseract_collision::ContactResultVector& conta
 
             break;
           }
-          case ContinuousCollisionEvaluatorType::START_FREE_END_FREE_WEIGHTED_SUM:
-          {
-            break;
-          }
-          case ContinuousCollisionEvaluatorType::START_FIXED_END_FREE_WEIGHTED_SUM:
-          {
-            if (r.cc_type[0] == tesseract_collision::ContinuousCollisionType::CCType_Time0)
-              return true;
-
-            if (r.cc_type[1] == tesseract_collision::ContinuousCollisionType::CCType_Time0)
-              return true;
-
-            break;
-          }
-          case ContinuousCollisionEvaluatorType::START_FREE_END_FIXED_WEIGHTED_SUM:
-          {
-            if (r.cc_type[0] == tesseract_collision::ContinuousCollisionType::CCType_Time1)
-              return true;
-
-            if (r.cc_type[1] == tesseract_collision::ContinuousCollisionType::CCType_Time1)
-              return true;
-
-            break;
-          }
           default:
           {
             PRINT_AND_THROW("Invalid CollisionExpressionEvaluatorType for "

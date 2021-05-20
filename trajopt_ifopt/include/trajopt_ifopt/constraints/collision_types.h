@@ -43,6 +43,7 @@ using GetStateFn =
  * @brief IFOPT does not support dynamically changing the constraint size so
  * all collision gradient data must be combined into a single gradient and error.
  * This allows switching between different methods for calculating a single gradient and error.
+ * @note Currently the WEIGHTED_AVERAGE method works the best, but may change after further testing.
  */
 enum class GradientCombineMethod
 {
@@ -67,22 +68,6 @@ enum class ContinuousCollisionEvaluatorType
 
   /** @brief Only end state variables are free to be adjusted */
   START_FIXED_END_FREE = 2,
-
-  /**
-   * @brief Both start and end state variables are free to be adjusted
-   * The jacobian is calculated using a weighted sum over the interpolated states for a given link pair.
-   */
-  START_FREE_END_FREE_WEIGHTED_SUM = 3,
-  /**
-   * @brief Only start state variables are free to be adjusted
-   * The jacobian is calculated using a weighted sum over the interpolated states for a given link pair.
-   */
-  START_FREE_END_FIXED_WEIGHTED_SUM = 4,
-  /**
-   * @brief Only end state variables are free to be adjusted
-   * The jacobian is calculated using a weighted sum over the interpolated states for a given link pair.
-   */
-  START_FIXED_END_FREE_WEIGHTED_SUM = 5,
 };
 
 /** @brief Stores information about how the margins allowed between collision objects */

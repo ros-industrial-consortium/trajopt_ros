@@ -46,11 +46,7 @@ SquaredCost::SquaredCost(ifopt::ConstraintSet::Ptr constraint, const Eigen::Ref<
   targets_.resize(n_constraints_);
   std::vector<ifopt::Bounds> bounds = constraint_->GetBounds();
   for (Eigen::Index ind = 0; ind < n_constraints_; ind++)
-  {
-    /** @todo Is this correct? (LEVI) */
     targets_(ind) = (bounds[static_cast<std::size_t>(ind)].upper_ + bounds[static_cast<std::size_t>(ind)].lower_) / 2.;
-    //    targets_(ind) = 0;
-  }
 }
 
 double SquaredCost::GetCost() const

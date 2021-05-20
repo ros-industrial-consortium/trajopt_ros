@@ -68,7 +68,7 @@ public:
   bool verifySQPSolverConvergence();
 
   /**
-   * @brief The SQPSolver reported convergence but constarts are not satisfied so this function
+   * @brief The SQPSolver reported convergence but the constraints are not satisfied so this function
    * is used to increases the penalty on the constraints.
    */
   void adjustPenalty();

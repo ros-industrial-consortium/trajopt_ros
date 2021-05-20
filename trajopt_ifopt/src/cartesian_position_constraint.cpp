@@ -95,8 +95,8 @@ void CartPosConstraint::CalcJacobianBlock(const Eigen::Ref<const Eigen::VectorXd
   {
     Eigen::Isometry3d pose_err = pose_error_calculator(joint_vals);
     double angle = fn(pose_err.rotation()).norm();
-    // If the able is near M_PI then you can get incorrect jacobians. I near M_PI switch to error functin that returns
-    // angle between [0, 2 * PI].
+    // If the angle is near M_PI then you can get an incorrect jacobian. If near M_PI switch to error function that
+    // returns angle between [0, 2 * PI].
     if (std::abs(angle) > (M_PI - 0.174532925))
       fn = &trajopt::calcRotationalError2;
   }
