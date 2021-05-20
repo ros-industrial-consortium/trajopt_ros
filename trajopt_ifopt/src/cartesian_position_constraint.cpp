@@ -90,22 +90,11 @@ void CartPosConstraint::CalcJacobianBlock(const Eigen::Ref<const Eigen::VectorXd
   // Reserve enough room in the sparse matrix
   jac_block.reserve(n_dof_ * 6);
 
-  // Determine which rotational error function to use
-  auto fn = &trajopt::calcRotationalError;
-  {
-    Eigen::Isometry3d pose_err = pose_error_calculator(joint_vals);
-    double angle = fn(pose_err.rotation()).norm();
-    // If the angle is near M_PI then you can get an incorrect jacobian. If near M_PI switch to error function that
-    // returns angle between [0, 2 * PI].
-    if (std::abs(angle) > (M_PI - 0.174532925))
-      fn = &trajopt::calcRotationalError2;
-  }
-
   if (use_numeric_differentiation)
   {
     auto error_calculator = [&](const Eigen::Ref<const Eigen::VectorXd>& x) {
       Eigen::Isometry3d pose_err = pose_error_calculator(x);
-      Eigen::VectorXd err = concat(pose_err.translation(), fn(pose_err.rotation()));
+      Eigen::VectorXd err = concat(pose_err.translation(), calcRotationalError2(pose_err.rotation()));
       return err;
     };
     Jacobian jac0 = calcForwardNumJac(error_calculator, joint_vals, 1e-5);
@@ -148,11 +137,11 @@ void CartPosConstraint::CalcJacobianBlock(const Eigen::Ref<const Eigen::VectorXd
     // the partial derivative of the error function. Note that the rotational portion is the only part
     // that is required to be modified per the paper.
     Eigen::Isometry3d pose_err = target_pose_inv_ * tf0;
-    Eigen::Vector3d rot_err = fn(pose_err.rotation());
+    Eigen::Vector3d rot_err = calcRotationalError(pose_err.rotation());
     for (int c = 0; c < jac0.cols(); ++c)
     {
       auto new_pose_err = addTwist(pose_err, jac0.col(c), 1e-5);
-      Eigen::VectorXd new_rot_err = fn(new_pose_err.rotation());
+      Eigen::VectorXd new_rot_err = calcRotationalError(new_pose_err.rotation());
       jac0.col(c).tail(3) = ((new_rot_err - rot_err) / 1e-5);
     }
 

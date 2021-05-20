@@ -157,6 +157,8 @@ inline std::vector<SafetyMarginData::Ptr> createSafetyMarginDataVector(int num_e
 
 /**
  * @brief Calculate the rotation error vector given a rotation error matrix where the angle is between [-pi, pi]
+ * @details This should be used only for calculating the error. Do not use for numerically calculating jacobians
+ * because it breaks down a -PI and PI
  * @param R rotation error matrix
  * @return Rotation error vector = Eigen::AngleAxisd.axis() * Eigen::AngleAxisd.angle()
  */
@@ -167,9 +169,7 @@ inline Eigen::Vector3d calcRotationalError(const Eigen::Ref<const Eigen::Matrix3
 
   // Eigen angle axis flips the sign of axis so rotation is always positive which is
   // not ideal for numerical differentiation.
-  int s = 1;
-  if (q.vec().dot(r12.axis()) < 0)
-    s = -1;
+  int s = (q.vec().dot(r12.axis()) < 0) ? -1 : 1;
 
   // Make sure that the angle is on [-pi, pi]
   const static double two_pi = 2.0 * M_PI;
@@ -188,6 +188,7 @@ inline Eigen::Vector3d calcRotationalError(const Eigen::Ref<const Eigen::Matrix3
 
 /**
  * @brief Calculate the rotation error vector given a rotation error matrix where the angle is between [0, 2 * pi]
+ * @details This should be used numerically calculating rotation jacobians
  * @param R rotation error matrix
  * @return Rotation error vector = Eigen::AngleAxisd.axis() * Eigen::AngleAxisd.angle()
  */
@@ -198,9 +199,7 @@ inline Eigen::Vector3d calcRotationalError2(const Eigen::Ref<const Eigen::Matrix
 
   // Eigen angle axis flips the sign of axis so rotation is always positive which is
   // not ideal for numerical differentiation.
-  int s = 1;
-  if (q.vec().dot(r12.axis()) < 0)
-    s = -1;
+  int s = (q.vec().dot(r12.axis()) < 0) ? -1 : 1;
 
   // Make sure that the angle is on [0, 2 * pi]
   const static double two_pi = 2.0 * M_PI;
