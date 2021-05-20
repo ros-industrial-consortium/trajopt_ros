@@ -64,7 +64,38 @@ public:
   void updateNLPConstraintBounds();
   /** @brief Called by convexify() - helper that updates the NLP variable bounds (middle section) */
   void updateNLPVariableBounds();
-  /** @brief Called by convexify() - helper that updates the slack variable bounds (bottom section) */
+
+  /**
+   * @brief Called by convexify() - helper that updates the slack variable bounds (bottom section)
+   * @details A slack variable is referred to as an additional variable that has been introduced
+   * to the optimization problem to turn a inequality constraint into an equality constraint.
+   * Information taken from: https://en.wikipedia.org/wiki/Slack_variable
+   *
+   * As with the other variables in the augmented constraints, the slack variable cannot take on
+   * negative values, as the simplex algorithm requires them to be positive or zero.
+   *
+   *   - If a slack variable associated with a constraint is zero at a particular candidate solution,
+   *     the constraint is binding there, as the constraint restricts the possible changes from that point.
+   *   - If a slack variable is positive at a particular candidate solution, the constraint is non-binding
+   *     there, as the constraint does not restrict the possible changes from that point.
+   *   - If a slack variable is negative at some point, the point is infeasible (not allowed), as it does
+   *     not satisfy the constraint.
+   *
+   * Terminology
+   *
+   *   - If an inequality constraint holds with equality at the optimal point, the constraint is said to
+   *     be binding, as the point cannot be varied in the direction of the constraint even though doing
+   *     so would improve the value of the objective function.
+   *   - If an inequality constraint holds as a strict inequality at the optimal point (that is, does
+   *     not hold with equality), the constraint is said to be non-binding, as the point could be varied
+   *     in the direction of the constraint, although it would not be optimal to do so. Under certain
+   *     conditions, as for example in convex optimization, if a constraint is non-binding, the optimization
+   *     problem would have the same solution even in the absence of that constraint.
+   *   - If a constraint is not satisfied at a given point, the point is said to be infeasible.
+   *
+   * @example By introducing the slack variable y >= 0, the inequality Ax <= b can be converted
+   * to the equation Ax + y = b.
+   */
   void updateSlackVariableBounds();
 
   /**
