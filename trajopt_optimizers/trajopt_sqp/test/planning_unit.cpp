@@ -99,7 +99,7 @@ TEST_F(PlanningTest, arm_around_table)  // NOLINT
     nlp.AddVariableSet(var);
   }
 
-  double margin_coeff = 10;
+  double margin_coeff = 5;
   double margin = 0.025;
   TrajOptCollisionConfig trajopt_collision_config(margin, margin_coeff);
   trajopt_collision_config.collision_margin_buffer = 0.02;

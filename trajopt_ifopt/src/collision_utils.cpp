@@ -312,7 +312,7 @@ Eigen::VectorXd getAvgGradient(const GradientResultsSet& grad_results_set, long 
 Eigen::VectorXd getWeightedAvgGradient(const GradientResultsSet& grad_results_set, long dof)
 {
   Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
-  if (grad_results_set.results.empty())
+  if (grad_results_set.results.empty() || !(grad_results_set.max_error_with_buffer > 0))
     return grad_vec;
 
   double total_weight = 0;
@@ -322,7 +322,30 @@ Eigen::VectorXd getWeightedAvgGradient(const GradientResultsSet& grad_results_se
     {
       if (grad.gradients[i].has_gradient)
       {
-        double w = std::max(grad.error_with_buffer, 0.0) * grad.gradients[i].scale;
+        double w = std::max(grad.error_with_buffer, 0.0) / grad_results_set.max_error_with_buffer;
+        total_weight += w;
+        grad_vec += w * grad.gradients[i].gradient;
+      }
+    }
+  }
+  return (1.0 / total_weight) * grad_vec;
+}
+
+Eigen::VectorXd getWeightedScaledAvgGradient(const GradientResultsSet& grad_results_set, long dof)
+{
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  if (grad_results_set.results.empty() || !(grad_results_set.max_scaled_error_with_buffer > 0))
+    return grad_vec;
+
+  double total_weight = 0;
+  for (auto& grad : grad_results_set.results)
+  {
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+      if (grad.gradients[i].has_gradient)
+      {
+        double w = (std::max(grad.error_with_buffer, 0.0) * grad.gradients[i].scale) /
+                   grad_results_set.max_scaled_error_with_buffer;
         total_weight += w;
         grad_vec += w * grad.gradients[i].gradient;
       }

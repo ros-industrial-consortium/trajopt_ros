@@ -231,7 +231,7 @@ void DiscreteCollisionConstraintIfopt::CalcJacobianBlock(const Eigen::Ref<const 
     }
     case GradientCombineMethod::WEIGHTED_AVERAGE:
     {
-      grad_vec = getWeightedAvgGradient(grad_set, n_dof_);
+      grad_vec = getWeightedScaledAvgGradient(grad_set, n_dof_);
       break;
     }
     case GradientCombineMethod::LEAST_SQUARES:

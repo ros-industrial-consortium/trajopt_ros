@@ -86,6 +86,7 @@ Eigen::VectorXd getWeightedLeastSquaresGradient2(const GradientResultsSet& grad_
 /** @brief These were from the original trajopt */
 Eigen::VectorXd getAvgGradient(const GradientResultsSet& grad_results_set, long dof);
 Eigen::VectorXd getWeightedAvgGradient(const GradientResultsSet& grad_results_set, long dof);
+Eigen::VectorXd getWeightedScaledAvgGradient(const GradientResultsSet& grad_results_set, long dof);
 Eigen::VectorXd getScaledSumGradient(const GradientResultsSet& grad_results_set, long dof);
 Eigen::VectorXd getSumGradient(const GradientResultsSet& grad_results_set, long dof);
 
