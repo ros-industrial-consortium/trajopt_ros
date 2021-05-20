@@ -32,15 +32,14 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <ifopt/bounds.h>
 #include <tesseract_common/types.h>
 #include <Eigen/Eigen>
+#include <console_bridge/console.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
 #include <trajopt_ifopt/utils/ifopt_utils.h>
 
 namespace trajopt
 {
-/**
- * @brief Represents a single joint position in the optimization. Values are of dimension 1 x n_dof
- */
+/** @brief Represents a single joint position in the optimization. Values are of dimension 1 x n_dof */
 class JointPosition : public ifopt::VariableSet
 {
 public:
@@ -64,7 +63,13 @@ public:
   {
     /** @todo Print warning if init value is not within bounds */
     bounds_ = std::vector<ifopt::Bounds>(static_cast<size_t>(init_value.size()), bounds);
-    values_ = init_value;
+    values_ = trajopt::getClosestValidPoint(init_value, bounds_);
+
+    if (!values_.isApprox(init_value, 1e-10))
+    {
+      CONSOLE_BRIDGE_logWarn("The initial values are not within the provided bounds. Adjusting to be within the "
+                             "bounds.");
+    }
   }
 
   JointPosition(const Eigen::Ref<const Eigen::VectorXd>& init_value,
@@ -78,7 +83,13 @@ public:
     for (Eigen::Index i = 0; i < init_value.size(); ++i)
       bounds_[static_cast<std::size_t>(i)] = ifopt::Bounds(bounds.joint_limits(i, 0), bounds.joint_limits(i, 1));
 
-    values_ = init_value;
+    values_ = trajopt::getClosestValidPoint(init_value, bounds_);
+
+    if (!values_.isApprox(init_value, 1e-10))
+    {
+      CONSOLE_BRIDGE_logWarn("The initial values are not within the provided bounds. Adjusting to be within the "
+                             "bounds.");
+    }
   }
 
   /**
