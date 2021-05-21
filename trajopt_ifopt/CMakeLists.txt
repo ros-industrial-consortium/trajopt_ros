@@ -44,6 +44,7 @@ set(TRAJOPT_IFOPT_SOURCE_FILES
     src/joint_position_constraint.cpp
     src/joint_velocity_constraint.cpp
     src/squared_cost.cpp
+    src/absolute_cost.cpp
 )
 
 add_library(${PROJECT_NAME} ${TRAJOPT_IFOPT_SOURCE_FILES})

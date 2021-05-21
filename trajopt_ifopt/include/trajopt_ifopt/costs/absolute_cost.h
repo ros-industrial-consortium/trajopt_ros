@@ -1,13 +1,13 @@
 /**
- * @file squared_cost.h
- * @brief The squared cost. Converts a constraint into a cost.
+ * @file absolute_cost.h
+ * @brief The Absolute cost. Converts a constraint into a cost.
  *
- * @author Matthew Powelson
- * @date May 18, 2020
+ * @author Levi Armstrong
+ * @date May 20, 2021
  * @version TODO
  * @bug No known bugs
  *
- * @copyright Copyright (c) 2020, Southwest Research Institute
+ * @copyright Copyright (c) 2021, Southwest Research Institute
  *
  * @par License
  * Software License Agreement (Apache License)
@@ -23,8 +23,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef TRAJOPT_IFOPT_SQUARED_COST_H
-#define TRAJOPT_IFOPT_SQUARED_COST_H
+#ifndef TRAJOPT_IFOPT_ABSOLUTE_COST_H
+#define TRAJOPT_IFOPT_ABSOLUTE_COST_H
 
 #include <trajopt_utils/macros.h>
 TRAJOPT_IGNORE_WARNINGS_PUSH
@@ -36,13 +36,13 @@ TRAJOPT_IGNORE_WARNINGS_POP
 namespace trajopt
 {
 /**
- * @brief This class converts a constraint to a cost with a sum squared error
+ * @brief This class converts a constraint to a cost with a absolute error
  *
  * IFOPT costs differ from constraints in 2 main ways.
  * 1) Constraints have multiple rows where a cost is simply a value (the sum of all of the costs)
  * 2) Constraints have bounds that they must be within. Costs should simply be as close to 0 as possible
  *
- * This class converts the bounds to a target and then sets the value to be the weighted squared sum of the distances
+ * This class converts the bounds to a target and then sets the value to be the absolute value of the distances
  * from that target. The result is that the value (GetCost) is a single double and the jacobian (GetJacobian) is a
  * single row (1 x n_vars)
  *
@@ -60,34 +60,34 @@ namespace trajopt
  *
  *     derror(x)/dx = dg(x)/dx = J(x)
  *
- * The squared cost is defined as
+ * The absolute cost is defined as
  *
- *     cost(x) = error.transpose() * W * error
+ *     cost(x) = |W * error|
  *
  * where W is the diagonal matrix of the cost weights
  *
  * Then
  *
- *     dcost(x)/dx = 2 * error.transpose() * W * J(x)
+ *     dcost(x)/dx = (W * error(x) / abs(W * error(x))) * J(x)
  *
  */
-class SquaredCost : public ifopt::CostTerm
+class AbsoluteCost : public ifopt::CostTerm
 {
 public:
-  using Ptr = std::shared_ptr<SquaredCost>;
-  using ConstPtr = std::shared_ptr<const SquaredCost>;
+  using Ptr = std::shared_ptr<AbsoluteCost>;
+  using ConstPtr = std::shared_ptr<const AbsoluteCost>;
 
   /**
    * @brief Constructs a CostTerm that converts a constraint into a cost with a sum squared error
    * @param constraint Input constraint to be converted to a cost
    */
-  SquaredCost(ifopt::ConstraintSet::Ptr constraint);
+  AbsoluteCost(ifopt::ConstraintSet::Ptr constraint);
   /**
    * @brief Constructs a CostTerm that converts a constraint into a cost with a weighted sum squared error
    * @param constraint Input constraint to be converted to a cost
    * @param weights Weights applied to the constraints. Length should be n_constraints
    */
-  SquaredCost(ifopt::ConstraintSet::Ptr constraint, const Eigen::Ref<const Eigen::VectorXd>& weights);
+  AbsoluteCost(ifopt::ConstraintSet::Ptr constraint, const Eigen::Ref<const Eigen::VectorXd>& weights);
 
   double GetCost() const override;
 
@@ -105,4 +105,5 @@ private:
 };
 
 }  // namespace trajopt
-#endif
+
+#endif  // TRAJOPT_IFOPT_ABSOLUTE_COST_H
