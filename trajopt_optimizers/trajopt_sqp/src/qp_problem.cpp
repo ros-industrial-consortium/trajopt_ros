@@ -24,6 +24,7 @@
  * limitations under the License.
  */
 #include <trajopt_sqp/qp_problem.h>
+#include <trajopt_ifopt/utils/ifopt_utils.h>
 #include <iostream>
 
 namespace trajopt_sqp
@@ -337,68 +338,23 @@ Eigen::VectorXd QPProblem::evaluateConvexCosts(const Eigen::Ref<const Eigen::Vec
   return cost_constant_ + result_lin + result_quad;
 }
 
-Eigen::VectorXd QPProblem::calcConstraintViolations(const Eigen::Ref<const Eigen::VectorXd>& cnt_vals)
-{
-  std::vector<ifopt::Bounds> cnt_bounds = nlp_->GetBoundsOnConstraints();
-  Eigen::VectorXd violation(num_nlp_cnts_);
-  for (Eigen::Index i = 0; i < num_nlp_cnts_; ++i)
-  {
-    if (constraint_types_[static_cast<std::size_t>(i)] == ConstraintType::EQ)
-    {
-      // The lower and upper should be the same because it is an Equality constraint
-      violation[i] = std::abs(cnt_vals[i] - cnt_bounds[static_cast<std::size_t>(i)].lower_);
-    }
-    else  // ConstraintType::INEQ
-    {
-      // For inequality constraint the valid range is between [0, -inf] so anything greater than
-      // zero is a violation
-      violation[i] = std::max<double>(cnt_vals[i] - cnt_bounds[static_cast<std::size_t>(i)].upper_, 0);
-    }
-  }
-
-  return violation;
-}
-
 Eigen::VectorXd QPProblem::evaluateConvexConstraintViolation(const Eigen::Ref<const Eigen::VectorXd>& var_vals)
 {
   Eigen::VectorXd result_lin =
       constraint_matrix_.block(0, 0, num_nlp_cnts_, num_nlp_vars_) * var_vals.head(num_nlp_vars_);
   Eigen::VectorXd constraint_value = constraint_constant_ + result_lin;
-  return calcConstraintViolations(constraint_value);
+  return trajopt::calcBoundsViolations(constraint_value, nlp_->GetBoundsOnConstraints());
 }
 
 Eigen::VectorXd QPProblem::evaluateExactConstraintViolations(const Eigen::Ref<const Eigen::VectorXd>& var_vals)
 {
   Eigen::VectorXd cnt_vals = nlp_->EvaluateConstraints(var_vals.data());
-  return calcConstraintViolations(cnt_vals);
+  return trajopt::calcBoundsViolations(cnt_vals, nlp_->GetBoundsOnConstraints());
 }
 
 Eigen::VectorXd QPProblem::getExactConstraintViolations()
 {
   return evaluateExactConstraintViolations(nlp_->GetOptVariables()->GetValues());
-
-  //  // Convert constraint bounds to VectorXd
-  //  Eigen::VectorXd cnt_bound_lower(num_nlp_cnts_);
-  //  Eigen::VectorXd cnt_bound_upper(num_nlp_cnts_);
-  //  std::vector<ifopt::Bounds> cnt_bounds = nlp_->GetBoundsOnConstraints();
-  //  for (Eigen::Index i = 0; i < num_nlp_cnts_; i++)
-  //  {
-  //    cnt_bound_lower[i] = cnt_bounds[static_cast<std::size_t>(i)].lower_;
-  //    cnt_bound_upper[i] = cnt_bounds[static_cast<std::size_t>(i)].upper_;
-  //  }
-
-  //  // Values will be negative if they violate the constraint
-  //  Eigen::VectorXd zero = Eigen::VectorXd::Zero(num_nlp_cnts_);
-  //  Eigen::VectorXd dist_from_lower = -(cnt_bound_lower - cnt_eval);
-  //  Eigen::VectorXd dist_from_upper = cnt_bound_upper - cnt_eval;
-
-  //  // Now we put those values into a matrix
-  //  Eigen::MatrixXd tmp(num_nlp_cnts_, 3);
-  //  tmp << dist_from_lower, dist_from_upper, zero;
-
-  //  // We return the worst violation and flip it so violations are positive
-  //  Eigen::VectorXd violation = -1 * tmp.rowwise().minCoeff();
-  //  return violation;
 }
 
 void QPProblem::scaleBoxSize(double& scale) { box_size_ = box_size_ * scale; }

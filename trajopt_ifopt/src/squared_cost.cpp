@@ -24,6 +24,7 @@
  * limitations under the License.
  */
 #include <trajopt_ifopt/costs/squared_cost.h>
+#include <trajopt_ifopt/utils/ifopt_utils.h>
 
 TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <console_bridge/console.h>
@@ -42,17 +43,11 @@ SquaredCost::SquaredCost(ifopt::ConstraintSet::Ptr constraint, const Eigen::Ref<
   , n_constraints_(constraint_->GetRows())
   , weights_(weights)
 {
-  // Calculate targets - Average the upper and lower bounds
-  targets_.resize(n_constraints_);
-  std::vector<ifopt::Bounds> bounds = constraint_->GetBounds();
-  for (Eigen::Index ind = 0; ind < n_constraints_; ind++)
-    targets_(ind) = (bounds[static_cast<std::size_t>(ind)].upper_ + bounds[static_cast<std::size_t>(ind)].lower_) / 2.;
 }
 
 double SquaredCost::GetCost() const
 {
-  Eigen::VectorXd values = constraint_->GetValues();
-  Eigen::VectorXd error = values - targets_;
+  Eigen::VectorXd error = calcBoundsErrors(constraint_->GetValues(), constraint_->GetBounds());
   double cost = error.transpose() * weights_.asDiagonal() * error;
   return cost;
 }
@@ -74,7 +69,7 @@ void SquaredCost::FillJacobianBlock(std::string var_set, Jacobian& jac_block) co
   constraint_->FillJacobianBlock(var_set, cnt_jac_block);
 
   // Apply the chain rule. See doxygen for this class
-  Eigen::VectorXd error = constraint_->GetValues() - targets_;
+  Eigen::VectorXd error = calcBoundsErrors(constraint_->GetValues(), constraint_->GetBounds());
   jac_block = 2 * error.transpose().sparseView() * weights_.asDiagonal() * cnt_jac_block;
 }
 

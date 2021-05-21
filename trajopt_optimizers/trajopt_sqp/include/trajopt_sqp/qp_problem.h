@@ -196,9 +196,6 @@ protected:
 
   /** @brief This calculates the constant expression in the quadratic expression for the costs */
   void updateCostsConstantExpression();
-
-  /** @brief This will calculate contraint violations given constraint values */
-  Eigen::VectorXd calcConstraintViolations(const Eigen::Ref<const Eigen::VectorXd>& cnt_vals);
 };
 
 }  // namespace trajopt_sqp

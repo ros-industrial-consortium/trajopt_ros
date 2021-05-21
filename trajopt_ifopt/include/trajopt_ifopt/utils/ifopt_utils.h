@@ -93,7 +93,7 @@ inline std::vector<Eigen::VectorXd> interpolate(const Eigen::Ref<const Eigen::Ve
  * @return Output vector. If input is outside a bound, force it to the boundary
  */
 inline Eigen::VectorXd getClosestValidPoint(const Eigen::Ref<const Eigen::VectorXd>& input,
-                                            std::vector<ifopt::Bounds> bounds)
+                                            const std::vector<ifopt::Bounds>& bounds)
 {
   // Convert Bounds to VectorXds
   Eigen::VectorXd bound_lower(static_cast<Eigen::Index>(bounds.size()));
@@ -109,6 +109,47 @@ inline Eigen::VectorXd getClosestValidPoint(const Eigen::Ref<const Eigen::Vector
   valid_point = input.cwiseMax(bound_lower);
   valid_point = valid_point.cwiseMin(bound_upper);
   return valid_point;
+}
+
+/**
+ * @brief Calculate errors of the bounds
+ * @param input The input values
+ * @param bounds The bounds
+ * @return The error given the bounds, if within the bounds it will be zero
+ */
+inline Eigen::VectorXd calcBoundsErrors(const Eigen::Ref<const Eigen::VectorXd>& input,
+                                        const std::vector<ifopt::Bounds>& bounds)
+{
+  assert(input.rows() == static_cast<Eigen::Index>(bounds.size()));
+
+  // Convert constraint bounds to VectorXd
+  Eigen::ArrayXd bound_lower(input.rows());
+  Eigen::ArrayXd bound_upper(input.rows());
+  for (std::size_t i = 0; i < bounds.size(); i++)
+  {
+    bound_lower[static_cast<Eigen::Index>(i)] = bounds[i].lower_;
+    bound_upper[static_cast<Eigen::Index>(i)] = bounds[i].upper_;
+  }
+
+  // Values will be negative if they violate the constrain
+  Eigen::ArrayXd zero = Eigen::ArrayXd::Zero(input.rows());
+  Eigen::ArrayXd dist_from_lower = (input.array() - bound_lower).min(zero);
+  Eigen::ArrayXd dist_from_upper = (input.array() - bound_upper).max(zero);
+  Eigen::ArrayXd worst_error = (dist_from_upper.abs() > dist_from_lower.abs()).select(dist_from_upper, dist_from_lower);
+
+  return worst_error;
+}
+
+/**
+ * @brief The absolute value of the Bounds Errors
+ * @param input The input values
+ * @param bounds The bounds
+ * @return The absolute errors given the bounds, if within the bounds it will be zero
+ */
+inline Eigen::VectorXd calcBoundsViolations(const Eigen::Ref<const Eigen::VectorXd>& input,
+                                            const std::vector<ifopt::Bounds>& bounds)
+{
+  return calcBoundsErrors(input, bounds).cwiseAbs();
 }
 
 }  // namespace trajopt

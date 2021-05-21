@@ -99,10 +99,9 @@ private:
 
   /** @brief Size of the input constraint */
   long n_constraints_;
+
   /** @brief Vector of weights. Default: Eigen::VectorXd::Ones(n_constraints) */
   Eigen::VectorXd weights_;
-  /** @brief Vector of targets. By default these are the average of the constraint bounds */
-  Eigen::VectorXd targets_;
 };
 
 }  // namespace trajopt
