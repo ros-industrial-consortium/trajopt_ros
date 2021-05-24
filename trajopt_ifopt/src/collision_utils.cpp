@@ -184,7 +184,7 @@ Eigen::VectorXd getLeastSquaresGradient(const GradientResultsSet& grad_results_s
       {
         long start_idx = cnt * 3;
         error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
-        jacobian.middleRows(start_idx, 3) = grad.gradients[i].jacobian;
+        jacobian.middleRows(start_idx, 3) = grad.gradients[i].scale * grad.gradients[i].jacobian;
         cnt++;
       }
     }
@@ -214,7 +214,7 @@ Eigen::VectorXd getWeightedLeastSquaresGradient(const GradientResultsSet& grad_r
       {
         long start_idx = cnt * 3;
         error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
-        jacobian.middleRows(start_idx, 3) = grad.gradients[i].jacobian;
+        jacobian.middleRows(start_idx, 3) = grad.gradients[i].scale * grad.gradients[i].jacobian;
         cnt++;
       }
     }
@@ -245,7 +245,7 @@ Eigen::VectorXd getWeightedLeastSquaresGradient2(const GradientResultsSet& grad_
       if (grad.gradients[i].has_gradient)
       {
         error(cnt) = grad.error_with_buffer;
-        jacobian.row(cnt) = grad.gradients[i].gradient;
+        jacobian.row(cnt) = grad.gradients[i].scale * grad.gradients[i].gradient;
         //      long start_idx = cnt * 3;
         //      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
         //      jacobian.middleRows(start_idx, 3) = grad.gradients[i].jacobian;
@@ -288,28 +288,6 @@ Eigen::VectorXd getAvgGradient(const GradientResultsSet& grad_results_set, long 
 Eigen::VectorXd getWeightedAvgGradient(const GradientResultsSet& grad_results_set, long dof)
 {
   Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
-  if (grad_results_set.results.empty() || !(grad_results_set.max_error_with_buffer > 0))
-    return grad_vec;
-
-  double total_weight = 0;
-  for (auto& grad : grad_results_set.results)
-  {
-    for (std::size_t i = 0; i < 2; ++i)
-    {
-      if (grad.gradients[i].has_gradient)
-      {
-        double w = std::max(grad.error_with_buffer, 0.0) / grad_results_set.max_error_with_buffer;
-        total_weight += w;
-        grad_vec += w * grad.gradients[i].gradient;
-      }
-    }
-  }
-  return (1.0 / total_weight) * grad_vec;
-}
-
-Eigen::VectorXd getWeightedScaledAvgGradient(const GradientResultsSet& grad_results_set, long dof)
-{
-  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
   if (grad_results_set.results.empty() || !(grad_results_set.max_scaled_error_with_buffer > 0))
     return grad_vec;
 
@@ -330,20 +308,6 @@ Eigen::VectorXd getWeightedScaledAvgGradient(const GradientResultsSet& grad_resu
   return (1.0 / total_weight) * grad_vec;
 }
 
-Eigen::VectorXd getScaledSumGradient(const GradientResultsSet& grad_results_set, long dof)
-{
-  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
-  for (auto& grad : grad_results_set.results)
-  {
-    for (std::size_t i = 0; i < 2; ++i)
-    {
-      if (grad.gradients[i].has_gradient)
-        grad_vec += grad.gradients[i].scale * grad.gradients[i].gradient;
-    }
-  }
-  return grad_vec;
-}
-
 Eigen::VectorXd getSumGradient(const GradientResultsSet& grad_results_set, long dof)
 {
   Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
@@ -352,7 +316,7 @@ Eigen::VectorXd getSumGradient(const GradientResultsSet& grad_results_set, long 
     for (std::size_t i = 0; i < 2; ++i)
     {
       if (grad.gradients[i].has_gradient)
-        grad_vec += grad.gradients[i].gradient;
+        grad_vec += grad.gradients[i].scale * grad.gradients[i].gradient;
     }
   }
   return grad_vec;

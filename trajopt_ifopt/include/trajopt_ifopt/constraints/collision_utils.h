@@ -65,6 +65,10 @@ void removeInvalidContactResults(tesseract_collision::ContactResultVector& conta
 
 /**
  * @brief This takes a vector of gradient results and outputs a single gradient using least squares
+ * @details The gradient results stores the gradient calculated at the point between two states where the contact
+ * occured. This is not the gradient for changing the start or end state, so you must use the scale term associated
+ * with the gradient results to correctly calculate the gradient for the start or end state. This is already being done
+ * internal to this function.
  * @param grad_results A vector of gradient results
  * @param dof The DOF of the system
  * @param num_eq The number equations
@@ -75,6 +79,10 @@ Eigen::VectorXd getLeastSquaresGradient(const GradientResultsSet& grad_results_s
 /**
  * @brief This takes a vector of gradient results and outputs a single gradient using weighted least squares
  * where the weights are the error
+ * @details The gradient results stores the gradient calculated at the point between two states where the contact
+ * occured. This is not the gradient for changing the start or end state, so you must use the scale term associated
+ * with the gradient results to correctly calculate the gradient for the start or end state. This is already being done
+ * internal to this function.
  * @param grad_results A vector of gradient results
  * @param dof The DOF of the system
  * @param num_eq The number equations
@@ -83,11 +91,15 @@ Eigen::VectorXd getLeastSquaresGradient(const GradientResultsSet& grad_results_s
 Eigen::VectorXd getWeightedLeastSquaresGradient(const GradientResultsSet& grad_results_set, long dof, long num_eq);
 Eigen::VectorXd getWeightedLeastSquaresGradient2(const GradientResultsSet& grad_results_set, long dof, long num_eq);
 
-/** @brief These were from the original trajopt */
+/**
+ * @brief These were from the original trajopt
+ * @details The gradient results stores the gradient calculated at the point between two states where the contact
+ * occured. This is not the gradient for changing the start or end state, so you must use the scale term associated
+ * with the gradient results to correctly calculate the gradient for the start or end state. This is already being done
+ * internal to these functions.
+ */
 Eigen::VectorXd getAvgGradient(const GradientResultsSet& grad_results_set, long dof);
 Eigen::VectorXd getWeightedAvgGradient(const GradientResultsSet& grad_results_set, long dof);
-Eigen::VectorXd getWeightedScaledAvgGradient(const GradientResultsSet& grad_results_set, long dof);
-Eigen::VectorXd getScaledSumGradient(const GradientResultsSet& grad_results_set, long dof);
 Eigen::VectorXd getSumGradient(const GradientResultsSet& grad_results_set, long dof);
 
 /**

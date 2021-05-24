@@ -198,7 +198,7 @@ ContinuousCollisionConstraintIfopt::CalcValues(const Eigen::Ref<const Eigen::Vec
             dist_result.link_names[0], dist_result.link_names[1]);
         double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
             dist_result.link_names[0], dist_result.link_names[1]);
-        err[0] += std::max<double>((std::pow(dist - dist_result.distance, 2) * coeff), 0.);
+        err[0] += std::pow(std::max<double>((dist - dist_result.distance) * coeff, 0.), 2);
       }
       err[0] = err[0] / static_cast<double>(dist_results.size());
       break;
@@ -257,7 +257,7 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockStartFree(
     }
     case GradientCombineMethod::WEIGHTED_AVERAGE:
     {
-      grad_vec = getWeightedScaledAvgGradient(grad_set, n_dof_);
+      grad_vec = getWeightedAvgGradient(grad_set, n_dof_);
       break;
     }
     case GradientCombineMethod::LEAST_SQUARES:
@@ -324,7 +324,7 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockEndFree(
     }
     case GradientCombineMethod::WEIGHTED_AVERAGE:
     {
-      grad_vec = getWeightedScaledAvgGradient(grad_set, n_dof_);
+      grad_vec = getWeightedAvgGradient(grad_set, n_dof_);
       break;
     }
     case GradientCombineMethod::LEAST_SQUARES:
@@ -391,7 +391,7 @@ void ContinuousCollisionConstraintIfopt::CalcJacobianBlockBothFree(Jacobian& jac
     }
     case GradientCombineMethod::WEIGHTED_AVERAGE:
     {
-      grad_vec = getWeightedScaledAvgGradient(grad_set, n_dof_);
+      grad_vec = getWeightedAvgGradient(grad_set, n_dof_);
       break;
     }
     case GradientCombineMethod::LEAST_SQUARES:

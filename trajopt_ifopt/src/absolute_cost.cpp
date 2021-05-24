@@ -41,7 +41,7 @@ AbsoluteCost::AbsoluteCost(ifopt::ConstraintSet::Ptr constraint, const Eigen::Re
   : CostTerm(constraint->GetName() + "_absolute_cost")
   , constraint_(std::move(constraint))
   , n_constraints_(constraint_->GetRows())
-  , weights_(weights)
+  , weights_(weights.cwiseAbs())  // must be positive
 {
 }
 
@@ -70,6 +70,9 @@ void AbsoluteCost::FillJacobianBlock(std::string var_set, Jacobian& jac_block) c
   constraint_->FillJacobianBlock(var_set, cnt_jac_block);
 
   // Apply the chain rule. See doxygen for this class
+  // There are two w's that cancel out resulting in w_error / error.abs().
+  // This breaks down if the weights are not positive but the constructor takes the absolute
+  // value of the weights to avoid this issue.
   Eigen::ArrayXd error = calcBoundsErrors(constraint_->GetValues(), constraint_->GetBounds());
   Eigen::ArrayXd w_error = error * weights_.array();
   Eigen::VectorXd coeff = w_error / error.abs();

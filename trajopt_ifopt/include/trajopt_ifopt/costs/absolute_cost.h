@@ -48,7 +48,7 @@ namespace trajopt
  *
  * Given a constraint: g(x) with some bounds: upper_ and lower_
  *
- * The target of the cost is set to the average of the upper and lower bounds:
+ * The target of the cost is set to the closest bound:
  *
  *     target = to the closest bound
  *

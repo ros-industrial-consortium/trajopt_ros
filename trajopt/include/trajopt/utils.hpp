@@ -188,7 +188,21 @@ inline Eigen::Vector3d calcRotationalError(const Eigen::Ref<const Eigen::Matrix3
 
 /**
  * @brief Calculate the rotation error vector given a rotation error matrix where the angle is between [0, 2 * pi]
- * @details This should be used numerically calculating rotation jacobians
+ * @details This function does not break down when the angle is near zero or 2pi when calculating the numerical
+ * jacobian. This is because when using Eigen's angle axis it converts the angle to be between [0, PI] where internally
+ * if the angle is between [-PI, 0] it flips the sign of the axis. Both this function and calcRotationalError both check
+ * for this flip and reverts it. Since the angle is always between [-PI, PI], switching the range to [0, PI] will
+ * never be close to 2PI. In the case of zero, it also does not break down because we are making sure that the angle
+ * axis aligns with the quaternion axis eliminating this issue. As you can see the quaternion keeps the angle small but
+ * flips the axis so the correct delta rotation is calculated.
+ *
+ * Angle: 0.001 results in an axis: [0, 0, 1]
+ * Angle: -0.001 results in and axis: [0, 0, -1]
+ * e1 = angle * axis = [0, 0, 0.001]
+ * e2 = angle * axis = [0, 0, -0.001]
+ * delta = e2 - e1 = [0, 0, 0.002]
+ *
+ * @details This should be used when numerically calculating rotation jacobians
  * @param R rotation error matrix
  * @return Rotation error vector = Eigen::AngleAxisd.axis() * Eigen::AngleAxisd.angle()
  */

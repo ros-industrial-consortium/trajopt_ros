@@ -41,7 +41,7 @@ SquaredCost::SquaredCost(ifopt::ConstraintSet::Ptr constraint, const Eigen::Ref<
   : CostTerm(constraint->GetName() + "_squared_cost")
   , constraint_(std::move(constraint))
   , n_constraints_(constraint_->GetRows())
-  , weights_(weights)
+  , weights_(weights.cwiseAbs())
 {
 }
 
