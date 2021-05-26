@@ -11,12 +11,10 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <ifopt/ipopt_solver.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
-#include <trajopt_test_utils.hpp>
-#include <trajopt_ifopt/constraints/collision_constraint.h>
+#include <trajopt_ifopt/constraints/discrete_collision_constraint.h>
+#include "trajopt_test_utils.hpp"
 
 using namespace trajopt;
-using namespace std;
-using namespace util;
 using namespace tesseract_environment;
 using namespace tesseract_kinematics;
 using namespace tesseract_collision;
@@ -30,7 +28,7 @@ public:
   Environment::Ptr env = std::make_shared<Environment>(); /**< Tesseract */
   trajopt::DiscreteCollisionEvaluator::Ptr collision_evaluator;
   ifopt::Problem nlp;
-  std::shared_ptr<trajopt::CollisionConstraintIfopt> constraint;
+  std::shared_ptr<trajopt::DiscreteCollisionConstraintIfopt> constraint;
 
   void SetUp() override
   {
@@ -47,8 +45,8 @@ public:
 
     trajopt::TrajOptCollisionConfig config(0.1, 1);
 
-    collision_evaluator =
-        std::make_shared<trajopt::DiscreteCollisionEvaluator>(kin, env, adj_map, Eigen::Isometry3d::Identity(), config);
+    collision_evaluator = std::make_shared<trajopt::SingleTimestepCollisionEvaluator>(
+        kin, env, adj_map, Eigen::Isometry3d::Identity(), config);
 
     // 3) Add Variables
     Eigen::VectorXd pos(2);
@@ -56,7 +54,8 @@ public:
     auto var0 = std::make_shared<trajopt::JointPosition>(pos, kin->getJointNames(), "Joint_Position_0");
     nlp.AddVariableSet(var0);
 
-    constraint = std::make_shared<trajopt::CollisionConstraintIfopt>(collision_evaluator, var0);
+    constraint = std::make_shared<trajopt::DiscreteCollisionConstraintIfopt>(
+        collision_evaluator, GradientCombineMethod::SUM, var0);
     nlp.AddConstraintSet(constraint);
   }
 };
@@ -150,7 +149,8 @@ TEST_F(CollisionUnit, GetSetBounds)  // NOLINT
     std::vector<std::string> joint_names(2, "names");
     auto var0 = std::make_shared<trajopt::JointPosition>(pos, joint_names, "Joint_Position_0");
 
-    auto constraint_2 = std::make_shared<trajopt::CollisionConstraintIfopt>(collision_evaluator, var0);
+    auto constraint_2 = std::make_shared<trajopt::DiscreteCollisionConstraintIfopt>(
+        collision_evaluator, GradientCombineMethod::SUM, var0);
     ifopt::Bounds bounds(-0.1234, 0.5678);
     std::vector<ifopt::Bounds> bounds_vec = std::vector<ifopt::Bounds>(1, bounds);
     constraint_2->SetBounds(bounds_vec);

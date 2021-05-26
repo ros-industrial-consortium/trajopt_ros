@@ -86,7 +86,7 @@ struct SQPResults
     best_var_vals = Eigen::VectorXd::Zero(num_vars);
     new_var_vals = Eigen::VectorXd::Zero(num_vars);
     box_size = Eigen::VectorXd::Ones(num_vars);
-    merit_error_coeffs = Eigen::VectorXd::Ones(num_cnts) * 10;
+    merit_error_coeffs = Eigen::VectorXd::Constant(num_cnts, 10);
   }
   SQPResults() = default;
   /** @brief The lowest cost ever achieved */
@@ -104,11 +104,11 @@ struct SQPResults
   Eigen::VectorXd new_var_vals;
 
   /** @brief Amount the convexified cost improved over the best this iteration */
-  double approx_merit_improve;
+  double approx_merit_improve{ 0 };
   /** @brief Amount the exact cost improved over the best this iteration */
-  double exact_merit_improve;
+  double exact_merit_improve{ 0 };
   /** @brief The amount the cost improved as a ratio of the total cost */
-  double merit_improve_ratio;
+  double merit_improve_ratio{ 0 };
 
   /** @brief Vector defing the box size. The box is var_vals +/- box_size */
   Eigen::VectorXd box_size;
@@ -126,23 +126,24 @@ struct SQPResults
 
   void print() const
   {
+    Eigen::IOFormat format(3);
     std::cout << "-------------- SQPResults::print() --------------" << std::endl;
     std::cout << "best_exact_merit: " << best_exact_merit << std::endl;
     std::cout << "new_exact_merit: " << new_exact_merit << std::endl;
     std::cout << "best_approx_merit: " << best_approx_merit << std::endl;
     std::cout << "new_approx_merit: " << new_approx_merit << std::endl;
 
-    std::cout << "best_var_vals: " << best_var_vals.transpose() << std::endl;
-    std::cout << "new_var_vals: " << new_var_vals.transpose() << std::endl;
+    std::cout << "best_var_vals: " << best_var_vals.transpose().format(format) << std::endl;
+    std::cout << "new_var_vals: " << new_var_vals.transpose().format(format) << std::endl;
 
     std::cout << "approx_merit_improve: " << approx_merit_improve << std::endl;
     std::cout << "exact_merit_improve: " << exact_merit_improve << std::endl;
     std::cout << "merit_improve_ratio: " << merit_improve_ratio << std::endl;
 
-    std::cout << "box_size: " << box_size.transpose() << std::endl;
-    std::cout << "merit_error_coeffs: " << merit_error_coeffs.transpose() << std::endl;
-    std::cout << "best_constraint_violations: " << best_constraint_violations.transpose() << std::endl;
-    std::cout << "new_constraint_violations: " << new_constraint_violations.transpose() << std::endl;
+    std::cout << "box_size: " << box_size.transpose().format(format) << std::endl;
+    std::cout << "merit_error_coeffs: " << merit_error_coeffs.transpose().format(format) << std::endl;
+    std::cout << "best_constraint_violations: " << best_constraint_violations.transpose().format(format) << std::endl;
+    std::cout << "new_constraint_violations: " << new_constraint_violations.transpose().format(format) << std::endl;
 
     std::cout << "penalty_iteration: " << penalty_iteration << std::endl;
     std::cout << "convexify_iteration: " << convexify_iteration << std::endl;

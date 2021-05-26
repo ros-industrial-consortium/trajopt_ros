@@ -156,25 +156,65 @@ inline std::vector<SafetyMarginData::Ptr> createSafetyMarginDataVector(int num_e
 }
 
 /**
- * @brief Calculate the rotation error vector given a rotation error matrix
+ * @brief Calculate the rotation error vector given a rotation error matrix where the angle is between [-pi, pi]
  * @param R rotation error matrix
  * @return Rotation error vector = Eigen::AngleAxisd.axis() * Eigen::AngleAxisd.angle()
  */
 inline Eigen::Vector3d calcRotationalError(const Eigen::Ref<const Eigen::Matrix3d>& R)
 {
-  Eigen::AngleAxisd r12(R);
+  Eigen::Quaterniond q(R);
+  Eigen::AngleAxisd r12(q);
+
+  // Eigen angle axis flips the sign of axis so rotation is always positive which is
+  // not ideal for numerical differentiation.
+  int s = 1;
+  if (q.vec().dot(r12.axis()) < 0)
+    s = -1;
 
   // Make sure that the angle is on [-pi, pi]
-  double angle = r12.angle();
-  angle = copysign(fmod(fabs(angle), 2.0 * M_PI), angle);
+  const static double two_pi = 2.0 * M_PI;
+  double angle = s * r12.angle();
+  Eigen::Vector3d axis = s * r12.axis();
+  angle = copysign(fmod(fabs(angle), two_pi), angle);
   if (angle < -M_PI)
-    angle += 2.0 * M_PI;
+    angle += two_pi;
   else if (angle > M_PI)
-    angle -= 2.0 * M_PI;
+    angle -= two_pi;
 
   assert(std::abs(angle) <= M_PI);
 
-  return r12.axis() * angle;
+  return axis * angle;
+}
+
+/**
+ * @brief Calculate the rotation error vector given a rotation error matrix where the angle is between [0, 2 * pi]
+ * @param R rotation error matrix
+ * @return Rotation error vector = Eigen::AngleAxisd.axis() * Eigen::AngleAxisd.angle()
+ */
+inline Eigen::Vector3d calcRotationalError2(const Eigen::Ref<const Eigen::Matrix3d>& R)
+{
+  Eigen::Quaterniond q(R);
+  Eigen::AngleAxisd r12(q);
+
+  // Eigen angle axis flips the sign of axis so rotation is always positive which is
+  // not ideal for numerical differentiation.
+  int s = 1;
+  if (q.vec().dot(r12.axis()) < 0)
+    s = -1;
+
+  // Make sure that the angle is on [0, 2 * pi]
+  const static double two_pi = 2.0 * M_PI;
+  double angle = s * r12.angle();
+  Eigen::Vector3d axis = s * r12.axis();
+  angle = copysign(fmod(fabs(angle), two_pi), angle);
+  if (angle < 0)
+    angle += two_pi;
+  else if (angle > two_pi)
+    angle -= two_pi;
+
+  assert(angle <= two_pi && angle >= 0);
+
+  return axis * angle;
 }
 
 /**

@@ -8,22 +8,17 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <tesseract_visualization/visualization.h>
 #include <tesseract_scene_graph/utils.h>
 #include <ifopt/problem.h>
-#include <ifopt/ipopt_solver.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
-#include <trajopt_test_utils.hpp>
-#include <trajopt_utils/config.hpp>
-#include <trajopt_utils/eigen_conversions.hpp>
-#include <trajopt_utils/logging.hpp>
-#include <trajopt_utils/stl_to_string.hpp>
 #include <trajopt_ifopt/constraints/continuous_collision_constraint.h>
 #include <trajopt_ifopt/constraints/continuous_collision_evaluators.h>
 #include <trajopt_ifopt/constraints/joint_position_constraint.h>
-#include <trajopt_ifopt/utils/numeric_differentiation.h>
+#include <trajopt_ifopt/costs/squared_cost.h>
+#include <trajopt_sqp/trust_region_sqp_solver.h>
+#include <trajopt_sqp/osqp_eigen_solver.h>
+#include "test_suite_utils.hpp"
 
 using namespace trajopt;
-using namespace std;
-using namespace util;
 using namespace tesseract_environment;
 using namespace tesseract_kinematics;
 using namespace tesseract_collision;
@@ -35,7 +30,7 @@ class CastTest : public testing::TestWithParam<const char*>
 {
 public:
   Environment::Ptr env = std::make_shared<Environment>(); /**< Tesseract */
-  Visualization::Ptr plotter_;                            /**< Plotter */
+  Visualization::Ptr plotter;                             /**< Plotter */
 
   void SetUp() override
   {
@@ -46,8 +41,6 @@ public:
 
     ResourceLocator::Ptr locator = std::make_shared<SimpleResourceLocator>(locateResource);
     EXPECT_TRUE(env->init<OFKTStateSolver>(urdf_file, srdf_file, locator));
-
-    gLogLevel = util::LevelError;
   }
 };
 
@@ -60,8 +53,6 @@ TEST_F(CastTest, boxes)  // NOLINT
   ipos["boxbot_y_joint"] = 0;
   env->setState(ipos);
 
-  //  plotter_->plotScene();
-
   std::vector<ContactResultMap> collisions;
   tesseract_environment::StateSolver::Ptr state_solver = env->getStateSolver();
   ContinuousContactManager::Ptr manager = env->getContinuousContactManager();
@@ -71,8 +62,6 @@ TEST_F(CastTest, boxes)  // NOLINT
 
   manager->setActiveCollisionObjects(adjacency_map->getActiveLinkNames());
   manager->setDefaultCollisionMarginData(0);
-
-  collisions.clear();
 
   // 2) Create the problem
   ifopt::Problem nlp;
@@ -114,7 +103,6 @@ TEST_F(CastTest, boxes)  // NOLINT
   double margin = 0.02;
   trajopt::TrajOptCollisionConfig trajopt_collision_config(margin, margin_coeff);
   trajopt_collision_config.collision_margin_buffer = 0.05;
-  //  trajopt_collision_config.longest_valid_segment_length = 100;
 
   // 4) Add constraints
   {  // Fix start position
@@ -156,42 +144,29 @@ TEST_F(CastTest, boxes)  // NOLINT
     auto cnt = std::make_shared<trajopt::ContinuousCollisionConstraintIfopt>(
         collision_evaluator, GradientCombineMethod::WEIGHTED_AVERAGE, vars[i - 1], vars[i]);
     nlp.AddConstraintSet(cnt);
-
-    if (i == 1)
-    {
-      auto error_calculator = [&](const Eigen::Ref<const Eigen::VectorXd>& x) {
-        return cnt->CalcValues(positions[0], x);
-      };
-      trajopt::Jacobian num_jac_block = trajopt::calcForwardNumJac(error_calculator, positions[1], 1e-4);
-      std::cout << "Numerical Jacobian: \n" << num_jac_block << std::endl;
-    }
-    else
-    {
-      auto error_calculator = [&](const Eigen::Ref<const Eigen::VectorXd>& x) {
-        return cnt->CalcValues(x, positions[2]);
-      };
-      trajopt::Jacobian num_jac_block = trajopt::calcForwardNumJac(error_calculator, positions[1], 1e-4);
-      std::cout << "Numerical Jacobian: \n" << num_jac_block << std::endl;
-    }
   }
 
   nlp.PrintCurrent();
   std::cout << "Jacobian: \n" << nlp.GetJacobianOfConstraints() << std::endl;
 
-  // 5) choose solver and options
-  ifopt::IpoptSolver ipopt;
-  ipopt.SetOption("derivative_test", "first-order");
-  ipopt.SetOption("linear_solver", "mumps");
-  //  ipopt.SetOption("jacobian_approximation", "finite-difference-values");
-  ipopt.SetOption("jacobian_approximation", "exact");
-  ipopt.SetOption("print_level", 5);
+  // 5) Setup solver
+  auto qp_solver = std::make_shared<trajopt_sqp::OSQPEigenSolver>();
+  trajopt_sqp::TrustRegionSQPSolver solver(qp_solver);
+  qp_solver->solver_.settings()->setVerbosity(true);
+  qp_solver->solver_.settings()->setWarmStart(true);
+  qp_solver->solver_.settings()->setPolish(true);
+  qp_solver->solver_.settings()->setAdaptiveRho(false);
+  qp_solver->solver_.settings()->setMaxIteraction(8192);
+  qp_solver->solver_.settings()->setAbsoluteTolerance(1e-4);
+  qp_solver->solver_.settings()->setRelativeTolerance(1e-6);
 
   // 6) solve
-  ipopt.Solve(nlp);
+  solver.verbose = true;
+  solver.Solve(nlp);
   Eigen::VectorXd x = nlp.GetOptVariables()->GetValues();
   std::cout << x.transpose() << std::endl;
 
-  EXPECT_TRUE(ipopt.GetReturnStatus() == 0);
+  EXPECT_TRUE(solver.getStatus() == trajopt_sqp::SQPStatus::NLP_CONVERGED);
 
   tesseract_common::TrajArray inputs(3, 2);
   inputs << -1.9, 0, 0, 1.9, 1.9, 3.8;

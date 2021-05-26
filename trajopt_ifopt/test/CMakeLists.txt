@@ -55,11 +55,14 @@ macro(add_gtest test_name test_file)
   add_dependencies(run_tests ${test_name})
 endmacro()
 
+add_gtest(${PROJECT_NAME}_cartesian_line_constraint_unit cartesian_line_constraint_unit.cpp)
 add_gtest(${PROJECT_NAME}_cartesian_position_constraint_unit cartesian_position_constraint_unit.cpp)
 add_gtest(${PROJECT_NAME}_cast_cost_unit cast_cost_unit.cpp)
 add_gtest(${PROJECT_NAME}_collision_unit collision_unit.cpp)
 add_gtest(${PROJECT_NAME}_inverse_kinematics_constraint_unit inverse_kinematics_constraint_unit.cpp)
 add_gtest(${PROJECT_NAME}_joint_terms_unit joint_terms_unit.cpp)
+
 add_gtest(${PROJECT_NAME}_utils_unit utils_unit.cpp)
 add_gtest(${PROJECT_NAME}_variable_sets_unit variable_sets_unit.cpp)
+add_gtest(${PROJECT_NAME}_simple_collision_unit simple_collision_unit.cpp)
 

@@ -34,8 +34,13 @@ trajopt_variables()
 
 set(TRAJOPT_IFOPT_SOURCE_FILES
     src/cartesian_position_constraint.cpp
-    src/collision_constraint.cpp
-    src/collision_evaluators.cpp
+    src/collision_types.cpp
+    src/collision_utils.cpp
+    src/discrete_collision_constraint.cpp
+    src/discrete_collision_evaluators.cpp
+    src/continuous_collision_constraint.cpp
+    src/continuous_collision_evaluators.cpp
+    src/cartesian_line_constraint.cpp
     src/inverse_kinematics_constraint.cpp
     src/joint_position_constraint.cpp
     src/joint_velocity_constraint.cpp
@@ -78,6 +83,7 @@ install(DIRECTORY include/${PROJECT_NAME}
 
 if (TRAJOPT_ENABLE_TESTING)
   enable_testing()
-  add_run_tests_target(ENABLE ${TRAJOPT_ENABLE_RUN_TESTING})
+  #  add_run_tests_target(ENABLE ${TRAJOPT_ENABLE_RUN_TESTING})
+  add_custom_target(run_tests)
   add_subdirectory(test)
 endif()

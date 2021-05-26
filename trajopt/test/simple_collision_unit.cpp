@@ -1,21 +1,21 @@
 #include <trajopt_utils/macros.h>
 TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <ctime>
-#include <sstream>
 #include <gtest/gtest.h>
-#include <tesseract_common/types.h>
 #include <tesseract_environment/core/environment.h>
 #include <tesseract_environment/ofkt/ofkt_state_solver.h>
+
 #include <tesseract_environment/core/utils.h>
+#include <tesseract_visualization/visualization.h>
 #include <tesseract_scene_graph/utils.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
+#include <trajopt/collision_terms.hpp>
 #include <trajopt/common.hpp>
 #include <trajopt/plot_callback.hpp>
 #include <trajopt/problem_description.hpp>
 #include <trajopt_sco/optimizers.hpp>
 #include <trajopt_test_utils.hpp>
-#include <trajopt_utils/clock.hpp>
 #include <trajopt_utils/config.hpp>
 #include <trajopt_utils/eigen_conversions.hpp>
 #include <trajopt_utils/logging.hpp>
@@ -25,61 +25,49 @@ using namespace trajopt;
 using namespace std;
 using namespace util;
 using namespace tesseract_environment;
-using namespace tesseract_collision;
 using namespace tesseract_kinematics;
+using namespace tesseract_collision;
 using namespace tesseract_visualization;
 using namespace tesseract_scene_graph;
+using namespace tesseract_geometry;
 
-bool plotting = false; /**< Enable plotting */
-static const double LONGEST_VALID_SEGMENT_LENGTH = 0.05;
+static bool plotting = false;
 
-class PlanningTest : public testing::TestWithParam<const char*>
+class SimpleCollisionTest : public testing::TestWithParam<const char*>
 {
 public:
   Environment::Ptr env_ = std::make_shared<Environment>(); /**< Tesseract */
   Visualization::Ptr plotter_;                             /**< Trajopt Plotter */
+
   void SetUp() override
   {
-    tesseract_common::fs::path urdf_file(std::string(TRAJOPT_DIR) + "/test/data/arm_around_table.urdf");
-    tesseract_common::fs::path srdf_file(std::string(TRAJOPT_DIR) + "/test/data/pr2.srdf");
+    boost::filesystem::path urdf_file(std::string(TRAJOPT_DIR) + "/test/data/spherebot.urdf");
+    boost::filesystem::path srdf_file(std::string(TRAJOPT_DIR) + "/test/data/spherebot.srdf");
 
     ResourceLocator::Ptr locator = std::make_shared<SimpleResourceLocator>(locateResource);
     EXPECT_TRUE(env_->init<OFKTStateSolver>(urdf_file, srdf_file, locator));
 
+    gLogLevel = util::LevelError;
+
     // Create plotting tool
     //    plotter_.reset(new tesseract_ros::ROSBasicPlotting(env_));
-
-    std::unordered_map<std::string, double> ipos;
-    ipos["torso_lift_joint"] = 0.0;
-    env_->setState(ipos);
-
-    gLogLevel = util::LevelError;
   }
 };
 
-TEST_F(PlanningTest, arm_around_table)  // NOLINT
+TEST_F(SimpleCollisionTest, spheres)  // NOLINT
 {
-  CONSOLE_BRIDGE_logDebug("PlanningTest, arm_around_table");
+  CONSOLE_BRIDGE_logDebug("SimpleCollisionTest, spheres");
 
-  Json::Value root = readJsonFile(std::string(TRAJOPT_DIR) + "/test/data/config/arm_around_table.json");
+  Json::Value root = readJsonFile(std::string(TRAJOPT_DIR) + "/test/data/config/simple_collision_test.json");
 
   std::unordered_map<std::string, double> ipos;
-  ipos["torso_lift_joint"] = 0;
-  ipos["r_shoulder_pan_joint"] = -1.832;
-  ipos["r_shoulder_lift_joint"] = -0.332;
-  ipos["r_upper_arm_roll_joint"] = -1.011;
-  ipos["r_elbow_flex_joint"] = -1.437;
-  ipos["r_forearm_roll_joint"] = -1.1;
-  ipos["r_wrist_flex_joint"] = -1.926;
-  ipos["r_wrist_roll_joint"] = 3.074;
+  ipos["spherebot_x_joint"] = -0.75;
+  ipos["spherebot_y_joint"] = 0.75;
   env_->setState(ipos);
 
   //  plotter_->plotScene();
 
-  ProblemConstructionInfo pci(env_);
-  pci.fromJson(root);
-  pci.basic_info.convex_solver = sco::ModelType::OSQP;
-  TrajOptProb::Ptr prob = ConstructProblem(pci);
+  TrajOptProb::Ptr prob = ConstructProblem(root, env_);
   ASSERT_TRUE(!!prob);
 
   std::vector<ContactResultMap> collisions;
@@ -89,11 +77,11 @@ TEST_F(PlanningTest, arm_around_table)  // NOLINT
       env_->getSceneGraph(), prob->GetKin()->getActiveLinkNames(), prob->GetEnv()->getCurrentState()->link_transforms);
 
   manager->setActiveCollisionObjects(adjacency_map->getActiveLinkNames());
-  manager->setDefaultCollisionMarginData(0);
+  manager->setDefaultCollisionMarginData(0.2);
 
+  collisions.clear();
   tesseract_collision::CollisionCheckConfig config;
   config.type = tesseract_collision::CollisionEvaluatorType::CONTINUOUS;
-  config.longest_valid_segment_length = LONGEST_VALID_SEGMENT_LENGTH;
   bool found = checkTrajectory(
       collisions, *manager, *state_solver, prob->GetKin()->getJointNames(), prob->GetInitTraj(), config);
 
@@ -101,35 +89,17 @@ TEST_F(PlanningTest, arm_around_table)  // NOLINT
   CONSOLE_BRIDGE_logDebug((found) ? ("Initial trajectory is in collision") : ("Initial trajectory is collision free"));
 
   sco::BasicTrustRegionSQP opt(prob);
-  CONSOLE_BRIDGE_logDebug("DOF: %d", prob->GetNumDOF());
-  //  if (plotting)
-  //  {
-  //    opt.addCallback(PlotCallback(*prob, plotter_));
-  //  }
-
+  if (plotting)
+    opt.addCallback(PlotCallback(*prob, plotter_));
   opt.initialize(trajToDblVec(prob->GetInitTraj()));
-  double tStart = GetClock();
-  sco::OptStatus status = opt.optimize();
-  EXPECT_TRUE(status == sco::OptStatus::OPT_CONVERGED);
-  CONSOLE_BRIDGE_logDebug("planning time: %.3f", GetClock() - tStart);
+  opt.optimize();
 
-  double d = 0;
-  TrajArray traj = getTraj(opt.x(), prob->GetVars());
-  for (unsigned i = 1; i < traj.rows(); ++i)
-  {
-    for (unsigned j = 0; j < traj.cols(); ++j)
-    {
-      d += std::abs(traj(i, j) - traj(i - 1, j));
-    }
-  }
-  CONSOLE_BRIDGE_logDebug("trajectory norm: %.3f", d);
-
-  //  if (plotting)
-  //  {
-  //    plotter_->clear();
-  //  }
+  if (plotting)
+    plotter_->clear();
 
   collisions.clear();
+  std::cout << getTraj(opt.x(), prob->GetVars()) << std::endl;
+
   found = checkTrajectory(
       collisions, *manager, *state_solver, prob->GetKin()->getJointNames(), getTraj(opt.x(), prob->GetVars()), config);
 

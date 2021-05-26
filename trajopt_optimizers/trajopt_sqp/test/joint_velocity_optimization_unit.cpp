@@ -70,7 +70,7 @@ public:
 
     // Must link the variables to the constraint since that happens in AddConstraintSet
     vel_constraint->LinkWithVariables(nlp_.GetOptVariables());
-    Eigen::VectorXd weights = Eigen::VectorXd::Ones(vel_constraint->GetRows()) * 0.1;
+    Eigen::VectorXd weights = Eigen::VectorXd::Constant(vel_constraint->GetRows(), 0.01);
     auto vel_cost = std::make_shared<trajopt::SquaredCost>(vel_constraint, weights);
     nlp_.AddCostSet(vel_cost);
 

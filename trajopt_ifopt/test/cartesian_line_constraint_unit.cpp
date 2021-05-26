@@ -2,6 +2,7 @@
 TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <ctime>
 #include <gtest/gtest.h>
+#include <boost/filesystem.hpp>
 #include <console_bridge/console.h>
 #include <ifopt/problem.h>
 
@@ -10,10 +11,9 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <tesseract_kinematics/core/forward_kinematics.h>
 #include <tesseract_environment/core/environment.h>
 #include <tesseract_environment/core/utils.h>
-#include <tesseract_common/types.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
-#include <trajopt_ifopt/constraints/cartesian_position_constraint.h>
+#include <trajopt_ifopt/constraints/cartesian_line_constraint.h>
 #include <trajopt_ifopt/utils/numeric_differentiation.h>
 #include <trajopt_test_utils.hpp>
 
@@ -27,16 +27,16 @@ using namespace tesseract_visualization;
 using namespace tesseract_scene_graph;
 using namespace tesseract_geometry;
 
-class CartesianPositionConstraintUnit : public testing::TestWithParam<const char*>
+class CartesianLineConstraintUnit : public testing::TestWithParam<const char*>
 {
 public:
-  Environment::Ptr env = std::make_shared<Environment>();
+  Environment::Ptr tesseract = std::make_shared<Environment>();
   ifopt::Problem nlp;
 
   tesseract_kinematics::ForwardKinematics::Ptr forward_kinematics;
   tesseract_kinematics::InverseKinematics::Ptr inverse_kinematics;
-  CartPosKinematicInfo::Ptr kinematic_info;
-  CartPosConstraint::Ptr constraint;
+  CartLineKinematicInfo::Ptr kinematic_info;
+  CartLineConstraint::Ptr constraint;
 
   Eigen::Index n_dof;
 
@@ -58,81 +58,87 @@ public:
 
     tesseract_environment::AdjacencyMap::Ptr adjacency_map = std::make_shared<tesseract_environment::AdjacencyMap>(
         env->getSceneGraph(), forward_kinematics->getActiveLinkNames(), env->getCurrentState()->link_transforms);
-    kinematic_info = std::make_shared<trajopt::CartPosKinematicInfo>(
+    kinematic_info = std::make_shared<trajopt::CartLineKinematicInfo>(
         forward_kinematics, adjacency_map, Eigen::Isometry3d::Identity(), forward_kinematics->getTipLinkName());
 
     auto pos = Eigen::VectorXd::Ones(forward_kinematics->numJoints());
     auto var0 = std::make_shared<trajopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
     nlp.AddVariableSet(var0);
 
-    // 4) Add constraints
-    auto target_pose = Eigen::Isometry3d::Identity();
-    constraint = std::make_shared<trajopt::CartPosConstraint>(target_pose, kinematic_info, var0);
+    // Add constraints
+    Eigen::VectorXd joint_position = Eigen::VectorXd::Ones(n_dof);
+    Eigen::Isometry3d target_pose = forward_kinematics->calcFwdKin(joint_position);
+
+    Eigen::Isometry3d line_start_pose = target_pose;
+    line_start_pose.translation() = line_start_pose.translation() + Eigen::Vector3d(-0.5, 0.0, 0.0);
+    Eigen::Isometry3d line_end_pose = target_pose;
+    line_end_pose.translation() = line_end_pose.translation() + Eigen::Vector3d(0.5, 0.0, 0.0);
+
+    constraint = std::make_shared<trajopt::CartLineConstraint>(line_start_pose, line_end_pose, kinematic_info, var0);
     nlp.AddConstraintSet(constraint);
   }
 };
 
 /** @brief Checks that the GetValue function is correct */
-TEST_F(CartesianPositionConstraintUnit, GetValue)  // NOLINT
+TEST_F(CartesianLineConstraintUnit, GetValue)  // NOLINT
 {
   CONSOLE_BRIDGE_logDebug("CartesianPositionConstraintUnit, GetValue");
 
   // Run FK to get target pose
   Eigen::VectorXd joint_position = Eigen::VectorXd::Ones(n_dof);
-  Eigen::Isometry3d target_pose = forward_kinematics->calcFwdKin(joint_position);
-  constraint->SetTargetPose(target_pose);
-
-  // Set the joints to the joint position that should satisfy it
-  nlp.SetVariables(joint_position.data());
+  // stored for later use
+  Eigen::Isometry3d line_start_pose = constraint->GetLine().first;
+  Eigen::Isometry3d line_end_pose = constraint->GetLine().second;
 
   // Given a joint position at the target, the error should be 0
   {
     auto error = constraint->CalcValues(joint_position);
-    EXPECT_LT(error.maxCoeff(), 1e-3);
-    EXPECT_GT(error.minCoeff(), -1e-3);
+    EXPECT_LT(error.maxCoeff(), 1e-3) << error.maxCoeff();
+    EXPECT_GT(error.minCoeff(), -1e-3) << error.minCoeff();
   }
+
   {
     auto error = constraint->GetValues();
     EXPECT_LT(error.maxCoeff(), 1e-3);
     EXPECT_GT(error.minCoeff(), -1e-3);
   }
 
-  // Given a joint position a small distance away, check the error for translation
+  // distance error with a 3-4-5 triangle
   {
-    Eigen::Isometry3d target_pose_mod = target_pose;
-    target_pose_mod.translate(Eigen::Vector3d(0.1, 0.0, 0.0));
-    constraint->SetTargetPose(target_pose_mod);
+    Eigen::Isometry3d start_pose_mod = line_start_pose;
+    Eigen::Isometry3d end_pose_mod = line_end_pose;
+    start_pose_mod.translation() = start_pose_mod.translation() + Eigen::Vector3d(0.0, 0.3, 0.4);
+    end_pose_mod.translation() = end_pose_mod.translation() + Eigen::Vector3d(0.0, 0.3, 0.4);
+    constraint->SetLine(start_pose_mod, end_pose_mod);
     auto error = constraint->CalcValues(joint_position);
-    EXPECT_NEAR(error[0], -0.1, 1e-3);
+    EXPECT_NEAR(error.norm(), 0.5, 1e-2);
   }
+  // Orientation test
   {
-    Eigen::Isometry3d target_pose_mod = target_pose;
-    target_pose_mod.translate(Eigen::Vector3d(0.0, 0.2, 0.0));
-    constraint->SetTargetPose(target_pose_mod);
+    joint_position[6] += 0.707;
+    constraint->SetLine(line_start_pose, line_end_pose);
     auto error = constraint->CalcValues(joint_position);
-    EXPECT_NEAR(error[1], -0.2, 1e-3);
+    EXPECT_NEAR(error.norm(), 0.707, 1e-3);
   }
-  {
-    Eigen::Isometry3d target_pose_mod = target_pose;
-    target_pose_mod.translate(Eigen::Vector3d(0.0, 0.0, -0.3));
-    constraint->SetTargetPose(target_pose_mod);
-    auto error = constraint->CalcValues(joint_position);
-    EXPECT_NEAR(error[2], 0.3, 1e-3);
-  }
-
-  // TODO: Check error for orientation
 }
 
-/** @brief Checks that the FillJacobian function is correct */
-TEST_F(CartesianPositionConstraintUnit, FillJacobian)  // NOLINT
+///** @brief Checks that the FillJacobian function is correct */
+TEST_F(CartesianLineConstraintUnit, FillJacobian)  // NOLINT
 {
   CONSOLE_BRIDGE_logDebug("CartesianPositionConstraintUnit, FillJacobian");
 
   // Run FK to get target pose
   Eigen::VectorXd joint_position = Eigen::VectorXd::Ones(n_dof);
-  Eigen::Isometry3d target_pose = forward_kinematics->calcFwdKin(joint_position);
-  constraint->SetTargetPose(target_pose);
+  Eigen::Isometry3d target_pose, line_start_pose, line_end_pose;
+  target_pose = forward_kinematics->calcFwdKin(joint_position);
 
+  // Set the line endpoints st the target pose is on the line
+  line_start_pose = target_pose.translate(Eigen::Vector3d(-1.0, 0, 0));
+  line_end_pose = target_pose.translate(Eigen::Vector3d(1.0, 0, 0));
+
+  constraint->SetLine(line_start_pose, line_end_pose);
+
+  // below here should match cartesian
   // Modify one joint at a time
   for (Eigen::Index i = 0; i < n_dof; i++)
   {
@@ -150,15 +156,11 @@ TEST_F(CartesianPositionConstraintUnit, FillJacobian)  // NOLINT
       trajopt::Jacobian jac_block(num_jac_block.rows(), num_jac_block.cols());
       constraint->CalcJacobianBlock(joint_position_mod, jac_block);
       EXPECT_TRUE(jac_block.isApprox(num_jac_block, 1e-3));
-      //      std::cout << "Numeric:\n" << num_jac_block.toDense() << std::endl;
-      //      std::cout << "Analytic:\n" << jac_block.toDense() << std::endl;
     }
     {
       trajopt::Jacobian jac_block(num_jac_block.rows(), num_jac_block.cols());
       constraint->FillJacobianBlock("Joint_Position_0", jac_block);
       EXPECT_TRUE(jac_block.toDense().isApprox(num_jac_block.toDense(), 1e-3));
-      //      std::cout << "Numeric:\n" << num_jac_block.toDense() << std::endl;
-      //      std::cout << "Analytic:\n" << jac_block.toDense() << std::endl;
     }
   }
 }
@@ -166,7 +168,7 @@ TEST_F(CartesianPositionConstraintUnit, FillJacobian)  // NOLINT
 /**
  * @brief Checks that the Bounds are set correctly
  */
-TEST_F(CartesianPositionConstraintUnit, GetSetBounds)  // NOLINT
+TEST_F(CartesianLineConstraintUnit, GetSetBounds)  // NOLINT
 {
   CONSOLE_BRIDGE_logDebug("CartesianPositionConstraintUnit, GetSetBounds");
 
@@ -175,14 +177,11 @@ TEST_F(CartesianPositionConstraintUnit, GetSetBounds)  // NOLINT
     Eigen::VectorXd pos = Eigen::VectorXd::Ones(forward_kinematics->numJoints());
     auto var0 = std::make_shared<trajopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
 
-    auto target_pose = Eigen::Isometry3d::Identity();
-    auto constraint_2 = std::make_shared<trajopt::CartPosConstraint>(target_pose, kinematic_info, var0);
-
     ifopt::Bounds bounds(-0.1234, 0.5678);
     std::vector<ifopt::Bounds> bounds_vec = std::vector<ifopt::Bounds>(6, bounds);
 
-    constraint_2->SetBounds(bounds_vec);
-    std::vector<ifopt::Bounds> results_vec = constraint_2->GetBounds();
+    constraint->SetBounds(bounds_vec);
+    std::vector<ifopt::Bounds> results_vec = constraint->GetBounds();
     for (size_t i = 0; i < bounds_vec.size(); i++)
     {
       EXPECT_EQ(bounds_vec[i].lower_, results_vec[i].lower_);
@@ -191,10 +190,10 @@ TEST_F(CartesianPositionConstraintUnit, GetSetBounds)  // NOLINT
   }
 }
 
-/**
- * @brief Checks that the constraint doesn't change the jacobian when it shouldn't
- */
-TEST_F(CartesianPositionConstraintUnit, IgnoreVariables)  // NOLINT
+///**
+// * @brief Checks that the constraint doesn't change the jacobian when it shouldn't
+// */
+TEST_F(CartesianLineConstraintUnit, IgnoreVariables)  // NOLINT
 {
   CONSOLE_BRIDGE_logDebug("CartesianPositionConstraintUnit, IgnoreVariables");
 
@@ -205,7 +204,6 @@ TEST_F(CartesianPositionConstraintUnit, IgnoreVariables)  // NOLINT
     constraint->FillJacobianBlock("another_var", jac_block_input);
     EXPECT_EQ(jac_block_input.nonZeros(), 0);
   }
-
   // Check that it is fine with jac blocks the wrong size for this constraint
   {
     ifopt::ConstraintSet::Jacobian jac_block_input;

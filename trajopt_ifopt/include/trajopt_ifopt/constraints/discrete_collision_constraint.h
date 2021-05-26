@@ -1,6 +1,6 @@
 /**
- * @file collision_constraint.h
- * @brief The collision position constraint
+ * @file discrete_collision_constraint.h
+ * @brief The single timestep collision position constraint
  *
  * @author Levi Armstrong
  * @author Matthew Powelson
@@ -33,23 +33,22 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <ifopt/constraint_set.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
-#include <trajopt_ifopt/constraints/collision_evaluators.h>
+#include <trajopt_ifopt/constraints/discrete_collision_evaluators.h>
 #include <trajopt_ifopt/variable_sets/joint_position_variable.h>
 
 namespace trajopt
 {
-class CollisionConstraintIfopt : public ifopt::ConstraintSet
+class DiscreteCollisionConstraintIfopt : public ifopt::ConstraintSet
 {
 public:
-  using Ptr = std::shared_ptr<CollisionConstraintIfopt>;
-  using ConstPtr = std::shared_ptr<const CollisionConstraintIfopt>;
+  using Ptr = std::shared_ptr<DiscreteCollisionConstraintIfopt>;
+  using ConstPtr = std::shared_ptr<const DiscreteCollisionConstraintIfopt>;
 
-  CollisionConstraintIfopt(DiscreteCollisionEvaluator::Ptr collision_evaluator,
-                           JointPosition::ConstPtr position_var,
-                           const std::string& name = "Collision");
+  DiscreteCollisionConstraintIfopt(DiscreteCollisionEvaluator::Ptr collision_evaluator,
+                                   GradientCombineMethod gradient_method,
+                                   JointPosition::ConstPtr position_var,
+                                   const std::string& name = "DiscreteCollision");
 
-  /** @brief Calculates the values associated with the constraint */
-  Eigen::VectorXd CalcValues(const Eigen::Ref<const Eigen::VectorXd>& joint_vals) const;
   /**
    * @brief Returns the values associated with the constraint.
    * @return
@@ -63,6 +62,16 @@ public:
   std::vector<ifopt::Bounds> GetBounds() const override;
 
   /**
+   * @brief Fills the jacobian block associated with the given var_set.
+   * @param var_set Name of the var_set to which the jac_block is associated
+   * @param jac_block Block of the overall jacobian associated with these constraints and the var_set variable
+   */
+  void FillJacobianBlock(std::string var_set, Jacobian& jac_block) const override;
+
+  /** @brief Calculates the values associated with the constraint */
+  Eigen::VectorXd CalcValues(const Eigen::Ref<const Eigen::VectorXd>& joint_vals) const;
+
+  /**
    * @brief Sets the bounds on the collision distance
    * @param bounds New bounds that will be set. Should be size 1
    */
@@ -73,12 +82,12 @@ public:
    * @param jac_block Block of the overall jacobian associated with these constraints
    */
   void CalcJacobianBlock(const Eigen::Ref<const Eigen::VectorXd>& joint_vals, Jacobian& jac_block) const;
+
   /**
-   * @brief Fills the jacobian block associated with the given var_set.
-   * @param var_set Name of the var_set to which the jac_block is associated
-   * @param jac_block Block of the overall jacobian associated with these constraints and the var_set variable
+   * @brief Get the collision evaluator. This exposed for plotter callbacks
+   * @return The collision evaluator
    */
-  void FillJacobianBlock(std::string var_set, Jacobian& jac_block) const override;
+  DiscreteCollisionEvaluator::Ptr GetCollisionEvaluator() const;
 
 private:
   /** @brief The number of joints in a single JointPosition */
@@ -87,12 +96,14 @@ private:
   /** @brief Bounds on the constraint value. Default: std::vector<Bounds>(1, ifopt::BoundSmallerZero) */
   std::vector<ifopt::Bounds> bounds_;
 
-  /** @brief Pointers to the vars used by this constraint.
-   *
-   * Do not access them directly. Instead use this->GetVariables()->GetComponent(position_var->GetName())->GetValues()*/
+  /**
+   * @brief Pointers to the vars used by this constraint.
+   * Do not access them directly. Instead use this->GetVariables()->GetComponent(position_var->GetName())->GetValues()
+   */
   JointPosition::ConstPtr position_var_;
 
   DiscreteCollisionEvaluator::Ptr collision_evaluator_;
+  GradientCombineMethod gradient_method_;
 };
 };  // namespace trajopt
 #endif

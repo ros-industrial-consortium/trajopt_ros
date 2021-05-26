@@ -31,15 +31,15 @@ TRAJOPT_IGNORE_WARNINGS_POP
 
 namespace trajopt
 {
-SquaredCost::SquaredCost(const ifopt::ConstraintSet::Ptr& constraint)
-  : SquaredCost(constraint, Eigen::VectorXd::Ones(constraint->GetRows()))
+SquaredCost::SquaredCost(ifopt::ConstraintSet::Ptr constraint)
+  : SquaredCost(std::move(constraint), Eigen::VectorXd::Ones(constraint->GetRows()))
 {
 }
 
-SquaredCost::SquaredCost(const ifopt::ConstraintSet::Ptr& constraint, const Eigen::Ref<const Eigen::VectorXd>& weights)
+SquaredCost::SquaredCost(ifopt::ConstraintSet::Ptr constraint, const Eigen::Ref<const Eigen::VectorXd>& weights)
   : CostTerm(constraint->GetName() + "_squared_cost")
-  , constraint_(constraint)
-  , n_constraints_(constraint->GetRows())
+  , constraint_(std::move(constraint))
+  , n_constraints_(constraint_->GetRows())
   , weights_(weights)
 {
   // Calculate targets - Average the upper and lower bounds
@@ -47,7 +47,9 @@ SquaredCost::SquaredCost(const ifopt::ConstraintSet::Ptr& constraint, const Eige
   std::vector<ifopt::Bounds> bounds = constraint_->GetBounds();
   for (Eigen::Index ind = 0; ind < n_constraints_; ind++)
   {
+    /** @todo Is this correct? (LEVI) */
     targets_(ind) = (bounds[static_cast<std::size_t>(ind)].upper_ + bounds[static_cast<std::size_t>(ind)].lower_) / 2.;
+    //    targets_(ind) = 0;
   }
 }
 
