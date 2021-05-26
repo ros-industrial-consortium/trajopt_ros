@@ -198,7 +198,6 @@ Eigen::Isometry3d CartLineConstraint::GetCurrentPose()
 }
 
 // this has to be const because it is used in const functions, it would be nicer if this could store a member
-// line_point_
 Eigen::Isometry3d CartLineConstraint::GetLinePoint(const Eigen::Isometry3d& test_point) const
 {
   // distance 1; distance from new pose to first point on line
@@ -206,9 +205,7 @@ Eigen::Isometry3d CartLineConstraint::GetLinePoint(const Eigen::Isometry3d& test
 
   // Point D, the nearest point on line AB to point C, can be found with:
   // (AC - (AC * AB)) * AB
-  // Eigen::Vector3d line_point_pos = (d1 - (d1 * line_)) * line_;
   Eigen::Isometry3d line_point;
-  // line_point.translation() = line_point_pos;
   Eigen::Vector3d line_norm = line_ / line_.squaredNorm();
   double mag = d1.dot(line_norm);
 
