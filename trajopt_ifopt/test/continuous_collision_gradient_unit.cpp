@@ -1,14 +1,14 @@
 /**
- * @file cast_cost_unit.h
- * @brief The casted collision unit test
+ * @file continuous_collision_gradient_unit.cpp
+ * @brief  Unit test for the different methods for combining the gradients
  *
  * @author Levi Armstrong
  * @author Matthew Powelson
- * @date May 18, 2020
+ * @date June 1, 2021
  * @version TODO
  * @bug No known bugs
  *
- * @copyright Copyright (c) 2020, Southwest Research Institute
+ * @copyright Copyright (c) 2021, Southwest Research Institute
  *
  * @par License
  * Software License Agreement (Apache License)
@@ -57,7 +57,7 @@ using namespace tesseract_visualization;
 using namespace tesseract_scene_graph;
 using namespace tesseract_geometry;
 
-class CastTest : public testing::TestWithParam<const char*>
+class ContinuousCollisionGradientTest : public testing::TestWithParam<const char*>
 {
 public:
   Environment::Ptr env = std::make_shared<Environment>(); /**< Tesseract */
@@ -65,10 +65,8 @@ public:
 
   void SetUp() override
   {
-    boost::filesystem::path urdf_file(std::string(TRAJOPT_DIR) + "/test/data/boxbot.urdf");
-    boost::filesystem::path srdf_file(std::string(TRAJOPT_DIR) + "/test/data/boxbot.srdf");
-    auto tmp = TRAJOPT_DIR;
-    std::cout << tmp;
+    boost::filesystem::path urdf_file(std::string(TRAJOPT_DIR) + "/test/data/spherebot.urdf");
+    boost::filesystem::path srdf_file(std::string(TRAJOPT_DIR) + "/test/data/spherebot.srdf");
 
     ResourceLocator::Ptr locator = std::make_shared<SimpleResourceLocator>(locateResource);
     EXPECT_TRUE(env->init<OFKTStateSolver>(urdf_file, srdf_file, locator));
@@ -77,13 +75,11 @@ public:
   }
 };
 
-TEST_F(CastTest, boxes)  // NOLINT
+void runContinuousGradientTest(const Environment::Ptr& env, double coeff, GradientCombineMethod method)
 {
-  CONSOLE_BRIDGE_logDebug("CastTest, boxes");
-
   std::unordered_map<std::string, double> ipos;
-  ipos["boxbot_x_joint"] = -1.9;
-  ipos["boxbot_y_joint"] = 0;
+  ipos["spherebot_x_joint"] = -1.9;
+  ipos["spherebot_y_joint"] = 0;
   env->setState(ipos);
 
   //  plotter_->plotScene();
@@ -136,23 +132,24 @@ TEST_F(CastTest, boxes)  // NOLINT
   auto adj_map = std::make_shared<tesseract_environment::AdjacencyMap>(
       env->getSceneGraph(), kin->getActiveLinkNames(), env->getCurrentState()->link_transforms);
 
-  double margin_coeff = 1;
+  double margin_coeff = coeff;
   double margin = 0.02;
   trajopt::TrajOptCollisionConfig trajopt_collision_config(margin, margin_coeff);
   trajopt_collision_config.collision_margin_buffer = 0.05;
+  //  trajopt_collision_config.longest_valid_segment_length = 100;
 
-  // 4) Add constraints
-  {  // Fix start position
-    std::vector<trajopt::JointPosition::ConstPtr> fixed_vars = { vars[0] };
-    auto cnt = std::make_shared<trajopt::JointPosConstraint>(positions[0], fixed_vars);
-    nlp.AddConstraintSet(cnt);
-  }
+  //  // 4) Add constraints
+  //  {  // Fix start position
+  //    std::vector<trajopt::JointPosition::ConstPtr> fixed_vars = { vars[0] };
+  //    auto cnt = std::make_shared<trajopt::JointPosConstraint>(positions[0], fixed_vars);
+  //    nlp.AddConstraintSet(cnt);
+  //  }
 
-  {  // Fix end position
-    std::vector<trajopt::JointPosition::ConstPtr> fixed_vars = { vars[2] };
-    auto cnt = std::make_shared<trajopt::JointPosConstraint>(positions[2], fixed_vars);
-    nlp.AddConstraintSet(cnt);
-  }
+  //  {  // Fix end position
+  //    std::vector<trajopt::JointPosition::ConstPtr> fixed_vars = { vars[2] };
+  //    auto cnt = std::make_shared<trajopt::JointPosConstraint>(positions[2], fixed_vars);
+  //    nlp.AddConstraintSet(cnt);
+  //  }
 
   for (std::size_t i = 1; i < (vars.size() - 1); ++i)
   {
@@ -160,47 +157,52 @@ TEST_F(CastTest, boxes)  // NOLINT
         kin, env, adj_map, Eigen::Isometry3d::Identity(), trajopt_collision_config);
 
     std::array<JointPosition::ConstPtr, 3> position_vars{ vars[i - 1], vars[i], vars[i + 1] };
-    auto cnt = std::make_shared<trajopt::ContinuousCollisionConstraintIfopt>(
-        collision_evaluator, GradientCombineMethod::WEIGHTED_AVERAGE, position_vars);
+    auto cnt =
+        std::make_shared<trajopt::ContinuousCollisionConstraintIfopt>(collision_evaluator, method, position_vars);
     nlp.AddConstraintSet(cnt);
   }
 
-  nlp.PrintCurrent();
   std::cout << "Jacobian: \n" << nlp.GetJacobianOfConstraints().toDense() << std::endl;
+  std::vector<double> init_vals{ -1.9, 0, 0, 1.9, 1.9, 3.8 };
+  trajopt::Jacobian num_jac_block = calcNumericalConstraintGradient(init_vals.data(), nlp, 1e-8);
+  std::cout << "Numerical Jacobian: \n" << num_jac_block.toDense() << std::endl;
+}
 
-  // 5) choose solver and options
-  ifopt::IpoptSolver ipopt;
-  ipopt.SetOption("derivative_test", "first-order");
-  ipopt.SetOption("linear_solver", "mumps");
-  //  ipopt.SetOption("jacobian_approximation", "finite-difference-values");
-  ipopt.SetOption("jacobian_approximation", "exact");
-  ipopt.SetOption("print_level", 5);
-  ipopt.SetOption("nlp_scaling_method", "gradient-based");
-
-  // 6) solve
-  ipopt.Solve(nlp);
-  Eigen::VectorXd x = nlp.GetOptVariables()->GetValues();
-  std::cout << x.transpose() << std::endl;
-
-  EXPECT_TRUE(ipopt.GetReturnStatus() == 0);
-
-  tesseract_common::TrajArray inputs(3, 2);
-  inputs << -1.9, 0, 0, 1.9, 1.9, 3.8;
-  Eigen::Map<tesseract_common::TrajArray> results(x.data(), 3, 2);
-
-  tesseract_collision::CollisionCheckConfig config;
-  config.type = tesseract_collision::CollisionEvaluatorType::CONTINUOUS;
-  bool found =
-      checkTrajectory(collisions, *manager, *state_solver, forward_kinematics->getJointNames(), inputs, config);
-
-  EXPECT_TRUE(found);
-  CONSOLE_BRIDGE_logWarn((found) ? ("Initial trajectory is in collision") : ("Initial trajectory is collision free"));
-
-  collisions.clear();
-  found = checkTrajectory(collisions, *manager, *state_solver, forward_kinematics->getJointNames(), results, config);
-
-  EXPECT_FALSE(found);
-  CONSOLE_BRIDGE_logWarn((found) ? ("Final trajectory is in collision") : ("Final trajectory is collision free"));
+TEST_F(ContinuousCollisionGradientTest, SUM)  // NOLINT
+{
+  CONSOLE_BRIDGE_logDebug("ContinuousCollisionGradientTest, SUM");
+  runContinuousGradientTest(env, 1, GradientCombineMethod::SUM);
+  runContinuousGradientTest(env, 10, GradientCombineMethod::SUM);
+}
+TEST_F(ContinuousCollisionGradientTest, WEIGHTED_SUM)  // NOLINT
+{
+  CONSOLE_BRIDGE_logDebug("ContinuousCollisionGradientTest, WEIGHTED_SUM");
+  runContinuousGradientTest(env, 1, GradientCombineMethod::WEIGHTED_SUM);
+  runContinuousGradientTest(env, 10, GradientCombineMethod::WEIGHTED_SUM);
+}
+TEST_F(ContinuousCollisionGradientTest, AVERAGE)  // NOLINT
+{
+  CONSOLE_BRIDGE_logDebug("ContinuousCollisionGradientTest, AVERAGE");
+  runContinuousGradientTest(env, 1, GradientCombineMethod::AVERAGE);
+  runContinuousGradientTest(env, 10, GradientCombineMethod::AVERAGE);
+}
+TEST_F(ContinuousCollisionGradientTest, WEIGHTED_AVERAGE)  // NOLINT
+{
+  CONSOLE_BRIDGE_logDebug("ContinuousCollisionGradientTest, WEIGHTED_AVERAGE");
+  runContinuousGradientTest(env, 1, GradientCombineMethod::WEIGHTED_AVERAGE);
+  runContinuousGradientTest(env, 10, GradientCombineMethod::WEIGHTED_AVERAGE);
+}
+TEST_F(ContinuousCollisionGradientTest, LEAST_SQUARES)  // NOLINT
+{
+  CONSOLE_BRIDGE_logDebug("ContinuousCollisionGradientTest, LEAST_SQUARES");
+  runContinuousGradientTest(env, 1, GradientCombineMethod::LEAST_SQUARES);
+  runContinuousGradientTest(env, 10, GradientCombineMethod::LEAST_SQUARES);
+}
+TEST_F(ContinuousCollisionGradientTest, WEIGHTED_LEAST_SQUARES)  // NOLINT
+{
+  CONSOLE_BRIDGE_logDebug("ContinuousCollisionGradientTest, WEIGHTED_LEAST_SQUARES");
+  runContinuousGradientTest(env, 1, GradientCombineMethod::WEIGHTED_LEAST_SQUARES);
+  runContinuousGradientTest(env, 10, GradientCombineMethod::WEIGHTED_LEAST_SQUARES);
 }
 
 int main(int argc, char** argv)

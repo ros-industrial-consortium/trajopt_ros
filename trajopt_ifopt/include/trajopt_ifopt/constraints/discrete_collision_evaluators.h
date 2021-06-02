@@ -53,23 +53,20 @@ public:
   using Ptr = std::shared_ptr<DiscreteCollisionEvaluator>;
   using ConstPtr = std::shared_ptr<const DiscreteCollisionEvaluator>;
 
+  DiscreteCollisionEvaluator() = default;
   virtual ~DiscreteCollisionEvaluator() = default;
+  DiscreteCollisionEvaluator(const DiscreteCollisionEvaluator&) = default;
+  DiscreteCollisionEvaluator& operator=(const DiscreteCollisionEvaluator&) = default;
+  DiscreteCollisionEvaluator(DiscreteCollisionEvaluator&&) = default;
+  DiscreteCollisionEvaluator& operator=(DiscreteCollisionEvaluator&&) = default;
 
   /**
    * @brief Given joint names and values calculate the collision results for this evaluator
    * @param dof_vals Joint values set prior to collision checking
-   * @param dist_results Contact Results Map
+   * @return Collision cache data. If a cache does not exist for the provided joint values it evaluates and stores the
+   * data.
    */
-  virtual void CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals,
-                              tesseract_collision::ContactResultMap& dist_results) = 0;
-
-  /**
-   * @brief Given joint names and values calculate the collision results for this evaluator
-   * @param dof_vals Joint values set prior to collision checking
-   * @param dist_results Contact Results Vector
-   */
-  virtual void CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals,
-                              tesseract_collision::ContactResultVector& dist_results) = 0;
+  virtual CollisionCacheData::ConstPtr CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals) = 0;
 
   /**
    * @brief Get the safety margin information.
@@ -107,18 +104,14 @@ public:
                                    const TrajOptCollisionConfig& collision_config,
                                    bool dynamic_environment = false);
 
-  void CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals,
-                      tesseract_collision::ContactResultMap& dist_results) override;
-
-  void CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals,
-                      tesseract_collision::ContactResultVector& dist_results) override;
+  CollisionCacheData::ConstPtr CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals) override;
 
   GradientResults GetGradient(const Eigen::VectorXd& dofvals,
                               const tesseract_collision::ContactResult& contact_result) override;
 
   TrajOptCollisionConfig& GetCollisionConfig() override;
 
-  Cache<size_t, std::pair<tesseract_collision::ContactResultMap, tesseract_collision::ContactResultVector>, 10> m_cache;
+  Cache<size_t, CollisionCacheData::ConstPtr, 10> m_cache;
 
 private:
   tesseract_kinematics::ForwardKinematics::ConstPtr manip_;

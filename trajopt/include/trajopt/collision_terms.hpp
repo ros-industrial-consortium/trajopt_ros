@@ -64,7 +64,7 @@ struct GradientResults
   GradientResults(const Eigen::Vector2d& data) : data(data) {}
 
   /** @brief The gradient results data for LinkA and LinkB */
-  LinkGradientResults gradients[2];
+  std::array<LinkGradientResults, 2> gradients;
 
   /** @brief The link pair safety margin data */
   const Eigen::Vector2d& data;
@@ -215,7 +215,9 @@ struct CollisionEvaluator
    * @return Safety margin information
    */
   const SafetyMarginData::ConstPtr getSafetyMarginData() const { return safety_margin_data_; }
-  Cache<size_t, std::pair<tesseract_collision::ContactResultMap, tesseract_collision::ContactResultVector>, 10> m_cache;
+
+  Cache<std::size_t, std::pair<tesseract_collision::ContactResultMap, tesseract_collision::ContactResultVector>, 10>
+      m_cache;
 
 protected:
   tesseract_kinematics::ForwardKinematics::ConstPtr manip_;

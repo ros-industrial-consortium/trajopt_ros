@@ -34,7 +34,6 @@ LVSContinuousCollisionEvaluator::LVSContinuousCollisionEvaluator(
     tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
     const Eigen::Isometry3d& world_to_base,
     const TrajOptCollisionConfig& collision_config,
-    ContinuousCollisionEvaluatorType evaluator_type,
     bool dynamic_environment)
   : manip_(std::move(manip))
   , env_(std::move(env))
@@ -42,7 +41,6 @@ LVSContinuousCollisionEvaluator::LVSContinuousCollisionEvaluator(
   , world_to_base_(world_to_base)
   , collision_config_(std::move(collision_config))
   , state_solver_(env_->getStateSolver())
-  , evaluator_type_(evaluator_type)
   , dynamic_environment_(dynamic_environment)
 {
   // If the environment is not expected to change, then the cloned state solver may be used each time.
@@ -69,46 +67,33 @@ LVSContinuousCollisionEvaluator::LVSContinuousCollisionEvaluator(
                                                   collision_config_.collision_margin_buffer);
 }
 
-void LVSContinuousCollisionEvaluator::CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
-                                                     const Eigen::Ref<const Eigen::VectorXd>& dof_vals1,
-                                                     tesseract_collision::ContactResultMap& dist_results)
+CollisionCacheData::ConstPtr
+LVSContinuousCollisionEvaluator::CalcCollisionData(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
+                                                   const Eigen::Ref<const Eigen::VectorXd>& dof_vals1)
 {
   size_t key = getHash(dof_vals0, dof_vals1);
   auto it = m_cache.get(key);
   if (it != nullptr)
   {
     CONSOLE_BRIDGE_logDebug("Using cached collision check");
-    dist_results = it->first;
+    return *it;
   }
-  else
-  {
-    CONSOLE_BRIDGE_logDebug("Not using cached collision check");
-    CalcCollisionsHelper(dof_vals0, dof_vals1, dist_results);
-    tesseract_collision::ContactResultVector dist_vector;
-    tesseract_collision::flattenCopyResults(dist_results, dist_vector);
-    m_cache.put(key, std::make_pair(dist_results, dist_vector));
-  }
-}
 
-void LVSContinuousCollisionEvaluator::CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
-                                                     const Eigen::Ref<const Eigen::VectorXd>& dof_vals1,
-                                                     tesseract_collision::ContactResultVector& dist_results)
-{
-  size_t key = getHash(dof_vals0, dof_vals1);
-  auto it = m_cache.get(key);
-  if (it != nullptr)
+  auto data = std::make_shared<CollisionCacheData>();
+  data->gradient_results_set.is_continuous = true;
+  CalcCollisionsHelper(dof_vals0, dof_vals1, data->contact_results_map);
+  tesseract_collision::flattenCopyResults(data->contact_results_map, data->contact_results_vector);
+  data->gradient_results_set.results.reserve(data->contact_results_vector.size());
+  for (tesseract_collision::ContactResult& dist_result : data->contact_results_vector)
   {
-    CONSOLE_BRIDGE_logDebug("Using cached collision check");
-    dist_results = it->second;
+    GradientResults result = CalcGradientData(dof_vals0, dof_vals1, dist_result);
+    data->gradient_results_set.num_equations += (result.gradients[0].has_gradient + result.gradients[1].has_gradient);
+    data->gradient_results_set.cc_num_equations +=
+        (result.cc_gradients[0].has_gradient + result.cc_gradients[1].has_gradient);
+    data->gradient_results_set.add(result);
   }
-  else
-  {
-    CONSOLE_BRIDGE_logDebug("Not using cached collision check");
-    tesseract_collision::ContactResultMap dist_map;
-    CalcCollisionsHelper(dof_vals0, dof_vals1, dist_map);
-    tesseract_collision::flattenCopyResults(dist_map, dist_results);
-    m_cache.put(key, std::make_pair(dist_map, dist_results));
-  }
+  m_cache.put(key, data);
+  return data;
 }
 
 void LVSContinuousCollisionEvaluator::CalcCollisionsHelper(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
@@ -156,7 +141,6 @@ void LVSContinuousCollisionEvaluator::CalcCollisionsHelper(const Eigen::Ref<cons
                                           dist_results,
                                           adjacency_map_->getActiveLinkNames(),
                                           collision_config_,
-                                          evaluator_type_,
                                           1.0 / double(subtraj.rows() - 1));
   }
   else
@@ -176,30 +160,28 @@ void LVSContinuousCollisionEvaluator::CalcCollisionsHelper(const Eigen::Ref<cons
       double dist = collision_config_.collision_margin_data.getPairCollisionMargin(pair.first.first, pair.first.second);
       double coeff = collision_config_.collision_coeff_data.getPairCollisionCoeff(pair.first.first, pair.first.second);
       const Eigen::Vector3d data = { dist, collision_config_.collision_margin_buffer, coeff };
-      removeInvalidContactResults(pair.second, data, evaluator_type_);
+      removeInvalidContactResults(pair.second, data); /** @todo Should this be removed? levi */
     }
   }
 }
 
-GradientResults LVSContinuousCollisionEvaluator::GetGradient(const Eigen::VectorXd& dofvals0,
-                                                             const Eigen::VectorXd& dofvals1,
-                                                             const tesseract_collision::ContactResult& contact_result,
-                                                             bool isTimestep1)
+GradientResults
+LVSContinuousCollisionEvaluator::CalcGradientData(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
+                                                  const Eigen::Ref<const Eigen::VectorXd>& dof_vals1,
+                                                  const tesseract_collision::ContactResult& contact_results)
 {
   // Contains the contact distance threshold and coefficient for the given link pair
-  double dist = collision_config_.collision_margin_data.getPairCollisionMargin(contact_result.link_names[0],
-                                                                               contact_result.link_names[1]);
-  double coeff = collision_config_.collision_coeff_data.getPairCollisionCoeff(contact_result.link_names[0],
-                                                                              contact_result.link_names[1]);
+  double dist = collision_config_.collision_margin_data.getPairCollisionMargin(contact_results.link_names[0],
+                                                                               contact_results.link_names[1]);
+  double coeff = collision_config_.collision_coeff_data.getPairCollisionCoeff(contact_results.link_names[0],
+                                                                              contact_results.link_names[1]);
 
   const Eigen::Vector3d data = { dist, collision_config_.collision_margin_buffer, coeff };
 
-  return getGradient(dofvals0, dofvals1, contact_result, data, manip_, adjacency_map_, world_to_base_, isTimestep1);
+  return getGradient(dof_vals0, dof_vals1, contact_results, data, manip_, adjacency_map_, world_to_base_);
 }
 
 TrajOptCollisionConfig& LVSContinuousCollisionEvaluator::GetCollisionConfig() { return collision_config_; }
-
-ContinuousCollisionEvaluatorType LVSContinuousCollisionEvaluator::GetEvaluatorType() const { return evaluator_type_; }
 
 //////////////////////////////////////////
 
@@ -209,7 +191,6 @@ LVSDiscreteCollisionEvaluator::LVSDiscreteCollisionEvaluator(
     tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
     const Eigen::Isometry3d& world_to_base,
     const TrajOptCollisionConfig& collision_config,
-    ContinuousCollisionEvaluatorType evaluator_type,
     bool dynamic_environment)
   : manip_(std::move(manip))
   , env_(std::move(env))
@@ -217,7 +198,6 @@ LVSDiscreteCollisionEvaluator::LVSDiscreteCollisionEvaluator(
   , world_to_base_(world_to_base)
   , collision_config_(std::move(collision_config))
   , state_solver_(env_->getStateSolver())
-  , evaluator_type_(evaluator_type)
   , dynamic_environment_(dynamic_environment)
 {
   // If the environment is not expected to change, then the cloned state solver may be used each time.
@@ -244,46 +224,33 @@ LVSDiscreteCollisionEvaluator::LVSDiscreteCollisionEvaluator(
                                                   collision_config_.collision_margin_buffer);
 }
 
-void LVSDiscreteCollisionEvaluator::CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
-                                                   const Eigen::Ref<const Eigen::VectorXd>& dof_vals1,
-                                                   tesseract_collision::ContactResultMap& dist_results)
+CollisionCacheData::ConstPtr
+LVSDiscreteCollisionEvaluator::CalcCollisionData(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
+                                                 const Eigen::Ref<const Eigen::VectorXd>& dof_vals1)
 {
   size_t key = getHash(dof_vals0, dof_vals1);
   auto it = m_cache.get(key);
   if (it != nullptr)
   {
     CONSOLE_BRIDGE_logDebug("Using cached collision check");
-    dist_results = it->first;
+    return *it;
   }
-  else
-  {
-    CONSOLE_BRIDGE_logDebug("Not using cached collision check");
-    CalcCollisionsHelper(dof_vals0, dof_vals1, dist_results);
-    tesseract_collision::ContactResultVector dist_vector;
-    tesseract_collision::flattenCopyResults(dist_results, dist_vector);
-    m_cache.put(key, std::make_pair(dist_results, dist_vector));
-  }
-}
 
-void LVSDiscreteCollisionEvaluator::CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
-                                                   const Eigen::Ref<const Eigen::VectorXd>& dof_vals1,
-                                                   tesseract_collision::ContactResultVector& dist_results)
-{
-  size_t key = getHash(dof_vals0, dof_vals1);
-  auto it = m_cache.get(key);
-  if (it != nullptr)
+  auto data = std::make_shared<CollisionCacheData>();
+  data->gradient_results_set.is_continuous = true;
+  CalcCollisionsHelper(dof_vals0, dof_vals1, data->contact_results_map);
+  tesseract_collision::flattenCopyResults(data->contact_results_map, data->contact_results_vector);
+  data->gradient_results_set.results.reserve(data->contact_results_vector.size());
+  for (tesseract_collision::ContactResult& dist_result : data->contact_results_vector)
   {
-    CONSOLE_BRIDGE_logDebug("Using cached collision check");
-    dist_results = it->second;
+    GradientResults result = CalcGradientData(dof_vals0, dof_vals1, dist_result);
+    data->gradient_results_set.num_equations += (result.gradients[0].has_gradient + result.gradients[1].has_gradient);
+    data->gradient_results_set.cc_num_equations +=
+        (result.cc_gradients[0].has_gradient + result.cc_gradients[1].has_gradient);
+    data->gradient_results_set.add(result);
   }
-  else
-  {
-    CONSOLE_BRIDGE_logDebug("Not using cached collision check");
-    tesseract_collision::ContactResultMap dist_map;
-    CalcCollisionsHelper(dof_vals0, dof_vals1, dist_map);
-    tesseract_collision::flattenCopyResults(dist_map, dist_results);
-    m_cache.put(key, std::make_pair(dist_map, dist_results));
-  }
+  m_cache.put(key, data);
+  return data;
 }
 
 void LVSDiscreteCollisionEvaluator::CalcCollisionsHelper(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
@@ -333,28 +300,25 @@ void LVSDiscreteCollisionEvaluator::CalcCollisionsHelper(const Eigen::Ref<const 
                                         dist_results,
                                         adjacency_map_->getActiveLinkNames(),
                                         collision_config_,
-                                        evaluator_type_,
                                         1.0 / double(subtraj.rows() - 1));
 }
 
-GradientResults LVSDiscreteCollisionEvaluator::GetGradient(const Eigen::VectorXd& dofvals0,
-                                                           const Eigen::VectorXd& dofvals1,
-                                                           const tesseract_collision::ContactResult& contact_result,
-                                                           bool isTimestep1)
+GradientResults
+LVSDiscreteCollisionEvaluator::CalcGradientData(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
+                                                const Eigen::Ref<const Eigen::VectorXd>& dof_vals1,
+                                                const tesseract_collision::ContactResult& contact_results)
 {
   // Contains the contact distance threshold and coefficient for the given link pair
-  double dist = collision_config_.collision_margin_data.getPairCollisionMargin(contact_result.link_names[0],
-                                                                               contact_result.link_names[1]);
-  double coeff = collision_config_.collision_coeff_data.getPairCollisionCoeff(contact_result.link_names[0],
-                                                                              contact_result.link_names[1]);
+  double dist = collision_config_.collision_margin_data.getPairCollisionMargin(contact_results.link_names[0],
+                                                                               contact_results.link_names[1]);
+  double coeff = collision_config_.collision_coeff_data.getPairCollisionCoeff(contact_results.link_names[0],
+                                                                              contact_results.link_names[1]);
 
   const Eigen::Vector3d data = { dist, collision_config_.collision_margin_buffer, coeff };
 
-  return getGradient(dofvals0, dofvals1, contact_result, data, manip_, adjacency_map_, world_to_base_, isTimestep1);
+  return getGradient(dof_vals0, dof_vals1, contact_results, data, manip_, adjacency_map_, world_to_base_);
 }
 
 TrajOptCollisionConfig& LVSDiscreteCollisionEvaluator::GetCollisionConfig() { return collision_config_; }
-
-ContinuousCollisionEvaluatorType LVSDiscreteCollisionEvaluator::GetEvaluatorType() const { return evaluator_type_; }
 
 }  // namespace trajopt

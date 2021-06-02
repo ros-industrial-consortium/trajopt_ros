@@ -53,7 +53,7 @@ public:
     bounds_ = std::vector<ifopt::Bounds>(1, ifopt::BoundZero);
   }
 
-  Eigen::VectorXd GetValues() const
+  Eigen::VectorXd GetValues() const final
   {
     Eigen::VectorXd output(1);
     Eigen::VectorXd joint_vals = this->GetVariables()->GetComponent(position_var_->GetName())->GetValues();
@@ -61,9 +61,9 @@ public:
     return output;
   }
 
-  std::vector<ifopt::Bounds> GetBounds() const { return bounds_; }
+  std::vector<ifopt::Bounds> GetBounds() const final { return bounds_; }
 
-  void FillJacobianBlock(std::string var_set, Jacobian& jac_block) const
+  void FillJacobianBlock(std::string var_set, Jacobian& jac_block) const final
   {
     // Only modify the jacobian if this constraint uses var_set
     if (var_set == position_var_->GetName())

@@ -30,6 +30,7 @@
 TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <Eigen/Eigen>
 #include <ifopt/cost_term.h>
+#include <ifopt/problem.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
 namespace trajopt
@@ -150,6 +151,71 @@ inline Eigen::VectorXd calcBoundsViolations(const Eigen::Ref<const Eigen::Vector
                                             const std::vector<ifopt::Bounds>& bounds)
 {
   return calcBoundsErrors(input, bounds).cwiseAbs();
+}
+
+inline ifopt::Problem::VectorXd calcNumericalCostGradient(const double* x, ifopt::Problem& nlp, double epsilon = 1e-8)
+{
+  auto cache_vars = nlp.GetVariableValues();
+
+  int n = nlp.GetNumberOfOptimizationVariables();
+  ifopt::Problem::Jacobian jac(1, n);
+  if (nlp.HasCostTerms())
+  {
+    double step_size = epsilon;
+
+    // calculate forward difference by disturbing each optimization variable
+    double g = nlp.EvaluateCostFunction(x);
+    std::vector<double> x_new(x, x + n);
+    for (int i = 0; i < n; ++i)
+    {
+      x_new[static_cast<std::size_t>(i)] += step_size;  // disturb
+      double g_new = nlp.EvaluateCostFunction(x_new.data());
+      jac.coeffRef(0, i) = (g_new - g) / step_size;
+      x_new[static_cast<std::size_t>(i)] = x[i];  // reset for next iteration
+    }
+  }
+
+  // Set problem values back to the original values.
+  nlp.SetVariables(cache_vars.data());
+
+  return jac.row(0).transpose();
+}
+
+inline ifopt::Problem::Jacobian calcNumericalConstraintGradient(const double* x,
+                                                                ifopt::Problem& nlp,
+                                                                double epsilon = 1e-8)
+{
+  auto cache_vars = nlp.GetVariableValues();
+
+  int n = nlp.GetNumberOfOptimizationVariables();
+  int m = nlp.GetConstraints().GetRows();
+  ifopt::Problem::Jacobian jac(m, n);
+  jac.reserve(m * n);
+
+  if (nlp.GetNumberOfConstraints() > 0)
+  {
+    double step_size = epsilon;
+
+    // calculate forward difference by disturbing each optimization variable
+    ifopt::Problem::VectorXd g = nlp.EvaluateConstraints(x);
+    std::vector<double> x_new(x, x + n);
+    for (int i = 0; i < n; ++i)
+    {
+      x_new[static_cast<std::size_t>(i)] += step_size;  // disturb
+      ifopt::Problem::VectorXd g_new = nlp.EvaluateConstraints(x_new.data());
+      ifopt::Problem::VectorXd delta_g = (g_new - g) / step_size;
+
+      for (int j = 0; j < m; ++j)
+        jac.coeffRef(j, i) = delta_g(j);
+
+      x_new[static_cast<std::size_t>(i)] = x[i];  // reset for next iteration
+    }
+  }
+
+  // Set problem values back to the original values.
+  nlp.SetVariables(cache_vars.data());
+
+  return jac;
 }
 
 }  // namespace trajopt

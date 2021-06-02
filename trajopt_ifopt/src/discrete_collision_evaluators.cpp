@@ -67,44 +67,30 @@ SingleTimestepCollisionEvaluator::SingleTimestepCollisionEvaluator(
                                                   collision_config_.collision_margin_buffer);
 }
 
-void SingleTimestepCollisionEvaluator::CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals,
-                                                      tesseract_collision::ContactResultMap& dist_results)
+CollisionCacheData::ConstPtr
+SingleTimestepCollisionEvaluator::CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals)
 {
   size_t key = getHash(dof_vals);
   auto it = m_cache.get(key);
   if (it != nullptr)
   {
     CONSOLE_BRIDGE_logDebug("Using cached collision check");
-    dist_results = it->first;
+    return *it;
   }
-  else
-  {
-    CONSOLE_BRIDGE_logDebug("Not using cached collision check");
-    CalcCollisionsHelper(dof_vals, dist_results);
-    tesseract_collision::ContactResultVector dist_vector;
-    tesseract_collision::flattenCopyResults(dist_results, dist_vector);
-    m_cache.put(key, std::make_pair(dist_results, dist_vector));
-  }
-}
 
-void SingleTimestepCollisionEvaluator::CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals,
-                                                      tesseract_collision::ContactResultVector& dist_results)
-{
-  size_t key = getHash(dof_vals);
-  auto it = m_cache.get(key);
-  if (it != nullptr)
+  CONSOLE_BRIDGE_logDebug("Not using cached collision check");
+  auto data = std::make_shared<CollisionCacheData>();
+  CalcCollisionsHelper(dof_vals, data->contact_results_map);
+  tesseract_collision::flattenCopyResults(data->contact_results_map, data->contact_results_vector);
+  data->gradient_results_set.results.reserve(data->contact_results_vector.size());
+  for (tesseract_collision::ContactResult& dist_result : data->contact_results_vector)
   {
-    CONSOLE_BRIDGE_logDebug("Using cached collision check");
-    dist_results = it->second;
+    GradientResults result = GetGradient(dof_vals, dist_result);
+    data->gradient_results_set.num_equations += (result.gradients[0].has_gradient + result.gradients[1].has_gradient);
+    data->gradient_results_set.add(result);
   }
-  else
-  {
-    CONSOLE_BRIDGE_logDebug("Not using cached collision check");
-    tesseract_collision::ContactResultMap dist_map;
-    CalcCollisionsHelper(dof_vals, dist_map);
-    tesseract_collision::flattenCopyResults(dist_map, dist_results);
-    m_cache.put(key, std::make_pair(dist_map, dist_results));
-  }
+  m_cache.put(key, data);
+  return data;
 }
 
 void SingleTimestepCollisionEvaluator::CalcCollisionsHelper(const Eigen::Ref<const Eigen::VectorXd>& dof_vals,

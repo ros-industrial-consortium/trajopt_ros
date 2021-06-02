@@ -80,103 +80,91 @@ Eigen::VectorXd DiscreteCollisionConstraintIfopt::CalcValues(const Eigen::Ref<co
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
 
   // Check the collisions
-  tesseract_collision::ContactResultVector dist_results;
-  collision_evaluator_->CalcCollisions(joint_vals, dist_results);
+  CollisionCacheData::ConstPtr collision_data = collision_evaluator_->CalcCollisions(joint_vals);
 
-  if (dist_results.empty())
+  if (collision_data->contact_results_vector.empty() || !(collision_data->gradient_results_set.max_error > 0))
     return err;
 
   switch (gradient_method_)
   {
     case GradientCombineMethod::SUM:
     {
-      for (tesseract_collision::ContactResult& dist_result : dist_results)
-      {
-        double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
-            dist_result.link_names[0], dist_result.link_names[1]);
-        double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
-            dist_result.link_names[0], dist_result.link_names[1]);
-        err[0] += std::max<double>(((dist - dist_result.distance) * coeff), 0.);
-      }
+      for (const GradientResults& grad_result : collision_data->gradient_results_set.results)
+        err[0] += std::max<double>(grad_result.error * grad_result.data[2], 0.);
+
       break;
     }
     case GradientCombineMethod::WEIGHTED_SUM:
     {
-      for (tesseract_collision::ContactResult& dist_result : dist_results)
+      for (const GradientResults& grad_result : collision_data->gradient_results_set.results)
       {
-        double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
-            dist_result.link_names[0], dist_result.link_names[1]);
-        double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
-            dist_result.link_names[0], dist_result.link_names[1]);
-        err[0] += std::pow(std::max<double>((dist - dist_result.distance) * coeff, 0.), 2);
+        double e = grad_result.error * grad_result.data[2];
+        if (e > 0)
+        {
+          //          assert(collision_data->gradient_results_set.max_weighted_error_with_buffer > 0);
+          //          double eb = std::max<double>(grad_result.error_with_buffer * grad_result.data[2], 0.);
+          //          double we = eb / collision_data->gradient_results_set.max_weighted_error_with_buffer;
+          err[0] += std::max<double>(e, 0.);
+        }
       }
+
       break;
     }
     case GradientCombineMethod::AVERAGE:
     {
-      for (tesseract_collision::ContactResult& dist_result : dist_results)
+      long cnt{ 0 };
+      for (const GradientResults& grad_result : collision_data->gradient_results_set.results)
       {
-        double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
-            dist_result.link_names[0], dist_result.link_names[1]);
-        double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
-            dist_result.link_names[0], dist_result.link_names[1]);
-        double d = std::max<double>(((dist - dist_result.distance) * coeff), 0.);
-        if (d > err[0])
-          err[0] = d;
+        double e = grad_result.error * grad_result.data[2];
+        if (e > 0)
+        {
+          err[0] += std::max<double>(e, 0.);
+          ++cnt;
+        }
       }
+
+      (cnt == 0) ? err[0] = 0 : err[0] = err[0] / double(cnt);
+
       break;
     }
     case GradientCombineMethod::WEIGHTED_AVERAGE:
     {
-      for (tesseract_collision::ContactResult& dist_result : dist_results)
+      double total_weight{ 0 };
+      for (const GradientResults& grad_result : collision_data->gradient_results_set.results)
       {
-        trajopt::GradientResults result = collision_evaluator_->GetGradient(joint_vals, dist_result);
-
-        double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
-            dist_result.link_names[0], dist_result.link_names[1]);
-        double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
-            dist_result.link_names[0], dist_result.link_names[1]);
-        double d = std::max<double>(((dist - dist_result.distance) * coeff), 0.);
-        if (result.gradients[0].has_gradient)
-        {
-          double wd = (d * result.gradients[0].scale);
-          if (wd > err[0])
-            err[0] = wd;
-        }
-
-        if (result.gradients[1].has_gradient)
-        {
-          double wd = (d * result.gradients[1].scale);
-          if (wd > err[0])
-            err[0] = wd;
-        }
+        double d = std::max<double>(grad_result.error, 0.) * grad_result.data[2];
+        double w = (std::max(grad_result.error_with_buffer * grad_result.data[2], 0.) /
+                    collision_data->gradient_results_set.max_weighted_error_with_buffer);
+        total_weight += w;
+        err[0] += (w * d);
       }
+      assert(total_weight > 0);
+      err[0] = err[0] / total_weight;
       break;
     }
     case GradientCombineMethod::LEAST_SQUARES:
     {
-      for (tesseract_collision::ContactResult& dist_result : dist_results)
+      long cnt{ 0 };
+      for (const GradientResults& grad_result : collision_data->gradient_results_set.results)
       {
-        double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
-            dist_result.link_names[0], dist_result.link_names[1]);
-        double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
-            dist_result.link_names[0], dist_result.link_names[1]);
-        err[0] += std::max<double>(((dist - dist_result.distance) * coeff), 0.);
+        double e = grad_result.error * grad_result.data[2];
+        if (e > 0)
+        {
+          err[0] += std::max<double>(e, 0.);
+          ++cnt;
+        }
       }
-      err[0] = err[0] / static_cast<double>(dist_results.size());
+
+      (cnt == 0) ? err[0] = 0 : err[0] = err[0] / double(cnt);
+
       break;
     }
     case GradientCombineMethod::WEIGHTED_LEAST_SQUARES:
     {
-      for (tesseract_collision::ContactResult& dist_result : dist_results)
-      {
-        double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
-            dist_result.link_names[0], dist_result.link_names[1]);
-        double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
-            dist_result.link_names[0], dist_result.link_names[1]);
-        err[0] += std::pow(std::max<double>((dist - dist_result.distance) * coeff, 0.), 2);
-      }
-      err[0] = err[0] / static_cast<double>(dist_results.size());
+      for (const GradientResults& grad_result : collision_data->gradient_results_set.results)
+        err[0] += std::pow(std::max<double>(grad_result.error * grad_result.data[2], 0.), 2);
+
+      err[0] = err[0] / static_cast<double>(collision_data->gradient_results_set.results.size());
       break;
     }
   }
@@ -197,18 +185,7 @@ void DiscreteCollisionConstraintIfopt::CalcJacobianBlock(const Eigen::Ref<const 
   jac_block.reserve(n_dof_);
 
   // Calculate collisions
-  tesseract_collision::ContactResultVector dist_results;
-  collision_evaluator_->CalcCollisions(joint_vals, dist_results);
-
-  // Get gradients for all contacts
-  long num_eq{ 0 };
-  GradientResultsSet grad_set(dist_results.size());
-  for (tesseract_collision::ContactResult& dist_result : dist_results)
-  {
-    GradientResults result = collision_evaluator_->GetGradient(joint_vals, dist_result);
-    num_eq += (result.gradients[0].has_gradient + result.gradients[1].has_gradient);
-    grad_set.add(result);
-  }
+  CollisionCacheData::ConstPtr collision_data = collision_evaluator_->CalcCollisions(joint_vals);
 
   // Convert GradientResults to jacobian
   Eigen::VectorXd grad_vec;
@@ -216,32 +193,32 @@ void DiscreteCollisionConstraintIfopt::CalcJacobianBlock(const Eigen::Ref<const 
   {
     case GradientCombineMethod::SUM:
     {
-      grad_vec = getSumGradient(grad_set, n_dof_);
+      grad_vec = getSumGradientPost(collision_data->gradient_results_set, n_dof_);
       break;
     }
     case GradientCombineMethod::WEIGHTED_SUM:
     {
-      grad_vec = getSumGradient(grad_set, n_dof_);
+      grad_vec = getWeightedSumGradientPost(collision_data->gradient_results_set, n_dof_);
       break;
     }
     case GradientCombineMethod::AVERAGE:
     {
-      grad_vec = getAvgGradient(grad_set, n_dof_);
+      grad_vec = getAvgGradientPost(collision_data->gradient_results_set, n_dof_);
       break;
     }
     case GradientCombineMethod::WEIGHTED_AVERAGE:
     {
-      grad_vec = getWeightedAvgGradient(grad_set, n_dof_);
+      grad_vec = getWeightedAvgGradientPost(collision_data->gradient_results_set, n_dof_);
       break;
     }
     case GradientCombineMethod::LEAST_SQUARES:
     {
-      grad_vec = getLeastSquaresGradient(grad_set, n_dof_, num_eq);
+      grad_vec = getLeastSquaresGradientPost(collision_data->gradient_results_set, n_dof_);
       break;
     }
     case GradientCombineMethod::WEIGHTED_LEAST_SQUARES:
     {
-      grad_vec = getWeightedLeastSquaresGradient(grad_set, n_dof_, num_eq);
+      grad_vec = getWeightedLeastSquaresGradientPost(collision_data->gradient_results_set, n_dof_);
       // grad_vec = getWeightedLeastSquaresGradient2(grad_set, n_dof_, num_eq);
       break;
     }

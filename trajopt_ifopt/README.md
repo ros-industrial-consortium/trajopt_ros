@@ -7,12 +7,20 @@ This package provides robotics costs and constraints for use with the ifopt opti
 *  Joint Velocity
 *  Cartesian Position(FK)
 *  Inverse Kinematics
-*  Collision (single timestep evaluator only)
+*  Collision
+   * single timestep evaluator
+   * longest valid segment discrete evaluator
+   * longest valid segment continuous evaluator
+
+### Adding New Constraints
+*  The process of filling out the jacobian can be confusing because you are only responsible for filling out your portion and do not need to worry about it position in the full jacobian matrix.
+
 
 ## Currently Supported Costs
 These costs convert any constraint into a cost
 
 *  Squared Cost
+*  Absolute Cost
 
 
 ## Trajopt_optimizers

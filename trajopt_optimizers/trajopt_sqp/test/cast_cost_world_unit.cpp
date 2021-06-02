@@ -170,30 +170,12 @@ TEST_F(CastWorldTest, boxes)  // NOLINT
 
   for (std::size_t i = 1; i < vars.size(); ++i)
   {
-    trajopt::ContinuousCollisionEvaluator::Ptr collision_evaluator;
-    if (i == 1)
-    {
-      collision_evaluator = std::make_shared<trajopt::LVSContinuousCollisionEvaluator>(
-          kin,
-          env,
-          adj_map,
-          Eigen::Isometry3d::Identity(),
-          trajopt_collision_config,
-          ContinuousCollisionEvaluatorType::START_FIXED_END_FREE);
-    }
-    else
-    {
-      collision_evaluator = std::make_shared<trajopt::LVSContinuousCollisionEvaluator>(
-          kin,
-          env,
-          adj_map,
-          Eigen::Isometry3d::Identity(),
-          trajopt_collision_config,
-          ContinuousCollisionEvaluatorType::START_FREE_END_FIXED);
-    }
+    auto collision_evaluator = std::make_shared<trajopt::LVSContinuousCollisionEvaluator>(
+        kin, env, adj_map, Eigen::Isometry3d::Identity(), trajopt_collision_config);
 
+    std::array<JointPosition::ConstPtr, 3> position_vars{ vars[i - 1], vars[i], vars[i + 1] };
     auto cnt = std::make_shared<trajopt::ContinuousCollisionConstraintIfopt>(
-        collision_evaluator, GradientCombineMethod::WEIGHTED_AVERAGE, vars[i - 1], vars[i]);
+        collision_evaluator, GradientCombineMethod::WEIGHTED_AVERAGE, position_vars);
     nlp.AddConstraintSet(cnt);
   }
 

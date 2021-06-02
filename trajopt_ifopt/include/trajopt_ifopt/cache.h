@@ -1,9 +1,15 @@
-#pragma once
+#ifndef TRAJOPT_IFOPT_CACHE_H
+#define TRAJOPT_IFOPT_CACHE_H
 
-#include <Eigen/Core>
-#include <vector>
+#include <trajopt_utils/macros.h>
+TRAJOPT_IGNORE_WARNINGS_PUSH
+#include <Eigen/Eigen>
+#include <memory>
 #include <algorithm>
+TRAJOPT_IGNORE_WARNINGS_POP
 
+namespace trajopt
+{
 template <typename KeyT, class ValueT, std::size_t bufsize = 666>
 class Cache
 {
@@ -32,3 +38,6 @@ private:
   std::vector<KeyT> keybuf_;    // circular buffer
   std::vector<ValueT> valbuf_;  // circular buffer
 };
+
+}  // namespace trajopt
+#endif  // TRAJOPT_IFOPT_CACHE_H

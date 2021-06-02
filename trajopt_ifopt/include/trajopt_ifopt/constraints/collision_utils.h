@@ -51,7 +51,6 @@ void processInterpolatedCollisionResults(std::vector<tesseract_collision::Contac
                                          tesseract_collision::ContactResultMap& contact_results,
                                          const std::vector<std::string>& active_links,
                                          const TrajOptCollisionConfig& collision_config,
-                                         ContinuousCollisionEvaluatorType evaluator_type,
                                          double dt);
 
 /**
@@ -60,8 +59,7 @@ void processInterpolatedCollisionResults(std::vector<tesseract_collision::Contac
  * @param contact_results Contact results vector to process.
  */
 void removeInvalidContactResults(tesseract_collision::ContactResultVector& contact_results,
-                                 const Eigen::Vector3d& data,
-                                 ContinuousCollisionEvaluatorType evaluator_type);
+                                 const Eigen::Vector3d& data);
 
 /**
  * @brief This takes a vector of gradient results and outputs a single gradient using least squares
@@ -71,10 +69,18 @@ void removeInvalidContactResults(tesseract_collision::ContactResultVector& conta
  * internal to this function.
  * @param grad_results A vector of gradient results
  * @param dof The DOF of the system
- * @param num_eq The number equations
  * @return A gradient
  */
-Eigen::VectorXd getLeastSquaresGradient(const GradientResultsSet& grad_results_set, long dof, long num_eq);
+Eigen::VectorXd getLeastSquaresGradientPrev(const GradientResultsSet& grad_results_set, long dof);
+Eigen::VectorXd getLeastSquaresGradientPost(const GradientResultsSet& grad_results_set, long dof);
+Eigen::VectorXd getLeastSquaresGradientCent(const GradientResultsSet& grad_results_set_prev,
+                                            const GradientResultsSet& grad_results_set_post,
+                                            long dof);
+
+// Eigen::VectorXd getLeastSquaresGradient2Prev(const GradientResultsSet& grad_results_set, long dof);
+// Eigen::VectorXd getLeastSquaresGradient2Post(const GradientResultsSet& grad_results_set, long dof);
+// Eigen::VectorXd getLeastSquaresGradient2Cent(const GradientResultsSet& grad_results_set_prev,
+//                                             const GradientResultsSet& grad_results_set_post, long dof);
 
 /**
  * @brief This takes a vector of gradient results and outputs a single gradient using weighted least squares
@@ -88,8 +94,13 @@ Eigen::VectorXd getLeastSquaresGradient(const GradientResultsSet& grad_results_s
  * @param num_eq The number equations
  * @return A gradient
  */
-Eigen::VectorXd getWeightedLeastSquaresGradient(const GradientResultsSet& grad_results_set, long dof, long num_eq);
-Eigen::VectorXd getWeightedLeastSquaresGradient2(const GradientResultsSet& grad_results_set, long dof, long num_eq);
+Eigen::VectorXd getWeightedLeastSquaresGradientPrev(const GradientResultsSet& grad_results_set, long dof);
+Eigen::VectorXd getWeightedLeastSquaresGradientPost(const GradientResultsSet& grad_results_set, long dof);
+Eigen::VectorXd getWeightedLeastSquaresGradientCent(const GradientResultsSet& grad_results_set_prev,
+                                                    const GradientResultsSet& grad_results_set_post,
+                                                    long dof);
+// Eigen::VectorXd getWeightedLeastSquaresGradient2(const GradientResultsSet& grad_results_set, long dof,
+// ContinuousCollisionEvaluatorType evaluator_type);
 
 /**
  * @brief These were from the original trajopt
@@ -98,9 +109,29 @@ Eigen::VectorXd getWeightedLeastSquaresGradient2(const GradientResultsSet& grad_
  * with the gradient results to correctly calculate the gradient for the start or end state. This is already being done
  * internal to these functions.
  */
-Eigen::VectorXd getAvgGradient(const GradientResultsSet& grad_results_set, long dof);
-Eigen::VectorXd getWeightedAvgGradient(const GradientResultsSet& grad_results_set, long dof);
-Eigen::VectorXd getSumGradient(const GradientResultsSet& grad_results_set, long dof);
+Eigen::VectorXd getAvgGradientPrev(const GradientResultsSet& grad_results_set_prev, long dof);
+Eigen::VectorXd getAvgGradientPost(const GradientResultsSet& grad_results_set_post, long dof);
+Eigen::VectorXd getAvgGradientCent(const GradientResultsSet& grad_results_set_prev,
+                                   const GradientResultsSet& grad_results_set_post,
+                                   long dof);
+
+Eigen::VectorXd getWeightedAvgGradientPrev(const GradientResultsSet& grad_results_set_prev, long dof);
+Eigen::VectorXd getWeightedAvgGradientPost(const GradientResultsSet& grad_results_set_post, long dof);
+Eigen::VectorXd getWeightedAvgGradientCent(const GradientResultsSet& grad_results_set_prev,
+                                           const GradientResultsSet& grad_results_set_post,
+                                           long dof);
+
+Eigen::VectorXd getSumGradientPrev(const GradientResultsSet& grad_results_set_prev, long dof);
+Eigen::VectorXd getSumGradientPost(const GradientResultsSet& grad_results_set_post, long dof);
+Eigen::VectorXd getSumGradientCent(const GradientResultsSet& grad_results_set_prev,
+                                   const GradientResultsSet& grad_results_set_post,
+                                   long dof);
+
+Eigen::VectorXd getWeightedSumGradientPrev(const GradientResultsSet& grad_results_set_prev, long dof);
+Eigen::VectorXd getWeightedSumGradientPost(const GradientResultsSet& grad_results_set_post, long dof);
+Eigen::VectorXd getWeightedSumGradientCent(const GradientResultsSet& grad_results_set_prev,
+                                           const GradientResultsSet& grad_results_set_post,
+                                           long dof);
 
 /**
  * @brief Extracts the gradient information based on the contact results
@@ -131,8 +162,7 @@ GradientResults getGradient(const Eigen::VectorXd& dofvals0,
                             const Eigen::Vector3d& data,
                             const tesseract_kinematics::ForwardKinematics::ConstPtr& manip,
                             const tesseract_environment::AdjacencyMap::ConstPtr& adjacency_map,
-                            const Eigen::Isometry3d& world_to_base,
-                            bool isTimestep1);
+                            const Eigen::Isometry3d& world_to_base);
 
 void collisionsToDistances(const tesseract_collision::ContactResultVector& dist_results, std::vector<double>& dists);
 

@@ -43,10 +43,23 @@ public:
   using Ptr = std::shared_ptr<ContinuousCollisionConstraintIfopt>;
   using ConstPtr = std::shared_ptr<const ContinuousCollisionConstraintIfopt>;
 
+  /**
+   * @brief ContinuousCollisionConstraintIfopt
+   * @param collision_evaluator The continuous collision evaluator to use
+   * @param gradient_method The gradient method to use for combining all gradients into a single gradient
+   * @param position_vars The position vars associated with this constraint. The middle position var is the var set for
+   * the constraint. The pre and post are supporting variables for calculating the constraint error and gradient
+   *
+   *  There are three conditions of the array that are acceptable:
+   *    Case 1: <nullptr, ConstPtr, ConstPtr> This would be usually be the first position in the trajectory where it
+   * does not have previous position var set Case 2: <ConstPtr, ConstPtr, nullptr> This would be usually be the last
+   * position in the trajectory where it does not have post position var set Case 3: <ConstPtr, ConstPtr, ConstPtr> This
+   * would usually be used for all other states in the trajectory because it has both a pre and post position var set
+   * @param name
+   */
   ContinuousCollisionConstraintIfopt(ContinuousCollisionEvaluator::Ptr collision_evaluator,
                                      GradientCombineMethod gradient_method,
-                                     JointPosition::ConstPtr position_var0,
-                                     JointPosition::ConstPtr position_var1,
+                                     std::array<JointPosition::ConstPtr, 3> position_vars,
                                      const std::string& name = "LVSCollision");
 
   /**
@@ -67,9 +80,20 @@ public:
    */
   void FillJacobianBlock(std::string var_set, Jacobian& jac_block) const override;
 
-  /** @brief Calculates the values associated with the constraint */
-  Eigen::VectorXd CalcValues(const Eigen::Ref<const Eigen::VectorXd>& joint_vals0,
-                             const Eigen::Ref<const Eigen::VectorXd>& joint_vals1) const;
+  /**
+   * @brief Calculates the values associated with the constraint
+   * @details These are exposed for unit tests and debugging.
+   */
+  Eigen::VectorXd CalcValuesPost(const Eigen::Ref<const Eigen::VectorXd>& joint_vals,
+                                 const Eigen::Ref<const Eigen::VectorXd>& joint_vals_post) const;
+
+  Eigen::VectorXd CalcValuesCent(const Eigen::Ref<const Eigen::VectorXd>& joint_vals_prev,
+                                 const Eigen::Ref<const Eigen::VectorXd>& joint_vals,
+                                 const Eigen::Ref<const Eigen::VectorXd>& joint_vals_post) const;
+
+  Eigen::VectorXd CalcValuesPrev(const Eigen::Ref<const Eigen::VectorXd>& joint_vals_prev,
+                                 const Eigen::Ref<const Eigen::VectorXd>& joint_vals) const;
+
   /**
    * @brief Sets the bounds on the collision distance
    * @param bounds New bounds that will be set. Should be size 1
@@ -93,24 +117,33 @@ private:
    * @brief Pointers to the vars used by this constraint.
    * Do not access them directly. Instead use this->GetVariables()->GetComponent(position_var->GetName())->GetValues()
    */
-  JointPosition::ConstPtr position_var0_;
-  JointPosition::ConstPtr position_var1_;
+  std::array<JointPosition::ConstPtr, 3> position_vars_;
 
   ContinuousCollisionEvaluator::Ptr collision_evaluator_;
   GradientCombineMethod gradient_method_;
 
-  void CalcJacobianBlockStartFree(Jacobian& jac_block,
-                                  const Eigen::Ref<const Eigen::VectorXd>& joint_vals0,
-                                  const Eigen::Ref<const Eigen::VectorXd>& joint_vals1) const;
+  /**
+   * @brief This is used internally to change how the values and gradient is calculated based on the position var set
+   * array
+   * @details
+   *    mode_ = 0, is central
+   *    mode_ = 1, is post
+   *    mode_ = 2, is previous
+   */
+  int mode_{ -1 };
 
-  void CalcJacobianBlockEndFree(Jacobian& jac_block,
-                                const Eigen::Ref<const Eigen::VectorXd>& joint_vals0,
-                                const Eigen::Ref<const Eigen::VectorXd>& joint_vals1) const;
+  void CalcJacobianBlockPrev(Jacobian& jac_block,
+                             const Eigen::Ref<const Eigen::VectorXd>& joint_vals_prev,
+                             const Eigen::Ref<const Eigen::VectorXd>& joint_vals) const;
 
-  void CalcJacobianBlockBothFree(Jacobian& jac_block,
-                                 const Eigen::Ref<const Eigen::VectorXd>& joint_vals0,
-                                 const Eigen::Ref<const Eigen::VectorXd>& joint_vals1,
-                                 bool isTimestep1) const;
+  void CalcJacobianBlockPost(Jacobian& jac_block,
+                             const Eigen::Ref<const Eigen::VectorXd>& joint_vals,
+                             const Eigen::Ref<const Eigen::VectorXd>& joint_vals_post) const;
+
+  void CalcJacobianBlockCent(Jacobian& jac_block,
+                             const Eigen::Ref<const Eigen::VectorXd>& joint_vals_prev,
+                             const Eigen::Ref<const Eigen::VectorXd>& joint_vals,
+                             const Eigen::Ref<const Eigen::VectorXd>& joint_vals_post) const;
 };
 };  // namespace trajopt
 

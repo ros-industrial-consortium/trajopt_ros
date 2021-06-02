@@ -74,7 +74,7 @@ public:
     bounds_ = std::vector<ifopt::Bounds>(3, ifopt::BoundSmallerZero);
   }
 
-  Eigen::VectorXd GetValues() const
+  Eigen::VectorXd GetValues() const final
   {
     // Get current joint values
     Eigen::VectorXd joint_vals = this->GetVariables()->GetComponent(position_var_->GetName())->GetValues();
@@ -83,9 +83,9 @@ public:
   }
 
   // Set the limits on the constraint values
-  std::vector<ifopt::Bounds> GetBounds() const { return bounds_; }
+  std::vector<ifopt::Bounds> GetBounds() const final { return bounds_; }
 
-  void FillJacobianBlock(std::string var_set, Jacobian& jac_block) const
+  void FillJacobianBlock(std::string var_set, Jacobian& jac_block) const final
   {
     // Only modify the jacobian if this constraint uses var_set
     if (var_set == position_var_->GetName())
@@ -102,15 +102,14 @@ public:
     Eigen::VectorXd err = Eigen::VectorXd::Zero(3);
 
     // Check the collisions
-    tesseract_collision::ContactResultVector dist_results;
-    collision_evaluator_->CalcCollisions(joint_vals, dist_results);
+    CollisionCacheData::ConstPtr cdata = collision_evaluator_->CalcCollisions(joint_vals);
 
-    if (dist_results.empty())
+    if (cdata->contact_results_vector.empty())
       return err;
 
-    for (std::size_t i = 0; i < dist_results.size(); ++i)
+    for (std::size_t i = 0; i < cdata->contact_results_vector.size(); ++i)
     {
-      tesseract_collision::ContactResult& dist_result = dist_results[i];
+      const tesseract_collision::ContactResult& dist_result = cdata->contact_results_vector[i];
       double dist = collision_evaluator_->GetCollisionConfig().collision_margin_data.getPairCollisionMargin(
           dist_result.link_names[0], dist_result.link_names[1]);
       double coeff = collision_evaluator_->GetCollisionConfig().collision_coeff_data.getPairCollisionCoeff(
@@ -133,13 +132,13 @@ public:
     jac_block.reserve(n_dof_ * 3);
 
     // Calculate collisions
-    tesseract_collision::ContactResultVector dist_results;
-    collision_evaluator_->CalcCollisions(joint_vals, dist_results);
+    CollisionCacheData::ConstPtr cdata = collision_evaluator_->CalcCollisions(joint_vals);
 
     // Get gradients for all contacts
+    /** @todo Use the cdata gradient results */
     std::vector<trajopt::GradientResults> grad_results;
-    grad_results.reserve(dist_results.size());
-    for (tesseract_collision::ContactResult& dist_result : dist_results)
+    grad_results.reserve(cdata->contact_results_vector.size());
+    for (const tesseract_collision::ContactResult& dist_result : cdata->contact_results_vector)
     {
       trajopt::GradientResults result = collision_evaluator_->GetGradient(joint_vals, dist_result);
       grad_results.push_back(result);

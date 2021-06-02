@@ -54,51 +54,41 @@ public:
   using Ptr = std::shared_ptr<ContinuousCollisionEvaluator>;
   using ConstPtr = std::shared_ptr<const ContinuousCollisionEvaluator>;
 
+  ContinuousCollisionEvaluator() = default;
   virtual ~ContinuousCollisionEvaluator() = default;
+  ContinuousCollisionEvaluator(const ContinuousCollisionEvaluator&) = default;
+  ContinuousCollisionEvaluator& operator=(const ContinuousCollisionEvaluator&) = default;
+  ContinuousCollisionEvaluator(ContinuousCollisionEvaluator&&) = default;
+  ContinuousCollisionEvaluator& operator=(ContinuousCollisionEvaluator&&) = default;
 
   /**
    * @brief Given joint names and values calculate the collision results for this evaluator
-   * @param dof_vals0 Joint values for state0
-   * @param dof_vals1 Joint values for state1
-   * @param dist_results Contact Results Map
+   * @param dof_vals0 Joint values for start state
+   * @param dof_vals1 Joint values for end state
+   * @return Collision cache data. If a cache does not exist for the provided joint values it evaluates and stores the
+   * data.
    */
-  virtual void CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
-                              const Eigen::Ref<const Eigen::VectorXd>& dof_vals1,
-                              tesseract_collision::ContactResultMap& dist_results) = 0;
+  virtual CollisionCacheData::ConstPtr CalcCollisionData(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
+                                                         const Eigen::Ref<const Eigen::VectorXd>& dof_vals1) = 0;
 
   /**
-   * @brief Given joint names and values calculate the collision results for this evaluator
-   * @param dof_vals0 Joint values for state0
-   * @param dof_vals1 Joint values for state1
-   * @param dist_results Contact Results Vector
-   */
-  virtual void CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
-                              const Eigen::Ref<const Eigen::VectorXd>& dof_vals1,
-                              tesseract_collision::ContactResultVector& dist_results) = 0;
-
-  /**
-   * @brief Extracts the gradient information based on the contact results
-   * @param dofvals The joint values
-   * @param contact_result The contact results to compute the gradient
-   * @param isTimestep1 Indicates if this is the second timestep when computing gradient for continuous collision
+   * @brief Extracts the gradient information based on the contact results for the transition between dof_vals0 and
+   * dof_vals1
+   * @param dof_vals0 Joint values for start state
+   * @param dof_vals1 Joint values for end state
+   * @param contact_results The contact results for transition between dof_vals0 and dof_vals1 to compute the gradient
+   * data
    * @return The gradient results
    */
-  virtual GradientResults GetGradient(const Eigen::VectorXd& dofvals0,
-                                      const Eigen::VectorXd& dofvals1,
-                                      const tesseract_collision::ContactResult& contact_result,
-                                      bool isTimestep1) = 0;
+  virtual GradientResults CalcGradientData(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
+                                           const Eigen::Ref<const Eigen::VectorXd>& dof_vals1,
+                                           const tesseract_collision::ContactResult& contact_results) = 0;
 
   /**
    * @brief Get the safety margin information.
    * @return Safety margin information
    */
   virtual TrajOptCollisionConfig& GetCollisionConfig() = 0;
-
-  /**
-   * @brief Get the evaluator type
-   * @return The Evaluator Type
-   */
-  virtual ContinuousCollisionEvaluatorType GetEvaluatorType() const = 0;
 };
 
 /**
@@ -118,27 +108,18 @@ public:
                                   tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
                                   const Eigen::Isometry3d& world_to_base,
                                   const TrajOptCollisionConfig& collision_config,
-                                  ContinuousCollisionEvaluatorType evaluator_type,
                                   bool dynamic_environment = false);
 
-  void CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
-                      const Eigen::Ref<const Eigen::VectorXd>& dof_vals1,
-                      tesseract_collision::ContactResultMap& dist_results) override;
+  CollisionCacheData::ConstPtr CalcCollisionData(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
+                                                 const Eigen::Ref<const Eigen::VectorXd>& dof_vals1) override;
 
-  void CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
-                      const Eigen::Ref<const Eigen::VectorXd>& dof_vals1,
-                      tesseract_collision::ContactResultVector& dist_results) override;
-
-  GradientResults GetGradient(const Eigen::VectorXd& dofvals0,
-                              const Eigen::VectorXd& dofvals1,
-                              const tesseract_collision::ContactResult& contact_result,
-                              bool isTimestep1) override;
+  GradientResults CalcGradientData(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
+                                   const Eigen::Ref<const Eigen::VectorXd>& dof_vals1,
+                                   const tesseract_collision::ContactResult& contact_results) override;
 
   TrajOptCollisionConfig& GetCollisionConfig() override;
 
-  ContinuousCollisionEvaluatorType GetEvaluatorType() const override;
-
-  Cache<size_t, std::pair<tesseract_collision::ContactResultMap, tesseract_collision::ContactResultVector>, 10> m_cache;
+  Cache<size_t, CollisionCacheData::ConstPtr, 10> m_cache;
 
 private:
   tesseract_kinematics::ForwardKinematics::ConstPtr manip_;
@@ -147,10 +128,12 @@ private:
   Eigen::Isometry3d world_to_base_;
   TrajOptCollisionConfig collision_config_;
   tesseract_environment::StateSolver::Ptr state_solver_;
-  ContinuousCollisionEvaluatorType evaluator_type_;
   GetStateFn get_state_fn_;
   bool dynamic_environment_;
   tesseract_collision::ContinuousContactManager::Ptr contact_manager_;
+
+  CollisionCacheData::ConstPtr CalcCollisionsCacheDataHelper(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
+                                                             const Eigen::Ref<const Eigen::VectorXd>& dof_vals1);
 
   void CalcCollisionsHelper(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
                             const Eigen::Ref<const Eigen::VectorXd>& dof_vals1,
@@ -174,27 +157,18 @@ public:
                                 tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
                                 const Eigen::Isometry3d& world_to_base,
                                 const TrajOptCollisionConfig& collision_config,
-                                ContinuousCollisionEvaluatorType evaluator_type,
                                 bool dynamic_environment = false);
 
-  void CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
-                      const Eigen::Ref<const Eigen::VectorXd>& dof_vals1,
-                      tesseract_collision::ContactResultMap& dist_results) override;
+  CollisionCacheData::ConstPtr CalcCollisionData(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
+                                                 const Eigen::Ref<const Eigen::VectorXd>& dof_vals1) override;
 
-  void CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
-                      const Eigen::Ref<const Eigen::VectorXd>& dof_vals1,
-                      tesseract_collision::ContactResultVector& dist_results) override;
-
-  GradientResults GetGradient(const Eigen::VectorXd& dofvals0,
-                              const Eigen::VectorXd& dofvals1,
-                              const tesseract_collision::ContactResult& contact_result,
-                              bool isTimestep1) override;
+  GradientResults CalcGradientData(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
+                                   const Eigen::Ref<const Eigen::VectorXd>& dof_vals1,
+                                   const tesseract_collision::ContactResult& contact_results) override;
 
   TrajOptCollisionConfig& GetCollisionConfig() override;
 
-  ContinuousCollisionEvaluatorType GetEvaluatorType() const override;
-
-  Cache<size_t, std::pair<tesseract_collision::ContactResultMap, tesseract_collision::ContactResultVector>, 10> m_cache;
+  Cache<size_t, CollisionCacheData::ConstPtr, 10> m_cache;
 
 private:
   tesseract_kinematics::ForwardKinematics::ConstPtr manip_;
@@ -203,10 +177,12 @@ private:
   Eigen::Isometry3d world_to_base_;
   TrajOptCollisionConfig collision_config_;
   tesseract_environment::StateSolver::Ptr state_solver_;
-  ContinuousCollisionEvaluatorType evaluator_type_;
   GetStateFn get_state_fn_;
   bool dynamic_environment_;
   tesseract_collision::DiscreteContactManager::Ptr contact_manager_;
+
+  CollisionCacheData::ConstPtr CalcCollisionsCacheDataHelper(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
+                                                             const Eigen::Ref<const Eigen::VectorXd>& dof_vals1);
 
   void CalcCollisionsHelper(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
                             const Eigen::Ref<const Eigen::VectorXd>& dof_vals1,

@@ -29,6 +29,7 @@
 TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <Eigen/Eigen>
 #include <array>
+#include <memory>
 #include <tesseract_collision/core/types.h>
 #include <tesseract_environment/core/environment.h>
 TRAJOPT_IGNORE_WARNINGS_POP
@@ -53,21 +54,6 @@ enum class GradientCombineMethod
   WEIGHTED_AVERAGE = 3,
   LEAST_SQUARES = 4,
   WEIGHTED_LEAST_SQUARES = 5
-};
-
-/**
- * @brief This contains the different types of expression evaluators used when performing continuous collision checking.
- */
-enum class ContinuousCollisionEvaluatorType
-{
-  /** @brief Both start and end state variables are free to be adjusted */
-  START_FREE_END_FREE = 0,
-
-  /** @brief Only start state variables are free to be adjusted */
-  START_FREE_END_FIXED = 1,
-
-  /** @brief Only end state variables are free to be adjusted */
-  START_FIXED_END_FREE = 2,
 };
 
 /** @brief Stores information about how the margins allowed between collision objects */
@@ -158,8 +144,18 @@ struct GradientResults
    */
   GradientResults(const Eigen::Vector3d& data);
 
-  /** @brief The gradient results data for LinkA and LinkB */
+  /**
+   * @brief The gradient results data for LinkA and LinkB
+   * @details This is used by both discrete and continuous collision checking.
+   * In the case of continuous collision checking this is the gradient at timestep0
+   */
   std::array<LinkGradientResults, 2> gradients;
+
+  /**
+   * @brief The gradient results data for LinkA and LinkB
+   * @details In the case of continuous collision checking, this is used to store the gradient at timestep1.
+   */
+  std::array<LinkGradientResults, 2> cc_gradients;
 
   /** @brief The error (dist - dist_result.distance) */
   double error{ 0 };
@@ -179,7 +175,14 @@ struct GradientResults
 /** @brief A set of gradient results */
 struct GradientResultsSet
 {
+  GradientResultsSet() = default;
   GradientResultsSet(std::size_t reserve) { results.reserve(reserve); }
+
+  /**
+   * @brief Indicate if this set is from a continuous contact checker
+   * @details If false, the data is from a discrete contact checker
+   */
+  bool is_continuous{ false };
 
   /** @brief The max error in the gradient_results */
   double max_error{ 0 };
@@ -187,11 +190,26 @@ struct GradientResultsSet
   /** @brief The max error with buffer in the gradient_results */
   double max_error_with_buffer{ 0 };
 
-  /** @brief The max scaled error in the gradient_results */
-  double max_scaled_error{ 0 };
+  /** @brief The max weighted error (error * coeff) in the gradient_results */
+  double max_weighted_error{ 0 };
 
-  /** @brief The max scaled error with buffer in the gradient_results */
-  double max_scaled_error_with_buffer{ 0 };
+  /** @brief The max weighted error (error * coeff) with buffer in the gradient_results */
+  double max_weighted_error_with_buffer{ 0 };
+
+  /**
+   * @brief The number of equations that would be generated
+   * @details Each GradientResults has the potential to generate one or two equations
+   * In the case of continuous collision checking this is the number of equations at timestep0
+   */
+  long num_equations{ 0 };
+
+  /**
+   * @brief The number of equations that would be generated
+   * @details Each GradientResults has the potential to generate one or two equations
+   * This is used by both discrete and continuous collision checking.
+   * In the case of continuous collision checking this is the number of equations at timestep0
+   */
+  long cc_num_equations{ 0 };
 
   /** @brief The stored gradient results for this set */
   std::vector<GradientResults> results;
@@ -204,22 +222,28 @@ struct GradientResultsSet
     if (gradient_result.error_with_buffer > max_error_with_buffer)
       max_error_with_buffer = gradient_result.error_with_buffer;
 
-    for (std::size_t i = 0; i < 2; ++i)
-    {
-      if (gradient_result.gradients[i].has_gradient)
-      {
-        double scaled_error = gradient_result.gradients[i].scale * gradient_result.error;
-        if (scaled_error > max_scaled_error)
-          max_scaled_error = scaled_error;
+    double we = gradient_result.error * gradient_result.data[2];
+    if (we > max_weighted_error)
+      max_weighted_error = we;
 
-        double scaled_error_with_buffer = gradient_result.gradients[i].scale * gradient_result.error_with_buffer;
-        if (scaled_error_with_buffer > max_scaled_error_with_buffer)
-          max_scaled_error_with_buffer = scaled_error_with_buffer;
-      }
-    }
+    we = gradient_result.error_with_buffer * gradient_result.data[2];
+    if (we > max_weighted_error_with_buffer)
+      max_weighted_error_with_buffer = we;
 
     results.push_back(gradient_result);
   }
 };
+
+/** @brief The data structure used to cache collision results data for discrete collision evaluator */
+struct CollisionCacheData
+{
+  using Ptr = std::shared_ptr<CollisionCacheData>;
+  using ConstPtr = std::shared_ptr<const CollisionCacheData>;
+
+  tesseract_collision::ContactResultMap contact_results_map;
+  tesseract_collision::ContactResultVector contact_results_vector;
+  GradientResultsSet gradient_results_set;
+};
+
 }  // namespace trajopt
 #endif  // TRAJOPT_IFOPT_COLLISION_TYPES_H

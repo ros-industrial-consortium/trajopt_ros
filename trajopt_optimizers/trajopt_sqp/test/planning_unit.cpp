@@ -54,8 +54,6 @@ using namespace tesseract_kinematics;
 using namespace tesseract_visualization;
 using namespace tesseract_scene_graph;
 
-static const double LONGEST_VALID_SEGMENT_LENGTH = 0.05;
-
 class PlanningTest : public testing::TestWithParam<const char*>
 {
 public:
@@ -125,10 +123,11 @@ TEST_F(PlanningTest, arm_around_table)  // NOLINT
     nlp.AddVariableSet(var);
   }
 
-  double margin_coeff = 5;
+  double margin_coeff = 50;
   double margin = 0.025;
   TrajOptCollisionConfig trajopt_collision_config(margin, margin_coeff);
   trajopt_collision_config.collision_margin_buffer = 0.02;
+  trajopt_collision_config.longest_valid_segment_length = 0.005;
 
   // Add costs
   {
@@ -151,42 +150,14 @@ TEST_F(PlanningTest, arm_around_table)  // NOLINT
     nlp.AddConstraintSet(cnt);
   }
 
-  for (std::size_t i = 1; i < vars.size(); ++i)
+  for (std::size_t i = 1; i < (vars.size() - 1); ++i)
   {
-    trajopt::ContinuousCollisionEvaluator::Ptr collision_evaluator;
-    if (i == 1)
-    {
-      collision_evaluator = std::make_shared<trajopt::LVSContinuousCollisionEvaluator>(
-          forward_kinematics,
-          env,
-          adjacency_map,
-          Eigen::Isometry3d::Identity(),
-          trajopt_collision_config,
-          ContinuousCollisionEvaluatorType::START_FIXED_END_FREE);
-    }
-    else if (i == 5)
-    {
-      collision_evaluator = std::make_shared<trajopt::LVSContinuousCollisionEvaluator>(
-          forward_kinematics,
-          env,
-          adjacency_map,
-          Eigen::Isometry3d::Identity(),
-          trajopt_collision_config,
-          ContinuousCollisionEvaluatorType::START_FREE_END_FIXED);
-    }
-    else
-    {
-      collision_evaluator = std::make_shared<trajopt::LVSContinuousCollisionEvaluator>(
-          forward_kinematics,
-          env,
-          adjacency_map,
-          Eigen::Isometry3d::Identity(),
-          trajopt_collision_config,
-          ContinuousCollisionEvaluatorType::START_FREE_END_FREE);
-    }
+    auto collision_evaluator = std::make_shared<trajopt::LVSContinuousCollisionEvaluator>(
+        forward_kinematics, env, adjacency_map, Eigen::Isometry3d::Identity(), trajopt_collision_config);
 
+    std::array<JointPosition::ConstPtr, 3> position_vars{ vars[i - 1], vars[i], vars[i + 1] };
     auto cnt = std::make_shared<trajopt::ContinuousCollisionConstraintIfopt>(
-        collision_evaluator, GradientCombineMethod::WEIGHTED_AVERAGE, vars[i - 1], vars[i]);
+        collision_evaluator, GradientCombineMethod::WEIGHTED_AVERAGE, position_vars);
     nlp.AddConstraintSet(cnt);
   }
 

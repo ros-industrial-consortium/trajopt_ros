@@ -60,7 +60,6 @@ void processInterpolatedCollisionResults(std::vector<tesseract_collision::Contac
                                          tesseract_collision::ContactResultMap& contact_results,
                                          const std::vector<std::string>& active_links,
                                          const TrajOptCollisionConfig& collision_config,
-                                         ContinuousCollisionEvaluatorType evaluator_type,
                                          double dt)
 {
   // If contact is found the actual dt between the original two state must be recalculated based on where it
@@ -88,7 +87,8 @@ void processInterpolatedCollisionResults(std::vector<tesseract_collision::Contac
           {
             r.cc_time[j] = (r.cc_time[j] < 0) ? (static_cast<double>(i) * dt) :
                                                 (static_cast<double>(i) * dt) + (r.cc_time[j] * dt);
-            assert(r.cc_time[j] >= 0.0 && r.cc_time[j] <= 1.0);
+            assert(r.cc_time[j] > 0.0 || tesseract_common::almostEqualRelativeAndAbs(r.cc_time[j], 0.0));
+            assert(r.cc_time[j] < 1.0 || tesseract_common::almostEqualRelativeAndAbs(r.cc_time[j], 1.0));
             if (i == 0 && r.cc_type[j] == tesseract_collision::ContinuousCollisionType::CCType_Time0)
               r.cc_type[j] = tesseract_collision::ContinuousCollisionType::CCType_Time0;
             else if (i == (contacts_vector.size() - 1) &&
@@ -100,8 +100,8 @@ void processInterpolatedCollisionResults(std::vector<tesseract_collision::Contac
         }
       }
 
-      // Dont include contacts at the fixed state
-      removeInvalidContactResults(pair.second, data, evaluator_type);
+      // Dont include contacts outside the buffer distance @todo Should this be done? Levi
+      removeInvalidContactResults(pair.second, data);
 
       // If the contact pair does not exist in contact_results add it
       if (p == contact_results.end() && !pair.second.empty())
@@ -122,45 +122,10 @@ void processInterpolatedCollisionResults(std::vector<tesseract_collision::Contac
   }
 }
 
-void removeInvalidContactResults(tesseract_collision::ContactResultVector& contact_results,
-                                 const Eigen::Vector3d& data,
-                                 ContinuousCollisionEvaluatorType evaluator_type)
+void removeInvalidContactResults(tesseract_collision::ContactResultVector& contact_results, const Eigen::Vector3d& data)
 {
   auto end = std::remove_if(
       contact_results.begin(), contact_results.end(), [=, &data](const tesseract_collision::ContactResult& r) {
-        switch (evaluator_type)
-        {
-          case ContinuousCollisionEvaluatorType::START_FREE_END_FREE:
-          {
-            break;
-          }
-          case ContinuousCollisionEvaluatorType::START_FIXED_END_FREE:
-          {
-            if (r.cc_type[0] == tesseract_collision::ContinuousCollisionType::CCType_Time0)
-              return true;
-
-            if (r.cc_type[1] == tesseract_collision::ContinuousCollisionType::CCType_Time0)
-              return true;
-
-            break;
-          }
-          case ContinuousCollisionEvaluatorType::START_FREE_END_FIXED:
-          {
-            if (r.cc_type[0] == tesseract_collision::ContinuousCollisionType::CCType_Time1)
-              return true;
-
-            if (r.cc_type[1] == tesseract_collision::ContinuousCollisionType::CCType_Time1)
-              return true;
-
-            break;
-          }
-          default:
-          {
-            PRINT_AND_THROW("Invalid CollisionExpressionEvaluatorType for "
-                            "CollisionEvaluator::removeInvalidContactResults!");
-          }
-        };
-
         /** @todo Is this correct? (Levi)*/
         return (!((data[0] + data[1]) > r.distance));
       });
@@ -168,14 +133,50 @@ void removeInvalidContactResults(tesseract_collision::ContactResultVector& conta
   contact_results.erase(end, contact_results.end());
 }
 
-Eigen::VectorXd getLeastSquaresGradient(const GradientResultsSet& grad_results_set, long dof, long num_eq)
+Eigen::VectorXd getLeastSquaresGradientPrev(const GradientResultsSet& grad_results_set, long dof)
 {
-  if (num_eq == 0)
+  Eigen::MatrixXd jacobian;
+  Eigen::VectorXd error;
+  long cnt = 0;
+
+  if (grad_results_set.cc_num_equations == 0)
     return Eigen::VectorXd::Zero(dof);
 
-  Eigen::MatrixXd jacobian(3 * num_eq, dof);
-  Eigen::VectorXd error(3 * num_eq);
+  jacobian.resize(3 * grad_results_set.cc_num_equations, dof);
+  error.resize(3 * grad_results_set.cc_num_equations);
+  for (const auto& grad : grad_results_set.results)
+  {
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+      if (grad.cc_gradients[i].has_gradient)
+      {
+        long start_idx = cnt * 3;
+        error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.cc_gradients[i].translation_vector;
+        jacobian.middleRows(start_idx, 3) = grad.cc_gradients[i].scale * grad.cc_gradients[i].jacobian;
+        cnt++;
+      }
+    }
+  }
+
+  //  return jacobian.householderQr().solve(error);
+  Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(dof);
+  tesseract_kinematics::solvePInv(jacobian, error, delta_jv);
+
+  return (grad_results_set.max_weighted_error_with_buffer / delta_jv.array());
+  //  return jacobian.transpose() * error;
+}
+
+Eigen::VectorXd getLeastSquaresGradientPost(const GradientResultsSet& grad_results_set, long dof)
+{
+  Eigen::MatrixXd jacobian;
+  Eigen::VectorXd error;
   long cnt = 0;
+
+  if (grad_results_set.num_equations == 0)
+    return Eigen::VectorXd::Zero(dof);
+
+  jacobian.resize(3 * grad_results_set.num_equations, dof);
+  error.resize(3 * grad_results_set.num_equations);
   for (const auto& grad : grad_results_set.results)
   {
     for (std::size_t i = 0; i < 2; ++i)
@@ -191,21 +192,115 @@ Eigen::VectorXd getLeastSquaresGradient(const GradientResultsSet& grad_results_s
   }
 
   //  return jacobian.householderQr().solve(error);
-  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
-  tesseract_kinematics::solvePInv(jacobian, error, grad_vec);
+  Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(dof);
+  tesseract_kinematics::solvePInv(jacobian, error, delta_jv);
+  std::cout << jacobian << std::endl;
 
-  return grad_vec.normalized();
+  auto temp = (jacobian * delta_jv);
+  UNUSED(temp);
+  std::cout << temp << std::endl;
+  return (grad_results_set.max_weighted_error_with_buffer / delta_jv.array());
   //  return jacobian.transpose() * error;
 }
 
-Eigen::VectorXd getWeightedLeastSquaresGradient(const GradientResultsSet& grad_results_set, long dof, long num_eq)
+Eigen::VectorXd getLeastSquaresGradientCent(const GradientResultsSet& grad_results_set_prev,
+                                            const GradientResultsSet& grad_results_set_post,
+                                            long dof)
 {
-  if (num_eq == 0)
+  Eigen::MatrixXd jacobian;
+  Eigen::VectorXd error;
+  long cnt = 0;
+
+  if (grad_results_set_prev.cc_num_equations == 0 && grad_results_set_post.num_equations == 0)
     return Eigen::VectorXd::Zero(dof);
 
-  Eigen::MatrixXd jacobian(3 * num_eq, dof);
-  Eigen::VectorXd error(3 * num_eq);
+  jacobian.resize(3 * (grad_results_set_prev.cc_num_equations + grad_results_set_post.num_equations), dof);
+  error.resize(3 * (grad_results_set_prev.cc_num_equations + grad_results_set_post.num_equations));
+  for (const auto& grad : grad_results_set_prev.results)
+  {
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+      if (grad.cc_gradients[i].has_gradient)
+      {
+        long start_idx = cnt * 3;
+        error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.cc_gradients[i].translation_vector;
+        jacobian.middleRows(start_idx, 3) = grad.cc_gradients[i].scale * grad.cc_gradients[i].jacobian;
+        cnt++;
+      }
+    }
+  }
+
+  for (const auto& grad : grad_results_set_post.results)
+  {
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+      if (grad.gradients[i].has_gradient)
+      {
+        long start_idx = cnt * 3;
+        error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
+        jacobian.middleRows(start_idx, 3) = grad.gradients[i].scale * grad.gradients[i].jacobian;
+        cnt++;
+      }
+    }
+  }
+
+  //  return jacobian.householderQr().solve(error);
+  Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(dof);
+  tesseract_kinematics::solvePInv(jacobian, error, delta_jv);
+
+  return (std::max(grad_results_set_prev.max_weighted_error_with_buffer,
+                   grad_results_set_post.max_weighted_error_with_buffer) /
+          delta_jv.array());
+  //  return jacobian.transpose() * error;
+}
+
+Eigen::VectorXd getWeightedLeastSquaresGradientPrev(const GradientResultsSet& grad_results_set, long dof)
+{
+  Eigen::MatrixXd jacobian;
+  Eigen::VectorXd error;
   long cnt = 0;
+
+  if (grad_results_set.cc_num_equations == 0)
+    return Eigen::VectorXd::Zero(dof);
+
+  jacobian.resize(3 * grad_results_set.cc_num_equations, dof);
+  error.resize(3 * grad_results_set.cc_num_equations);
+  for (const auto& grad : grad_results_set.results)
+  {
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+      if (grad.cc_gradients[i].has_gradient)
+      {
+        long start_idx = cnt * 3;
+        error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.cc_gradients[i].translation_vector;
+        jacobian.middleRows(start_idx, 3) = grad.cc_gradients[i].scale * grad.cc_gradients[i].jacobian;
+        cnt++;
+      }
+    }
+  }
+
+  // H=(A^T * W * A)^−1 * A^T * W so that y=Hb
+  Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(dof);
+  Eigen::MatrixXd weights = error.normalized().asDiagonal();
+  Eigen::MatrixXd jacobian_transpose = jacobian.transpose();
+  tesseract_kinematics::solvePInv(
+      jacobian_transpose * weights * jacobian, jacobian_transpose * weights * error, delta_jv);
+  return (grad_results_set.max_error_with_buffer / delta_jv.array());
+
+  //  return (jacobian_transpose * weights * jacobian).householderQr().solve(jacobian_transpose * weights * error);
+}
+
+Eigen::VectorXd getWeightedLeastSquaresGradientPost(const GradientResultsSet& grad_results_set, long dof)
+{
+  Eigen::MatrixXd jacobian;
+  Eigen::VectorXd error;
+  long cnt = 0;
+
+  if (grad_results_set.num_equations == 0)
+    return Eigen::VectorXd::Zero(dof);
+
+  jacobian.resize(3 * grad_results_set.num_equations, dof);
+  error.resize(3 * grad_results_set.num_equations);
   for (const auto& grad : grad_results_set.results)
   {
     for (std::size_t i = 0; i < 2; ++i)
@@ -219,106 +314,457 @@ Eigen::VectorXd getWeightedLeastSquaresGradient(const GradientResultsSet& grad_r
       }
     }
   }
+
   // H=(A^T * W * A)^−1 * A^T * W so that y=Hb
-  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(dof);
   Eigen::MatrixXd weights = error.normalized().asDiagonal();
   Eigen::MatrixXd jacobian_transpose = jacobian.transpose();
   tesseract_kinematics::solvePInv(
-      jacobian_transpose * weights * jacobian, jacobian_transpose * weights * error, grad_vec);
-  return grad_vec.normalized();
+      jacobian_transpose * weights * jacobian, jacobian_transpose * weights * error, delta_jv);
+  return (grad_results_set.max_error_with_buffer / delta_jv.array());
 
   //  return (jacobian_transpose * weights * jacobian).householderQr().solve(jacobian_transpose * weights * error);
 }
 
-Eigen::VectorXd getWeightedLeastSquaresGradient2(const GradientResultsSet& grad_results_set, long dof, long num_eq)
+Eigen::VectorXd getWeightedLeastSquaresGradientCent(const GradientResultsSet& grad_results_set_prev,
+                                                    const GradientResultsSet& grad_results_set_post,
+                                                    long dof)
 {
-  if (num_eq == 0)
+  Eigen::MatrixXd jacobian;
+  Eigen::VectorXd error;
+  long cnt = 0;
+
+  if (grad_results_set_prev.cc_num_equations == 0 && grad_results_set_post.num_equations == 0)
     return Eigen::VectorXd::Zero(dof);
 
-  Eigen::MatrixXd jacobian(num_eq, dof);
-  Eigen::VectorXd error(num_eq);
-  long cnt = 0;
-  for (const auto& grad : grad_results_set.results)
+  jacobian.resize(3 * (grad_results_set_prev.cc_num_equations + grad_results_set_post.num_equations), dof);
+  error.resize(3 * (grad_results_set_prev.cc_num_equations + grad_results_set_post.num_equations));
+  for (const auto& grad : grad_results_set_prev.results)
+  {
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+      if (grad.cc_gradients[i].has_gradient)
+      {
+        long start_idx = cnt * 3;
+        error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.cc_gradients[i].translation_vector;
+        jacobian.middleRows(start_idx, 3) = grad.cc_gradients[i].scale * grad.cc_gradients[i].jacobian;
+        cnt++;
+      }
+    }
+  }
+
+  for (const auto& grad : grad_results_set_post.results)
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
       if (grad.gradients[i].has_gradient)
       {
-        error(cnt) = grad.error_with_buffer;
-        jacobian.row(cnt) = grad.gradients[i].scale * grad.gradients[i].gradient;
-        //      long start_idx = cnt * 3;
-        //      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
-        //      jacobian.middleRows(start_idx, 3) = grad.gradients[i].jacobian;
+        long start_idx = cnt * 3;
+        error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
+        jacobian.middleRows(start_idx, 3) = grad.gradients[i].scale * grad.gradients[i].jacobian;
         cnt++;
       }
     }
   }
+
   // H=(A^T * W * A)^−1 * A^T * W so that y=Hb
+  Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(dof);
   Eigen::MatrixXd weights = error.normalized().asDiagonal();
   Eigen::MatrixXd jacobian_transpose = jacobian.transpose();
-  //  return (jacobian_transpose * weights * jacobian).householderQr().solve(jacobian_transpose * weights * error);
-
-  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
   tesseract_kinematics::solvePInv(
-      jacobian_transpose * weights * jacobian, jacobian_transpose * weights * error, grad_vec);
-  return grad_vec;
+      jacobian_transpose * weights * jacobian, jacobian_transpose * weights * error, delta_jv);
+  return (std::max(grad_results_set_prev.max_error_with_buffer, grad_results_set_post.max_error_with_buffer) /
+          delta_jv.array());
+
+  //  return (jacobian_transpose * weights * jacobian).householderQr().solve(jacobian_transpose * weights * error);
 }
 
-Eigen::VectorXd getAvgGradient(const GradientResultsSet& grad_results_set, long dof)
+// Eigen::VectorXd getWeightedLeastSquaresGradient2(const GradientResultsSet& grad_results_set, long dof,
+// ContinuousCollisionEvaluatorType evaluator_type)
+//{
+//  Eigen::MatrixXd jacobian;
+//  Eigen::VectorXd error;
+//  long cnt = 0;
+//  switch (evaluator_type)
+//  {
+//    case ContinuousCollisionEvaluatorType::NONE: // Used by single timestep evaluator
+//    case ContinuousCollisionEvaluatorType::START_FREE_END_FIXED:
+//    {
+//      if (grad_results_set.num_equations == 0)
+//        return Eigen::VectorXd::Zero(dof);
+
+//      jacobian.resize(grad_results_set.num_equations, dof);
+//      error.resize(grad_results_set.num_equations);
+//      for (const auto& grad : grad_results_set.results)
+//      {
+//        for (std::size_t i = 0; i < 2; ++i)
+//        {
+//          if (grad.gradients[i].has_gradient)
+//          {
+//            error(cnt) = grad.error_with_buffer;
+//            jacobian.row(cnt) = grad.gradients[i].scale * grad.gradients[i].gradient;
+//            //      long start_idx = cnt * 3;
+//            //      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
+//            //      jacobian.middleRows(start_idx, 3) = grad.gradients[i].jacobian;
+//            cnt++;
+//          }
+//        }
+//      }
+//      break;
+//    }
+//    case ContinuousCollisionEvaluatorType::START_FIXED_END_FREE:
+//    {
+//      if (grad_results_set.cc_num_equations == 0)
+//        return Eigen::VectorXd::Zero(dof);
+
+//      jacobian.resize(grad_results_set.cc_num_equations, dof);
+//      error.resize(grad_results_set.cc_num_equations);
+//      for (const auto& grad : grad_results_set.results)
+//      {
+//        for (std::size_t i = 0; i < 2; ++i)
+//        {
+//          if (grad.cc_gradients[i].has_gradient)
+//          {
+//            error(cnt) = grad.error_with_buffer;
+//            jacobian.row(cnt) = grad.cc_gradients[i].scale * grad.cc_gradients[i].gradient;
+//            //      long start_idx = cnt * 3;
+//            //      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
+//            //      jacobian.middleRows(start_idx, 3) = grad.gradients[i].jacobian;
+//            cnt++;
+//          }
+//        }
+//      }
+//      break;
+//    }
+//    case ContinuousCollisionEvaluatorType::START_FREE_END_FREE:
+//    {
+//      if (grad_results_set.num_equations == 0 && grad_results_set.cc_num_equations == 0)
+//        return Eigen::VectorXd::Zero(dof);
+
+//      jacobian.resize(grad_results_set.num_equations + grad_results_set.cc_num_equations, dof);
+//      error.resize(grad_results_set.num_equations + grad_results_set.cc_num_equations);
+//      for (const auto& grad : grad_results_set.results)
+//      {
+//        for (std::size_t i = 0; i < 2; ++i)
+//        {
+//          if (grad.gradients[i].has_gradient)
+//          {
+//            error(cnt) = grad.error_with_buffer;
+//            jacobian.row(cnt) = grad.gradients[i].scale * grad.gradients[i].gradient;
+//            //      long start_idx = cnt * 3;
+//            //      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
+//            //      jacobian.middleRows(start_idx, 3) = grad.gradients[i].jacobian;
+//            cnt++;
+//          }
+
+//          if (grad.cc_gradients[i].has_gradient)
+//          {
+//            error(cnt) = grad.error_with_buffer;
+//            jacobian.row(cnt) = grad.cc_gradients[i].scale * grad.cc_gradients[i].gradient;
+//            //      long start_idx = cnt * 3;
+//            //      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
+//            //      jacobian.middleRows(start_idx, 3) = grad.gradients[i].jacobian;
+//            cnt++;
+//          }
+//        }
+//      }
+//      break;
+//    }
+//  }
+
+//  // H=(A^T * W * A)^−1 * A^T * W so that y=Hb
+//  Eigen::MatrixXd weights = error.normalized().asDiagonal();
+//  Eigen::MatrixXd jacobian_transpose = jacobian.transpose();
+//  //  return (jacobian_transpose * weights * jacobian).householderQr().solve(jacobian_transpose * weights * error);
+
+//  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+//  tesseract_kinematics::solvePInv(
+//      jacobian_transpose * weights * jacobian, jacobian_transpose * weights * error, grad_vec);
+//  return grad_vec;
+//}
+
+Eigen::VectorXd getAvgGradientPost(const GradientResultsSet& grad_results_set_post, long dof)
 {
   Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
-  if (grad_results_set.results.empty())
+  if (grad_results_set_post.results.empty())
     return grad_vec;
 
   long cnt = 0;
-  for (auto& grad : grad_results_set.results)
+  for (auto& grad : grad_results_set_post.results)
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
       if (grad.gradients[i].has_gradient)
       {
-        grad_vec += grad.gradients[i].scale * grad.gradients[i].gradient;
+        grad_vec += grad.data[2] * grad.gradients[i].scale * grad.gradients[i].gradient;
         cnt++;
       }
     }
   }
+
+  assert(cnt > 0);
   return (grad_vec / cnt);
 }
 
-Eigen::VectorXd getWeightedAvgGradient(const GradientResultsSet& grad_results_set, long dof)
+Eigen::VectorXd getAvgGradientPrev(const GradientResultsSet& grad_results_set_prev, long dof)
 {
   Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
-  if (grad_results_set.results.empty() || !(grad_results_set.max_scaled_error_with_buffer > 0))
+  if (grad_results_set_prev.results.empty())
+    return grad_vec;
+
+  long cnt = 0;
+  for (auto& grad : grad_results_set_prev.results)
+  {
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+      if (grad.cc_gradients[i].has_gradient)
+      {
+        grad_vec += grad.data[2] * grad.cc_gradients[i].scale * grad.cc_gradients[i].gradient;
+        cnt++;
+      }
+    }
+  }
+
+  assert(cnt > 0);
+  return (grad_vec / cnt);
+}
+
+Eigen::VectorXd getAvgGradientCent(const GradientResultsSet& grad_results_set_prev,
+                                   const GradientResultsSet& grad_results_set_post,
+                                   long dof)
+{
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  if (grad_results_set_prev.results.empty() && grad_results_set_post.results.empty())
+    return grad_vec;
+
+  long cnt = 0;
+  if (!grad_results_set_prev.results.empty())
+  {
+    for (auto& grad : grad_results_set_prev.results)
+    {
+      for (std::size_t i = 0; i < 2; ++i)
+      {
+        if (grad.cc_gradients[i].has_gradient)
+        {
+          grad_vec += grad.data[2] * grad.cc_gradients[i].scale * grad.cc_gradients[i].gradient;
+          cnt++;
+        }
+      }
+    }
+  }
+
+  if (!grad_results_set_post.results.empty())
+  {
+    for (auto& grad : grad_results_set_post.results)
+    {
+      for (std::size_t i = 0; i < 2; ++i)
+      {
+        if (grad.gradients[i].has_gradient)
+        {
+          grad_vec += grad.data[2] * grad.gradients[i].scale * grad.gradients[i].gradient;
+          cnt++;
+        }
+      }
+    }
+  }
+
+  assert(cnt > 0);
+  return (grad_vec / cnt);
+}
+
+Eigen::VectorXd getWeightedAvgGradientPost(const GradientResultsSet& grad_results_set_post, long dof)
+{
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  if (grad_results_set_post.results.empty() || !(grad_results_set_post.max_error_with_buffer > 0))
     return grad_vec;
 
   double total_weight = 0;
-  for (auto& grad : grad_results_set.results)
+  for (auto& grad : grad_results_set_post.results)
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
       if (grad.gradients[i].has_gradient)
       {
-        double w = (std::max(grad.error_with_buffer, 0.0) * grad.gradients[i].scale) /
-                   grad_results_set.max_scaled_error_with_buffer;
+        double w = ((std::max(grad.error_with_buffer, 0.0) * grad.data[2]) /
+                    grad_results_set_post.max_weighted_error_with_buffer);
         total_weight += w;
-        grad_vec += w * grad.gradients[i].gradient;
+        grad_vec += w * grad.data[2] * (grad.gradients[i].scale * grad.gradients[i].gradient);
       }
     }
   }
+
+  assert(total_weight > 0);
   return (1.0 / total_weight) * grad_vec;
 }
 
-Eigen::VectorXd getSumGradient(const GradientResultsSet& grad_results_set, long dof)
+Eigen::VectorXd getWeightedAvgGradientPrev(const GradientResultsSet& grad_results_set_prev, long dof)
 {
   Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
-  for (auto& grad : grad_results_set.results)
+  if (grad_results_set_prev.results.empty() || !(grad_results_set_prev.max_error_with_buffer > 0))
+    return grad_vec;
+
+  double total_weight = 0;
+  for (auto& grad : grad_results_set_prev.results)
+  {
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+      if (grad.cc_gradients[i].has_gradient)
+      {
+        double w = ((std::max(grad.error_with_buffer, 0.0) * grad.data[2]) /
+                    grad_results_set_prev.max_weighted_error_with_buffer);
+        total_weight += w;
+        grad_vec += w * grad.data[2] * (grad.cc_gradients[i].scale * grad.gradients[i].gradient);
+      }
+    }
+  }
+
+  assert(total_weight > 0);
+  return (1.0 / total_weight) * grad_vec;
+}
+
+Eigen::VectorXd getWeightedAvgGradientCent(const GradientResultsSet& grad_results_set_prev,
+                                           const GradientResultsSet& grad_results_set_post,
+                                           long dof)
+{
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  if (grad_results_set_prev.results.empty() && grad_results_set_post.results.empty())
+    return grad_vec;
+
+  if (!(grad_results_set_prev.max_error_with_buffer > 0) && !(grad_results_set_post.max_error_with_buffer > 0))
+    return grad_vec;
+
+  double max_weighted_error_with_buffer = std::max(grad_results_set_prev.max_weighted_error_with_buffer,
+                                                   grad_results_set_post.max_weighted_error_with_buffer);
+  double total_weight = 0;
+  if (grad_results_set_prev.max_error_with_buffer > 0)
+  {
+    for (auto& grad : grad_results_set_prev.results)
+    {
+      for (std::size_t i = 0; i < 2; ++i)
+      {
+        if (grad.cc_gradients[i].has_gradient)
+        {
+          double w = ((std::max(grad.error_with_buffer, 0.0) * grad.data[2]) / max_weighted_error_with_buffer);
+          total_weight += w;
+          grad_vec += w * grad.data[2] * (grad.cc_gradients[i].scale * grad.gradients[i].gradient);
+        }
+      }
+    }
+  }
+
+  if (grad_results_set_post.max_error_with_buffer > 0)
+  {
+    for (auto& grad : grad_results_set_post.results)
+    {
+      for (std::size_t i = 0; i < 2; ++i)
+      {
+        if (grad.gradients[i].has_gradient)
+        {
+          double w = ((std::max(grad.error_with_buffer, 0.0) * grad.data[2]) / max_weighted_error_with_buffer);
+          total_weight += w;
+          grad_vec += w * grad.data[2] * (grad.gradients[i].scale * grad.gradients[i].gradient);
+        }
+      }
+    }
+  }
+
+  assert(total_weight > 0);
+  return (1.0 / total_weight) * grad_vec;
+}
+
+Eigen::VectorXd getSumGradientPost(const GradientResultsSet& grad_results_set_post, long dof)
+{
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+
+  for (auto& grad : grad_results_set_post.results)
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
       if (grad.gradients[i].has_gradient)
-        grad_vec += grad.gradients[i].scale * grad.gradients[i].gradient;
+        grad_vec += grad.data[2] * (grad.gradients[i].scale * grad.gradients[i].gradient);
     }
   }
+
+  return grad_vec;
+}
+
+Eigen::VectorXd getSumGradientPrev(const GradientResultsSet& grad_results_set_prev, long dof)
+{
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+
+  for (auto& grad : grad_results_set_prev.results)
+  {
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+      if (grad.cc_gradients[i].has_gradient)
+        grad_vec += grad.data[2] * (grad.cc_gradients[i].scale * grad.cc_gradients[i].gradient);
+    }
+  }
+
+  return grad_vec;
+}
+
+Eigen::VectorXd getSumGradientCent(const GradientResultsSet& grad_results_set_prev,
+                                   const GradientResultsSet& grad_results_set_post,
+                                   long dof)
+{
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  grad_vec += getSumGradientPrev(grad_results_set_prev, dof);
+  grad_vec += getSumGradientPost(grad_results_set_post, dof);
+
+  return grad_vec;
+}
+
+Eigen::VectorXd getWeightedSumGradientPost(const GradientResultsSet& grad_results_set_post, long dof)
+{
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+
+  for (auto& grad : grad_results_set_post.results)
+  {
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+      if (grad.gradients[i].has_gradient)
+      {
+        assert(grad_results_set_post.max_weighted_error_with_buffer > 0);
+        double w =
+            std::max(grad.error_with_buffer * grad.data[2], 0.0) / grad_results_set_post.max_weighted_error_with_buffer;
+        grad_vec += (w * grad.data[2] * (grad.gradients[i].scale * grad.gradients[i].gradient));
+      }
+    }
+  }
+
+  return grad_vec;
+}
+
+Eigen::VectorXd getWeightedSumGradientPrev(const GradientResultsSet& grad_results_set_prev, long dof)
+{
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+
+  for (auto& grad : grad_results_set_prev.results)
+  {
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+      if (grad.cc_gradients[i].has_gradient)
+      {
+        assert(grad_results_set_prev.max_weighted_error_with_buffer > 0);
+        double w =
+            std::max(grad.error_with_buffer * grad.data[2], 0.0) / grad_results_set_prev.max_weighted_error_with_buffer;
+        grad_vec += w * grad.data[2] * (grad.cc_gradients[i].scale * grad.cc_gradients[i].gradient);
+      }
+    }
+  }
+
+  return grad_vec;
+}
+
+Eigen::VectorXd getWeightedSumGradientCent(const GradientResultsSet& grad_results_set_prev,
+                                           const GradientResultsSet& grad_results_set_post,
+                                           long dof)
+{
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  grad_vec += getWeightedSumGradientPrev(grad_results_set_prev, dof);
+  grad_vec += getWeightedSumGradientPost(grad_results_set_post, dof);
+
   return grad_vec;
 }
 
@@ -331,7 +777,8 @@ void calcGradient(GradientResults& results,
                   const Eigen::Isometry3d& world_to_base,
                   bool isTimestep1)
 {
-  results.gradients[i].has_gradient = true;
+  LinkGradientResults& link_gradient = (isTimestep1) ? results.cc_gradients[i] : results.gradients[i];
+  link_gradient.has_gradient = true;
 
   // Calculate Jacobian
   Eigen::MatrixXd jac = manip->calcJacobian(dofvals, it->link_name);
@@ -339,13 +786,20 @@ void calcGradient(GradientResults& results,
   // Need to change the base and ref point of the jacobian.
   // When changing ref point you must provide a vector from the current ref
   // point to the new ref point.
-  results.gradients[i].scale = 1;
+  link_gradient.scale = 1;
   Eigen::Isometry3d link_transform = contact_result.transform[i];
   if (contact_result.cc_type[i] != tesseract_collision::ContinuousCollisionType::CCType_None)
   {
-    assert(contact_result.cc_time[i] >= 0.0 && contact_result.cc_time[i] <= 1.0);
-    results.gradients[i].scale = (isTimestep1) ? contact_result.cc_time[i] : (1 - contact_result.cc_time[i]);
+    assert(contact_result.cc_time[i] > 0.0 ||
+           tesseract_common::almostEqualRelativeAndAbs(contact_result.cc_time[i], 0.0));
+    assert(contact_result.cc_time[i] < 1.0 ||
+           tesseract_common::almostEqualRelativeAndAbs(contact_result.cc_time[i], 1.0));
+    link_gradient.scale = (isTimestep1) ? contact_result.cc_time[i] : (1 - contact_result.cc_time[i]);
     link_transform = (isTimestep1) ? contact_result.cc_transform[i] : contact_result.transform[i];
+    /**
+     * @todo Look at decoupling this from the cc_transforms so we only have one gradient for timestep0 and timestep1
+     * This will simplify a lot of the data structures if you have a single gradient where you only scale is different
+     */
   }
   tesseract_kinematics::jacobianChangeBase(jac, world_to_base);
   tesseract_kinematics::jacobianChangeRefPoint(jac,
@@ -363,9 +817,9 @@ void calcGradient(GradientResults& results,
   //      tesseract_kinematics::numericalJacobian(jac_test, world_to_base_, *manip_, dofvals, it->link_name,
   //      contact_result.nearest_points_local[i]); bool check = jac.isApprox(jac_test, 1e-3); assert(check == true);
 
-  results.gradients[i].translation_vector = ((i == 0) ? -1.0 : 1.0) * contact_result.normal;
-  results.gradients[i].jacobian = jac.topRows(3);
-  results.gradients[i].gradient = results.gradients[i].translation_vector.transpose() * results.gradients[i].jacobian;
+  link_gradient.translation_vector = ((i == 0) ? -1.0 : 1.0) * contact_result.normal;
+  link_gradient.jacobian = jac.topRows(3);
+  link_gradient.gradient = results.gradients[i].translation_vector.transpose() * results.gradients[i].jacobian;
 }
 
 GradientResults getGradient(const Eigen::VectorXd& dofvals,
@@ -395,8 +849,7 @@ GradientResults getGradient(const Eigen::VectorXd& dofvals0,
                             const Eigen::Vector3d& data,
                             const tesseract_kinematics::ForwardKinematics::ConstPtr& manip,
                             const tesseract_environment::AdjacencyMap::ConstPtr& adjacency_map,
-                            const Eigen::Isometry3d& world_to_base,
-                            bool isTimestep1)
+                            const Eigen::Isometry3d& world_to_base)
 {
   GradientResults results(data);
   results.error = (data[0] - contact_result.distance);
@@ -415,7 +868,8 @@ GradientResults getGradient(const Eigen::VectorXd& dofvals0,
       else
         dofvalst = dofvals0 + (dofvals1 - dofvals0) * contact_result.cc_time[i];
 
-      calcGradient(results, i, it, dofvalst, contact_result, manip, world_to_base, isTimestep1);
+      calcGradient(results, i, it, dofvalst, contact_result, manip, world_to_base, false);
+      calcGradient(results, i, it, dofvalst, contact_result, manip, world_to_base, true);
     }
   }
 
