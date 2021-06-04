@@ -129,7 +129,7 @@ if (TRAJOPT_ENABLE_TESTING)
             ${CMAKE_CURRENT_SOURCE_DIR}/src/bpmpd.par
             ${CMAKE_INSTALL_PREFIX}/bin/bpmpd.par
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_BINARY_DIR}/bpmpd_caller
+            ${CMAKE_CURRENT_BINARY_DIR}/bpmpd_caller
             ${CMAKE_INSTALL_PREFIX}/bin/bpmpd_caller)
     add_dependencies(test_depend ${PROJECT_NAME})
 
