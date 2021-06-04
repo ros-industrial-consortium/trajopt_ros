@@ -70,7 +70,7 @@ SingleTimestepCollisionEvaluator::SingleTimestepCollisionEvaluator(
 CollisionCacheData::ConstPtr
 SingleTimestepCollisionEvaluator::CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals)
 {
-  size_t key = getHash(dof_vals);
+  size_t key = getHash(*collision_config_, dof_vals);
   auto it = m_cache.get(key);
   if (it != nullptr)
   {

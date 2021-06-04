@@ -71,7 +71,7 @@ CollisionCacheData::ConstPtr
 LVSContinuousCollisionEvaluator::CalcCollisionData(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
                                                    const Eigen::Ref<const Eigen::VectorXd>& dof_vals1)
 {
-  size_t key = getHash(dof_vals0, dof_vals1);
+  size_t key = getHash(*collision_config_, dof_vals0, dof_vals1);
   auto it = m_cache.get(key);
   if (it != nullptr)
   {
@@ -234,7 +234,7 @@ CollisionCacheData::ConstPtr
 LVSDiscreteCollisionEvaluator::CalcCollisionData(const Eigen::Ref<const Eigen::VectorXd>& dof_vals0,
                                                  const Eigen::Ref<const Eigen::VectorXd>& dof_vals1)
 {
-  size_t key = getHash(dof_vals0, dof_vals1);
+  size_t key = getHash(*collision_config_, dof_vals0, dof_vals1);
   auto it = m_cache.get(key);
   if (it != nullptr)
   {
