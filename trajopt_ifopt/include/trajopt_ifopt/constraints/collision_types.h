@@ -35,6 +35,8 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <ifopt/composite.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
+#include <trajopt_ifopt/cache.h>
+
 namespace trajopt
 {
 using GetStateFn =
@@ -251,6 +253,8 @@ struct CollisionCacheData
   tesseract_collision::ContactResultVector contact_results_vector;
   GradientResultsSet gradient_results_set;
 };
+
+using CollisionCache = Cache<size_t, CollisionCacheData::ConstPtr>;
 
 using CombineValuesPrevFn = std::function<Eigen::VectorXd(const CollisionCacheData& collision_data_prev)>;
 using CombineValuesCentFn = std::function<Eigen::VectorXd(const CollisionCacheData& collision_data_prev,

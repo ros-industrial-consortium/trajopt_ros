@@ -216,8 +216,8 @@ struct CollisionEvaluator
    */
   const SafetyMarginData::ConstPtr getSafetyMarginData() const { return safety_margin_data_; }
 
-  Cache<std::size_t, std::pair<tesseract_collision::ContactResultMap, tesseract_collision::ContactResultVector>, 10>
-      m_cache;
+  Cache<std::size_t, std::pair<tesseract_collision::ContactResultMap, tesseract_collision::ContactResultVector>>
+      m_cache{ 10 };
 
 protected:
   tesseract_kinematics::ForwardKinematics::ConstPtr manip_;

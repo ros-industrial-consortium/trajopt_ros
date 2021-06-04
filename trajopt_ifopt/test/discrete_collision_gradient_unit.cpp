@@ -142,9 +142,10 @@ void runDiscreteGradientTest(const Environment::Ptr& env, double coeff, CombineC
   auto trajopt_collision_config = std::make_shared<trajopt::TrajOptCollisionConfig>(margin, margin_coeff);
   trajopt_collision_config->collision_margin_buffer = 0.0;  // 0.05
 
+  auto collision_cache = std::make_shared<trajopt::CollisionCache>(100);
   trajopt::DiscreteCollisionEvaluator::Ptr collision_evaluator =
       std::make_shared<trajopt::SingleTimestepCollisionEvaluator>(
-          kin, env, adj_map, Eigen::Isometry3d::Identity(), trajopt_collision_config);
+          collision_cache, kin, env, adj_map, Eigen::Isometry3d::Identity(), trajopt_collision_config);
 
   auto cnt = std::make_shared<trajopt::DiscreteCollisionConstraintIfopt>(
       collision_evaluator, DiscreteCombineCollisionData(method), vars[0]);

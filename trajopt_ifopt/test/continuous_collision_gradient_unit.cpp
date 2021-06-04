@@ -137,10 +137,11 @@ void runContinuousGradientTest(const Environment::Ptr& env, double coeff, Combin
   auto trajopt_collision_config = std::make_shared<trajopt::TrajOptCollisionConfig>(margin, margin_coeff);
   trajopt_collision_config->collision_margin_buffer = 0.05;
 
+  auto collision_cache = std::make_shared<trajopt::CollisionCache>(100);
   for (std::size_t i = 1; i < (vars.size() - 1); ++i)
   {
     auto collision_evaluator = std::make_shared<trajopt::LVSContinuousCollisionEvaluator>(
-        kin, env, adj_map, Eigen::Isometry3d::Identity(), trajopt_collision_config);
+        collision_cache, kin, env, adj_map, Eigen::Isometry3d::Identity(), trajopt_collision_config);
 
     std::array<JointPosition::ConstPtr, 3> position_vars{ vars[i - 1], vars[i], vars[i + 1] };
     auto cnt = std::make_shared<trajopt::ContinuousCollisionConstraintIfopt>(

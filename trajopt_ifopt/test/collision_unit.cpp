@@ -70,9 +70,10 @@ public:
         env->getSceneGraph(), kin->getActiveLinkNames(), env->getCurrentState()->link_transforms);
 
     auto config = std::make_shared<trajopt::TrajOptCollisionConfig>(0.1, 1);
+    auto collision_cache = std::make_shared<trajopt::CollisionCache>(100);
 
     collision_evaluator = std::make_shared<trajopt::SingleTimestepCollisionEvaluator>(
-        kin, env, adj_map, Eigen::Isometry3d::Identity(), config);
+        collision_cache, kin, env, adj_map, Eigen::Isometry3d::Identity(), config);
 
     // 3) Add Variables
     Eigen::VectorXd pos(2);

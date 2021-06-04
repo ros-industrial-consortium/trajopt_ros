@@ -29,13 +29,15 @@
 namespace trajopt
 {
 LVSContinuousCollisionEvaluator::LVSContinuousCollisionEvaluator(
+    std::shared_ptr<CollisionCache> collision_cache,
     tesseract_kinematics::ForwardKinematics::ConstPtr manip,
     tesseract_environment::Environment::ConstPtr env,
     tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
     const Eigen::Isometry3d& world_to_base,
     trajopt::TrajOptCollisionConfig::ConstPtr collision_config,
     bool dynamic_environment)
-  : manip_(std::move(manip))
+  : collision_cache_(collision_cache)
+  , manip_(std::move(manip))
   , env_(std::move(env))
   , adjacency_map_(std::move(adjacency_map))
   , world_to_base_(world_to_base)
@@ -72,7 +74,7 @@ LVSContinuousCollisionEvaluator::CalcCollisionData(const Eigen::Ref<const Eigen:
                                                    const Eigen::Ref<const Eigen::VectorXd>& dof_vals1)
 {
   size_t key = getHash(*collision_config_, dof_vals0, dof_vals1);
-  auto it = m_cache.get(key);
+  auto it = collision_cache_->get(key);
   if (it != nullptr)
   {
     CONSOLE_BRIDGE_logDebug("Using cached collision check");
@@ -94,7 +96,7 @@ LVSContinuousCollisionEvaluator::CalcCollisionData(const Eigen::Ref<const Eigen:
         (result.cc_gradients[0].has_gradient + result.cc_gradients[1].has_gradient);
     data->gradient_results_set.add(result);
   }
-  m_cache.put(key, data);
+  collision_cache_->put(key, data);
   return data;
 }
 
@@ -192,13 +194,15 @@ const trajopt::TrajOptCollisionConfig& LVSContinuousCollisionEvaluator::GetColli
 //////////////////////////////////////////
 
 LVSDiscreteCollisionEvaluator::LVSDiscreteCollisionEvaluator(
+    std::shared_ptr<CollisionCache> collision_cache,
     tesseract_kinematics::ForwardKinematics::ConstPtr manip,
     tesseract_environment::Environment::ConstPtr env,
     tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
     const Eigen::Isometry3d& world_to_base,
     trajopt::TrajOptCollisionConfig::ConstPtr collision_config,
     bool dynamic_environment)
-  : manip_(std::move(manip))
+  : collision_cache_(collision_cache)
+  , manip_(std::move(manip))
   , env_(std::move(env))
   , adjacency_map_(std::move(adjacency_map))
   , world_to_base_(world_to_base)
@@ -235,7 +239,7 @@ LVSDiscreteCollisionEvaluator::CalcCollisionData(const Eigen::Ref<const Eigen::V
                                                  const Eigen::Ref<const Eigen::VectorXd>& dof_vals1)
 {
   size_t key = getHash(*collision_config_, dof_vals0, dof_vals1);
-  auto it = m_cache.get(key);
+  auto it = collision_cache_->get(key);
   if (it != nullptr)
   {
     CONSOLE_BRIDGE_logDebug("Using cached collision check");
@@ -257,7 +261,7 @@ LVSDiscreteCollisionEvaluator::CalcCollisionData(const Eigen::Ref<const Eigen::V
         (result.cc_gradients[0].has_gradient + result.cc_gradients[1].has_gradient);
     data->gradient_results_set.add(result);
   }
-  m_cache.put(key, data);
+  collision_cache_->put(key, data);
   return data;
 }
 

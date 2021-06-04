@@ -29,13 +29,15 @@
 namespace trajopt
 {
 SingleTimestepCollisionEvaluator::SingleTimestepCollisionEvaluator(
+    std::shared_ptr<CollisionCache> collision_cache,
     tesseract_kinematics::ForwardKinematics::ConstPtr manip,
     tesseract_environment::Environment::ConstPtr env,
     tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
     const Eigen::Isometry3d& world_to_base,
     TrajOptCollisionConfig::ConstPtr collision_config,
     bool dynamic_environment)
-  : manip_(std::move(manip))
+  : collision_cache_(collision_cache)
+  , manip_(std::move(manip))
   , env_(std::move(env))
   , adjacency_map_(std::move(adjacency_map))
   , world_to_base_(world_to_base)
@@ -71,7 +73,7 @@ CollisionCacheData::ConstPtr
 SingleTimestepCollisionEvaluator::CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals)
 {
   size_t key = getHash(*collision_config_, dof_vals);
-  auto it = m_cache.get(key);
+  auto it = collision_cache_->get(key);
   if (it != nullptr)
   {
     CONSOLE_BRIDGE_logDebug("Using cached collision check");
@@ -91,7 +93,7 @@ SingleTimestepCollisionEvaluator::CalcCollisions(const Eigen::Ref<const Eigen::V
     data->gradient_results_set.num_equations += (result.gradients[0].has_gradient + result.gradients[1].has_gradient);
     data->gradient_results_set.add(result);
   }
-  m_cache.put(key, data);
+  collision_cache_->put(key, data);
   return data;
 }
 

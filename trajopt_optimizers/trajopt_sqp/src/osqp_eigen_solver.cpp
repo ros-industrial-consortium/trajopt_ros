@@ -38,7 +38,7 @@ OSQPEigenSolver::OSQPEigenSolver()
   solver_.settings()->setWarmStart(true);
   solver_.settings()->setPolish(true);
   solver_.settings()->setAdaptiveRho(false);
-  solver_.settings()->setMaxIteraction(8192);
+  solver_.settings()->setMaxIteration(8192);
   solver_.settings()->setAbsoluteTolerance(1e-4);
   solver_.settings()->setRelativeTolerance(1e-6);
 }

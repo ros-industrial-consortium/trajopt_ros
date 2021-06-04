@@ -97,7 +97,8 @@ public:
   using Ptr = std::shared_ptr<SingleTimestepCollisionEvaluator>;
   using ConstPtr = std::shared_ptr<const SingleTimestepCollisionEvaluator>;
 
-  SingleTimestepCollisionEvaluator(tesseract_kinematics::ForwardKinematics::ConstPtr manip,
+  SingleTimestepCollisionEvaluator(std::shared_ptr<CollisionCache> collision_cache,
+                                   tesseract_kinematics::ForwardKinematics::ConstPtr manip,
                                    tesseract_environment::Environment::ConstPtr env,
                                    tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
                                    const Eigen::Isometry3d& world_to_base,
@@ -111,9 +112,8 @@ public:
 
   const TrajOptCollisionConfig& GetCollisionConfig() const override;
 
-  Cache<size_t, CollisionCacheData::ConstPtr, 10> m_cache;
-
 private:
+  std::shared_ptr<CollisionCache> collision_cache_;
   tesseract_kinematics::ForwardKinematics::ConstPtr manip_;
   tesseract_environment::Environment::ConstPtr env_;
   tesseract_environment::AdjacencyMap::ConstPtr adjacency_map_;

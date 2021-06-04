@@ -147,7 +147,7 @@ TEST_F(VelocityConstraintOptimization, velocity_constraint_optimization_trajopt_
   qp_solver->solver_.settings()->setWarmStart(true);
   qp_solver->solver_.settings()->setAbsoluteTolerance(1e-4);
   qp_solver->solver_.settings()->setRelativeTolerance(1e-6);
-  qp_solver->solver_.settings()->setMaxIteraction(8192);
+  qp_solver->solver_.settings()->setMaxIteration(8192);
   qp_solver->solver_.settings()->setPolish(true);
   qp_solver->solver_.settings()->setAdaptiveRho(false);
 

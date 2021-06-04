@@ -103,7 +103,8 @@ public:
   using Ptr = std::shared_ptr<LVSContinuousCollisionEvaluator>;
   using ConstPtr = std::shared_ptr<const LVSContinuousCollisionEvaluator>;
 
-  LVSContinuousCollisionEvaluator(tesseract_kinematics::ForwardKinematics::ConstPtr manip,
+  LVSContinuousCollisionEvaluator(std::shared_ptr<CollisionCache> collision_cache,
+                                  tesseract_kinematics::ForwardKinematics::ConstPtr manip,
                                   tesseract_environment::Environment::ConstPtr env,
                                   tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
                                   const Eigen::Isometry3d& world_to_base,
@@ -119,9 +120,8 @@ public:
 
   const TrajOptCollisionConfig& GetCollisionConfig() const override;
 
-  Cache<size_t, CollisionCacheData::ConstPtr, 10> m_cache;
-
 private:
+  std::shared_ptr<CollisionCache> collision_cache_;
   tesseract_kinematics::ForwardKinematics::ConstPtr manip_;
   tesseract_environment::Environment::ConstPtr env_;
   tesseract_environment::AdjacencyMap::ConstPtr adjacency_map_;
@@ -152,7 +152,8 @@ public:
   using Ptr = std::shared_ptr<LVSDiscreteCollisionEvaluator>;
   using ConstPtr = std::shared_ptr<const LVSDiscreteCollisionEvaluator>;
 
-  LVSDiscreteCollisionEvaluator(tesseract_kinematics::ForwardKinematics::ConstPtr manip,
+  LVSDiscreteCollisionEvaluator(std::shared_ptr<CollisionCache> collision_cache,
+                                tesseract_kinematics::ForwardKinematics::ConstPtr manip,
                                 tesseract_environment::Environment::ConstPtr env,
                                 tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
                                 const Eigen::Isometry3d& world_to_base,
@@ -168,9 +169,8 @@ public:
 
   const TrajOptCollisionConfig& GetCollisionConfig() const override;
 
-  Cache<size_t, CollisionCacheData::ConstPtr, 10> m_cache;
-
 private:
+  std::shared_ptr<CollisionCache> collision_cache_;
   tesseract_kinematics::ForwardKinematics::ConstPtr manip_;
   tesseract_environment::Environment::ConstPtr env_;
   tesseract_environment::AdjacencyMap::ConstPtr adjacency_map_;
