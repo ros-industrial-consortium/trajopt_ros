@@ -125,9 +125,9 @@ TEST_F(PlanningTest, arm_around_table)  // NOLINT
 
   double margin_coeff = 50;
   double margin = 0.025;
-  TrajOptCollisionConfig trajopt_collision_config(margin, margin_coeff);
-  trajopt_collision_config.collision_margin_buffer = 0.02;
-  trajopt_collision_config.longest_valid_segment_length = 0.005;
+  auto trajopt_collision_config = std::make_shared<trajopt::TrajOptCollisionConfig>(margin, margin_coeff);
+  trajopt_collision_config->collision_margin_buffer = 0.02;
+  trajopt_collision_config->longest_valid_segment_length = 0.005;
 
   // Add costs
   {
@@ -173,7 +173,7 @@ TEST_F(PlanningTest, arm_around_table)  // NOLINT
   qp_solver->solver_.settings()->setWarmStart(true);
   qp_solver->solver_.settings()->setPolish(true);
   qp_solver->solver_.settings()->setAdaptiveRho(false);
-  qp_solver->solver_.settings()->setMaxIteraction(8192);
+  qp_solver->solver_.settings()->setMaxIteration(8192);
   qp_solver->solver_.settings()->setAbsoluteTolerance(1e-4);
   qp_solver->solver_.settings()->setRelativeTolerance(1e-6);
 

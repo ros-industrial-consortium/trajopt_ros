@@ -139,8 +139,8 @@ void runDiscreteGradientTest(const Environment::Ptr& env, double coeff, CombineC
 
   double margin_coeff = coeff;
   double margin = 0.2;
-  trajopt::TrajOptCollisionConfig trajopt_collision_config(margin, margin_coeff);
-  trajopt_collision_config.collision_margin_buffer = 0.0;  // 0.05
+  auto trajopt_collision_config = std::make_shared<trajopt::TrajOptCollisionConfig>(margin, margin_coeff);
+  trajopt_collision_config->collision_margin_buffer = 0.0;  // 0.05
 
   trajopt::DiscreteCollisionEvaluator::Ptr collision_evaluator =
       std::make_shared<trajopt::SingleTimestepCollisionEvaluator>(

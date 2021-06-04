@@ -138,8 +138,8 @@ TEST_F(CastTest, boxes)  // NOLINT
 
   double margin_coeff = 1;
   double margin = 0.02;
-  trajopt::TrajOptCollisionConfig trajopt_collision_config(margin, margin_coeff);
-  trajopt_collision_config.collision_margin_buffer = 0.05;
+  auto trajopt_collision_config = std::make_shared<trajopt::TrajOptCollisionConfig>(margin, margin_coeff);
+  trajopt_collision_config->collision_margin_buffer = 0.05;
 
   // 4) Add constraints
   {  // Fix start position

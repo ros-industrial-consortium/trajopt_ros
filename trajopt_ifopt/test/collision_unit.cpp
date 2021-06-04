@@ -69,7 +69,7 @@ public:
     auto adj_map = std::make_shared<tesseract_environment::AdjacencyMap>(
         env->getSceneGraph(), kin->getActiveLinkNames(), env->getCurrentState()->link_transforms);
 
-    trajopt::TrajOptCollisionConfig config(0.1, 1);
+    auto config = std::make_shared<trajopt::TrajOptCollisionConfig>(0.1, 1);
 
     collision_evaluator = std::make_shared<trajopt::SingleTimestepCollisionEvaluator>(
         kin, env, adj_map, Eigen::Isometry3d::Identity(), config);

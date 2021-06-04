@@ -127,8 +127,8 @@ TEST_F(CastTest, boxes)  // NOLINT
 
   double margin_coeff = 10;
   double margin = 0.02;
-  trajopt::TrajOptCollisionConfig trajopt_collision_config(margin, margin_coeff);
-  trajopt_collision_config.collision_margin_buffer = 0.05;
+  auto trajopt_collision_config = std::make_shared<trajopt::TrajOptCollisionConfig>(margin, margin_coeff);
+  trajopt_collision_config->collision_margin_buffer = 0.05;
 
   // 4) Add constraints
   {  // Fix start position
@@ -166,7 +166,7 @@ TEST_F(CastTest, boxes)  // NOLINT
   qp_solver->solver_.settings()->setWarmStart(true);
   qp_solver->solver_.settings()->setPolish(true);
   qp_solver->solver_.settings()->setAdaptiveRho(false);
-  qp_solver->solver_.settings()->setMaxIteraction(8192);
+  qp_solver->solver_.settings()->setMaxIteration(8192);
   qp_solver->solver_.settings()->setAbsoluteTolerance(1e-4);
   qp_solver->solver_.settings()->setRelativeTolerance(1e-6);
 

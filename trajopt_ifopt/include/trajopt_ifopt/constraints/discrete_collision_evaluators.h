@@ -72,7 +72,7 @@ public:
    * @brief Get the safety margin information.
    * @return Safety margin information
    */
-  virtual TrajOptCollisionConfig& GetCollisionConfig() = 0;
+  virtual const TrajOptCollisionConfig& GetCollisionConfig() const = 0;
 
   /**
    * @brief Extracts the gradient information based on the contact results
@@ -101,7 +101,7 @@ public:
                                    tesseract_environment::Environment::ConstPtr env,
                                    tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
                                    const Eigen::Isometry3d& world_to_base,
-                                   const TrajOptCollisionConfig& collision_config,
+                                   TrajOptCollisionConfig::ConstPtr collision_config,
                                    bool dynamic_environment = false);
 
   CollisionCacheData::ConstPtr CalcCollisions(const Eigen::Ref<const Eigen::VectorXd>& dof_vals) override;
@@ -109,7 +109,7 @@ public:
   GradientResults GetGradient(const Eigen::VectorXd& dofvals,
                               const tesseract_collision::ContactResult& contact_result) override;
 
-  TrajOptCollisionConfig& GetCollisionConfig() override;
+  const TrajOptCollisionConfig& GetCollisionConfig() const override;
 
   Cache<size_t, CollisionCacheData::ConstPtr, 10> m_cache;
 
@@ -118,7 +118,7 @@ private:
   tesseract_environment::Environment::ConstPtr env_;
   tesseract_environment::AdjacencyMap::ConstPtr adjacency_map_;
   Eigen::Isometry3d world_to_base_;
-  TrajOptCollisionConfig collision_config_;
+  TrajOptCollisionConfig::ConstPtr collision_config_;
   tesseract_environment::StateSolver::Ptr state_solver_;
   GetStateFn get_state_fn_;
   bool dynamic_environment_;

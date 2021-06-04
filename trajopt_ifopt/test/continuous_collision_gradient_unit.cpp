@@ -134,22 +134,8 @@ void runContinuousGradientTest(const Environment::Ptr& env, double coeff, Combin
 
   double margin_coeff = coeff;
   double margin = 0.02;
-  trajopt::TrajOptCollisionConfig trajopt_collision_config(margin, margin_coeff);
-  trajopt_collision_config.collision_margin_buffer = 0.05;
-  //  trajopt_collision_config.longest_valid_segment_length = 100;
-
-  //  // 4) Add constraints
-  //  {  // Fix start position
-  //    std::vector<trajopt::JointPosition::ConstPtr> fixed_vars = { vars[0] };
-  //    auto cnt = std::make_shared<trajopt::JointPosConstraint>(positions[0], fixed_vars);
-  //    nlp.AddConstraintSet(cnt);
-  //  }
-
-  //  {  // Fix end position
-  //    std::vector<trajopt::JointPosition::ConstPtr> fixed_vars = { vars[2] };
-  //    auto cnt = std::make_shared<trajopt::JointPosConstraint>(positions[2], fixed_vars);
-  //    nlp.AddConstraintSet(cnt);
-  //  }
+  auto trajopt_collision_config = std::make_shared<trajopt::TrajOptCollisionConfig>(margin, margin_coeff);
+  trajopt_collision_config->collision_margin_buffer = 0.05;
 
   for (std::size_t i = 1; i < (vars.size() - 1); ++i)
   {
