@@ -47,7 +47,7 @@ using GetStateFn =
  * This allows switching between different methods for calculating a single gradient and error.
  * @note Currently the WEIGHTED_AVERAGE method works the best, but may change after further testing.
  */
-enum class GradientCombineMethod
+enum class CombineCollisionDataMethod
 {
   SUM = 0,
   WEIGHTED_SUM = 1,

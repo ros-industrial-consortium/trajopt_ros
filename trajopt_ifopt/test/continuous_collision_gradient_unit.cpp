@@ -75,7 +75,7 @@ public:
   }
 };
 
-void runContinuousGradientTest(const Environment::Ptr& env, double coeff, GradientCombineMethod method)
+void runContinuousGradientTest(const Environment::Ptr& env, double coeff, CombineCollisionDataMethod method)
 {
   std::unordered_map<std::string, double> ipos;
   ipos["spherebot_x_joint"] = -1.9;
@@ -171,38 +171,38 @@ void runContinuousGradientTest(const Environment::Ptr& env, double coeff, Gradie
 TEST_F(ContinuousCollisionGradientTest, SUM)  // NOLINT
 {
   CONSOLE_BRIDGE_logDebug("ContinuousCollisionGradientTest, SUM");
-  runContinuousGradientTest(env, 1, GradientCombineMethod::SUM);
-  runContinuousGradientTest(env, 10, GradientCombineMethod::SUM);
+  runContinuousGradientTest(env, 1, CombineCollisionDataMethod::SUM);
+  runContinuousGradientTest(env, 10, CombineCollisionDataMethod::SUM);
 }
 TEST_F(ContinuousCollisionGradientTest, WEIGHTED_SUM)  // NOLINT
 {
   CONSOLE_BRIDGE_logDebug("ContinuousCollisionGradientTest, WEIGHTED_SUM");
-  runContinuousGradientTest(env, 1, GradientCombineMethod::WEIGHTED_SUM);
-  runContinuousGradientTest(env, 10, GradientCombineMethod::WEIGHTED_SUM);
+  runContinuousGradientTest(env, 1, CombineCollisionDataMethod::WEIGHTED_SUM);
+  runContinuousGradientTest(env, 10, CombineCollisionDataMethod::WEIGHTED_SUM);
 }
 TEST_F(ContinuousCollisionGradientTest, AVERAGE)  // NOLINT
 {
   CONSOLE_BRIDGE_logDebug("ContinuousCollisionGradientTest, AVERAGE");
-  runContinuousGradientTest(env, 1, GradientCombineMethod::AVERAGE);
-  runContinuousGradientTest(env, 10, GradientCombineMethod::AVERAGE);
+  runContinuousGradientTest(env, 1, CombineCollisionDataMethod::AVERAGE);
+  runContinuousGradientTest(env, 10, CombineCollisionDataMethod::AVERAGE);
 }
 TEST_F(ContinuousCollisionGradientTest, WEIGHTED_AVERAGE)  // NOLINT
 {
   CONSOLE_BRIDGE_logDebug("ContinuousCollisionGradientTest, WEIGHTED_AVERAGE");
-  runContinuousGradientTest(env, 1, GradientCombineMethod::WEIGHTED_AVERAGE);
-  runContinuousGradientTest(env, 10, GradientCombineMethod::WEIGHTED_AVERAGE);
+  runContinuousGradientTest(env, 1, CombineCollisionDataMethod::WEIGHTED_AVERAGE);
+  runContinuousGradientTest(env, 10, CombineCollisionDataMethod::WEIGHTED_AVERAGE);
 }
 TEST_F(ContinuousCollisionGradientTest, LEAST_SQUARES)  // NOLINT
 {
   CONSOLE_BRIDGE_logDebug("ContinuousCollisionGradientTest, LEAST_SQUARES");
-  runContinuousGradientTest(env, 1, GradientCombineMethod::LEAST_SQUARES);
-  runContinuousGradientTest(env, 10, GradientCombineMethod::LEAST_SQUARES);
+  runContinuousGradientTest(env, 1, CombineCollisionDataMethod::LEAST_SQUARES);
+  runContinuousGradientTest(env, 10, CombineCollisionDataMethod::LEAST_SQUARES);
 }
 TEST_F(ContinuousCollisionGradientTest, WEIGHTED_LEAST_SQUARES)  // NOLINT
 {
   CONSOLE_BRIDGE_logDebug("ContinuousCollisionGradientTest, WEIGHTED_LEAST_SQUARES");
-  runContinuousGradientTest(env, 1, GradientCombineMethod::WEIGHTED_LEAST_SQUARES);
-  runContinuousGradientTest(env, 10, GradientCombineMethod::WEIGHTED_LEAST_SQUARES);
+  runContinuousGradientTest(env, 1, CombineCollisionDataMethod::WEIGHTED_LEAST_SQUARES);
+  runContinuousGradientTest(env, 10, CombineCollisionDataMethod::WEIGHTED_LEAST_SQUARES);
 }
 
 int main(int argc, char** argv)

@@ -29,11 +29,11 @@
 
 namespace trajopt
 {
-ContinuousCombineCollisionData::ContinuousCombineCollisionData(GradientCombineMethod method, long dof)
+ContinuousCombineCollisionData::ContinuousCombineCollisionData(CombineCollisionDataMethod method, long dof)
 {
   switch (method)
   {
-    case GradientCombineMethod::SUM:
+    case CombineCollisionDataMethod::SUM:
     {
       combine_values_prev = [](const CollisionCacheData& collision_data) {
         return getSumValuesPrev(collision_data.gradient_results_set);
@@ -78,7 +78,7 @@ ContinuousCombineCollisionData::ContinuousCombineCollisionData(GradientCombineMe
       };
       break;
     }
-    case GradientCombineMethod::WEIGHTED_SUM:
+    case CombineCollisionDataMethod::WEIGHTED_SUM:
     {
       combine_values_prev = [](const CollisionCacheData& collision_data) {
         return getSumWeightedValuesPrev(collision_data.gradient_results_set);
@@ -125,7 +125,7 @@ ContinuousCombineCollisionData::ContinuousCombineCollisionData(GradientCombineMe
 
       break;
     }
-    case GradientCombineMethod::AVERAGE:
+    case CombineCollisionDataMethod::AVERAGE:
     {
       combine_values_prev = [](const CollisionCacheData& collision_data) {
         return getAverageValuesPrev(collision_data.gradient_results_set);
@@ -170,7 +170,7 @@ ContinuousCombineCollisionData::ContinuousCombineCollisionData(GradientCombineMe
       };
       break;
     }
-    case GradientCombineMethod::WEIGHTED_AVERAGE:
+    case CombineCollisionDataMethod::WEIGHTED_AVERAGE:
     {
       combine_values_prev = [](const CollisionCacheData& collision_data) {
         return getAverageWeightedValuesPrev(collision_data.gradient_results_set);
@@ -216,7 +216,7 @@ ContinuousCombineCollisionData::ContinuousCombineCollisionData(GradientCombineMe
       };
       break;
     }
-    case GradientCombineMethod::LEAST_SQUARES:
+    case CombineCollisionDataMethod::LEAST_SQUARES:
     {
       combine_values_prev = [](const CollisionCacheData& collision_data) {
         return getAverageValuesPrev(collision_data.gradient_results_set);
@@ -261,7 +261,7 @@ ContinuousCombineCollisionData::ContinuousCombineCollisionData(GradientCombineMe
       };
       break;
     }
-    case GradientCombineMethod::WEIGHTED_LEAST_SQUARES:
+    case CombineCollisionDataMethod::WEIGHTED_LEAST_SQUARES:
     {
       combine_values_prev = [](const CollisionCacheData& collision_data) {
         return getAverageWeightedValuesPrev(collision_data.gradient_results_set);

@@ -38,6 +38,7 @@ set(TRAJOPT_IFOPT_SOURCE_FILES
     src/collision_utils.cpp
     src/discrete_collision_constraint.cpp
     src/discrete_collision_evaluators.cpp
+    src/discrete_combine_collision_data.cpp
     src/continuous_collision_constraint.cpp
     src/continuous_collision_evaluators.cpp
     src/continuous_combine_collision_data.cpp

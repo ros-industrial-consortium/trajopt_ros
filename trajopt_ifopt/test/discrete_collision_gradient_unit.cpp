@@ -96,7 +96,7 @@ public:
   }
 };
 
-void runDiscreteGradientTest(const Environment::Ptr& env, double coeff, GradientCombineMethod method)
+void runDiscreteGradientTest(const Environment::Ptr& env, double coeff, CombineCollisionDataMethod method)
 {
   std::unordered_map<std::string, double> ipos;
   ipos["spherebot_x_joint"] = -0.75;
@@ -146,7 +146,8 @@ void runDiscreteGradientTest(const Environment::Ptr& env, double coeff, Gradient
       std::make_shared<trajopt::SingleTimestepCollisionEvaluator>(
           kin, env, adj_map, Eigen::Isometry3d::Identity(), trajopt_collision_config);
 
-  auto cnt = std::make_shared<trajopt::DiscreteCollisionConstraintIfopt>(collision_evaluator, method, vars[0]);
+  auto cnt = std::make_shared<trajopt::DiscreteCollisionConstraintIfopt>(
+      collision_evaluator, DiscreteCombineCollisionData(method, 2), vars[0]);
   nlp.AddConstraintSet(cnt);
 
   std::cout << "Jacobian: \n" << nlp.GetJacobianOfConstraints().toDense() << std::endl;
@@ -158,38 +159,38 @@ void runDiscreteGradientTest(const Environment::Ptr& env, double coeff, Gradient
 TEST_F(DiscreteCollisionGradientTest, SUM)  // NOLINT
 {
   CONSOLE_BRIDGE_logDebug("DiscreteCollisionGradientTest, SUM");
-  runDiscreteGradientTest(env, 1, GradientCombineMethod::SUM);
-  runDiscreteGradientTest(env, 10, GradientCombineMethod::SUM);
+  runDiscreteGradientTest(env, 1, CombineCollisionDataMethod::SUM);
+  runDiscreteGradientTest(env, 10, CombineCollisionDataMethod::SUM);
 }
 TEST_F(DiscreteCollisionGradientTest, WEIGHTED_SUM)  // NOLINT
 {
   CONSOLE_BRIDGE_logDebug("DiscreteCollisionGradientTest, WEIGHTED_SUM");
-  runDiscreteGradientTest(env, 1, GradientCombineMethod::WEIGHTED_SUM);
-  runDiscreteGradientTest(env, 10, GradientCombineMethod::WEIGHTED_SUM);
+  runDiscreteGradientTest(env, 1, CombineCollisionDataMethod::WEIGHTED_SUM);
+  runDiscreteGradientTest(env, 10, CombineCollisionDataMethod::WEIGHTED_SUM);
 }
 TEST_F(DiscreteCollisionGradientTest, AVERAGE)  // NOLINT
 {
   CONSOLE_BRIDGE_logDebug("DiscreteCollisionGradientTest, AVERAGE");
-  runDiscreteGradientTest(env, 1, GradientCombineMethod::AVERAGE);
-  runDiscreteGradientTest(env, 10, GradientCombineMethod::AVERAGE);
+  runDiscreteGradientTest(env, 1, CombineCollisionDataMethod::AVERAGE);
+  runDiscreteGradientTest(env, 10, CombineCollisionDataMethod::AVERAGE);
 }
 TEST_F(DiscreteCollisionGradientTest, WEIGHTED_AVERAGE)  // NOLINT
 {
   CONSOLE_BRIDGE_logDebug("DiscreteCollisionGradientTest, WEIGHTED_AVERAGE");
-  runDiscreteGradientTest(env, 1, GradientCombineMethod::WEIGHTED_AVERAGE);
-  runDiscreteGradientTest(env, 10, GradientCombineMethod::WEIGHTED_AVERAGE);
+  runDiscreteGradientTest(env, 1, CombineCollisionDataMethod::WEIGHTED_AVERAGE);
+  runDiscreteGradientTest(env, 10, CombineCollisionDataMethod::WEIGHTED_AVERAGE);
 }
 TEST_F(DiscreteCollisionGradientTest, LEAST_SQUARES)  // NOLINT
 {
   CONSOLE_BRIDGE_logDebug("DiscreteCollisionGradientTest, LEAST_SQUARES");
-  runDiscreteGradientTest(env, 1, GradientCombineMethod::LEAST_SQUARES);
-  runDiscreteGradientTest(env, 10, GradientCombineMethod::LEAST_SQUARES);
+  runDiscreteGradientTest(env, 1, CombineCollisionDataMethod::LEAST_SQUARES);
+  runDiscreteGradientTest(env, 10, CombineCollisionDataMethod::LEAST_SQUARES);
 }
 TEST_F(DiscreteCollisionGradientTest, WEIGHTED_LEAST_SQUARES)  // NOLINT
 {
   CONSOLE_BRIDGE_logDebug("DiscreteCollisionGradientTest, WEIGHTED_LEAST_SQUARES");
-  runDiscreteGradientTest(env, 1, GradientCombineMethod::WEIGHTED_LEAST_SQUARES);
-  runDiscreteGradientTest(env, 10, GradientCombineMethod::WEIGHTED_LEAST_SQUARES);
+  runDiscreteGradientTest(env, 1, CombineCollisionDataMethod::WEIGHTED_LEAST_SQUARES);
+  runDiscreteGradientTest(env, 10, CombineCollisionDataMethod::WEIGHTED_LEAST_SQUARES);
 }
 
 int main(int argc, char** argv)

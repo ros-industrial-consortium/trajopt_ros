@@ -1,5 +1,5 @@
 /**
- * @file continuous_combine_collision_data.h
+ * @file discrete_combine_collision_data.h
  * @brief A container for function which combine collision data
  *
  * @author Levi Armstrong
@@ -23,15 +23,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef TRAJOPT_IFOPT_CONTINUOUS_COMBINE_COLLISION_DATA_H
-#define TRAJOPT_IFOPT_CONTINUOUS_COMBINE_COLLISION_DATA_H
+#ifndef TRAJOPT_IFOPT_DISCRETE_COMBINE_COLLISION_DATA_H
+#define TRAJOPT_IFOPT_DISCRETE_COMBINE_COLLISION_DATA_H
 
 #include <trajopt_ifopt/constraints/collision_types.h>
 
 namespace trajopt
 {
 /**
- * @brief The ContinuousCombineCollisionData struct
+ * @brief The DiscreteCombineCollisionData struct
  * @warning Make sure that the values returns are not just the violation but the constraint values.
  * Remember the values are the constant in the quadratic function, so if you only return the
  * violation then if it is not violating the constraint this would be zero which means it
@@ -40,19 +40,14 @@ namespace trajopt
  * If no contacts are found return the negative of the collision margin buffer. This is why
  * it is important to not set the collision margin buffer to zero.
  */
-struct ContinuousCombineCollisionData
+struct DiscreteCombineCollisionData
 {
-  CombineValuesPrevFn combine_values_prev;
-  CombineValuesCentFn combine_values_cent;
-  CombineValuesPostFn combine_values_post;
+  CombineValuesPostFn combine_values;
 
-  CombineJacobianPrevFn combine_jacobian_prev;
-  CombineJacobianCentFn combine_jacobian_cent;
-  CombineJacobianPostFn combine_jacobian_post;
+  CombineJacobianPostFn combine_jacobian;
 
-  ContinuousCombineCollisionData() = default;
-  ContinuousCombineCollisionData(CombineCollisionDataMethod method, long dof);
+  DiscreteCombineCollisionData() = default;
+  DiscreteCombineCollisionData(CombineCollisionDataMethod method, long dof);
 };
 }  // namespace trajopt
-
-#endif  // TRAJOPT_IFOPT_CONTINUOUS_COMBINE_COLLISION_DATA_H
+#endif  // TRAJOPT_IFOPT_DISCRETE_COMBINE_COLLISION_DATA_H

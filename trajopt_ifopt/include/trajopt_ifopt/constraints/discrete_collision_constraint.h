@@ -34,6 +34,7 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 TRAJOPT_IGNORE_WARNINGS_POP
 
 #include <trajopt_ifopt/constraints/discrete_collision_evaluators.h>
+#include <trajopt_ifopt/constraints/discrete_combine_collision_data.h>
 #include <trajopt_ifopt/variable_sets/joint_position_variable.h>
 
 namespace trajopt
@@ -45,7 +46,7 @@ public:
   using ConstPtr = std::shared_ptr<const DiscreteCollisionConstraintIfopt>;
 
   DiscreteCollisionConstraintIfopt(DiscreteCollisionEvaluator::Ptr collision_evaluator,
-                                   GradientCombineMethod gradient_method,
+                                   DiscreteCombineCollisionData combine_methods,
                                    JointPosition::ConstPtr position_var,
                                    const std::string& name = "DiscreteCollision");
 
@@ -110,7 +111,7 @@ private:
   JointPosition::ConstPtr position_var_;
 
   DiscreteCollisionEvaluator::Ptr collision_evaluator_;
-  GradientCombineMethod gradient_method_;
+  DiscreteCombineCollisionData combine_methods_;
 };
 };  // namespace trajopt
 #endif
