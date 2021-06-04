@@ -81,7 +81,7 @@ public:
     nlp.AddVariableSet(var0);
 
     constraint = std::make_shared<trajopt::DiscreteCollisionConstraintIfopt>(
-        collision_evaluator, DiscreteCombineCollisionData(CombineCollisionDataMethod::WEIGHTED_AVERAGE, 2), var0);
+        collision_evaluator, DiscreteCombineCollisionData(CombineCollisionDataMethod::WEIGHTED_AVERAGE), var0);
     nlp.AddConstraintSet(constraint);
   }
 };
@@ -176,7 +176,7 @@ TEST_F(CollisionUnit, GetSetBounds)  // NOLINT
     auto var0 = std::make_shared<trajopt::JointPosition>(pos, joint_names, "Joint_Position_0");
 
     auto constraint_2 = std::make_shared<trajopt::DiscreteCollisionConstraintIfopt>(
-        collision_evaluator, DiscreteCombineCollisionData(CombineCollisionDataMethod::WEIGHTED_AVERAGE, 2), var0);
+        collision_evaluator, DiscreteCombineCollisionData(CombineCollisionDataMethod::WEIGHTED_AVERAGE), var0);
     ifopt::Bounds bounds(-0.1234, 0.5678);
     std::vector<ifopt::Bounds> bounds_vec = std::vector<ifopt::Bounds>(1, bounds);
     constraint_2->SetBounds(bounds_vec);

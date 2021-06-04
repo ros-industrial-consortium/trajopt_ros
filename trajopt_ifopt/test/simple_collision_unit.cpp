@@ -151,7 +151,7 @@ TEST_F(SimpleCollisionTest, spheres)  // NOLINT
           kin, env, adj_map, Eigen::Isometry3d::Identity(), trajopt_collision_config);
 
   auto cnt = std::make_shared<trajopt::DiscreteCollisionConstraintIfopt>(
-      collision_evaluator, DiscreteCombineCollisionData(CombineCollisionDataMethod::WEIGHTED_AVERAGE, 2), vars[0]);
+      collision_evaluator, DiscreteCombineCollisionData(CombineCollisionDataMethod::WEIGHTED_AVERAGE), vars[0]);
   nlp.AddConstraintSet(cnt);
 
   nlp.PrintCurrent();

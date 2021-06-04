@@ -135,6 +135,7 @@ void removeInvalidContactResults(tesseract_collision::ContactResultVector& conta
 
 Eigen::VectorXd getSumValuesPrev(const GradientResultsSet& grad_results_set_prev)
 {
+  assert(grad_results_set_prev.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
   if (grad_results_set_prev.results.empty() || !(grad_results_set_prev.max_error > 0))
     return err;
@@ -147,6 +148,7 @@ Eigen::VectorXd getSumValuesPrev(const GradientResultsSet& grad_results_set_prev
 
 Eigen::VectorXd getSumValuesPost(const GradientResultsSet& grad_results_set_post)
 {
+  assert(grad_results_set_post.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
   if (grad_results_set_post.results.empty() || !(grad_results_set_post.max_error > 0))
     return err;
@@ -160,6 +162,8 @@ Eigen::VectorXd getSumValuesPost(const GradientResultsSet& grad_results_set_post
 Eigen::VectorXd getSumValuesCent(const GradientResultsSet& grad_results_set_prev,
                                  const GradientResultsSet& grad_results_set_post)
 {
+  assert(grad_results_set_prev.dof > 0);
+  assert(grad_results_set_post.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
   if (grad_results_set_prev.results.empty() && grad_results_set_post.results.empty())
     return err;
@@ -178,6 +182,7 @@ Eigen::VectorXd getSumValuesCent(const GradientResultsSet& grad_results_set_prev
 
 Eigen::VectorXd getSumWeightedValuesPrev(const GradientResultsSet& grad_results_set_prev)
 {
+  assert(grad_results_set_prev.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
   if (grad_results_set_prev.results.empty() || !(grad_results_set_prev.max_error > 0))
     return err;
@@ -199,6 +204,7 @@ Eigen::VectorXd getSumWeightedValuesPrev(const GradientResultsSet& grad_results_
 
 Eigen::VectorXd getSumWeightedValuesPost(const GradientResultsSet& grad_results_set_post)
 {
+  assert(grad_results_set_post.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
   if (grad_results_set_post.results.empty() || !(grad_results_set_post.max_error > 0))
     return err;
@@ -221,6 +227,8 @@ Eigen::VectorXd getSumWeightedValuesPost(const GradientResultsSet& grad_results_
 Eigen::VectorXd getSumWeightedValuesCent(const GradientResultsSet& grad_results_set_prev,
                                          const GradientResultsSet& grad_results_set_post)
 {
+  assert(grad_results_set_prev.dof > 0);
+  assert(grad_results_set_post.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
   if (grad_results_set_prev.results.empty() && grad_results_set_post.results.empty())
     return err;
@@ -260,6 +268,7 @@ Eigen::VectorXd getSumWeightedValuesCent(const GradientResultsSet& grad_results_
 
 Eigen::VectorXd getAverageValuesPrev(const GradientResultsSet& grad_results_set_prev)
 {
+  assert(grad_results_set_prev.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
   if (grad_results_set_prev.results.empty() || !(grad_results_set_prev.max_error > 0))
     return err;
@@ -282,6 +291,7 @@ Eigen::VectorXd getAverageValuesPrev(const GradientResultsSet& grad_results_set_
 
 Eigen::VectorXd getAverageValuesPost(const GradientResultsSet& grad_results_set_post)
 {
+  assert(grad_results_set_post.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
   if (grad_results_set_post.results.empty() || !(grad_results_set_post.max_error > 0))
     return err;
@@ -304,6 +314,8 @@ Eigen::VectorXd getAverageValuesPost(const GradientResultsSet& grad_results_set_
 Eigen::VectorXd getAverageValuesCent(const GradientResultsSet& grad_results_set_prev,
                                      const GradientResultsSet& grad_results_set_post)
 {
+  assert(grad_results_set_prev.dof > 0);
+  assert(grad_results_set_post.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
   if (grad_results_set_prev.results.empty() && grad_results_set_post.results.empty())
     return err;
@@ -339,6 +351,7 @@ Eigen::VectorXd getAverageValuesCent(const GradientResultsSet& grad_results_set_
 
 Eigen::VectorXd getAverageWeightedValuesPrev(const GradientResultsSet& grad_results_set_prev)
 {
+  assert(grad_results_set_prev.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
   if (grad_results_set_prev.results.empty() || !(grad_results_set_prev.max_error > 0))
     return err;
@@ -361,6 +374,7 @@ Eigen::VectorXd getAverageWeightedValuesPrev(const GradientResultsSet& grad_resu
 
 Eigen::VectorXd getAverageWeightedValuesPost(const GradientResultsSet& grad_results_set_post)
 {
+  assert(grad_results_set_post.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
   if (grad_results_set_post.results.empty() || !(grad_results_set_post.max_error > 0))
     return err;
@@ -384,6 +398,8 @@ Eigen::VectorXd getAverageWeightedValuesPost(const GradientResultsSet& grad_resu
 Eigen::VectorXd getAverageWeightedValuesCent(const GradientResultsSet& grad_results_set_prev,
                                              const GradientResultsSet& grad_results_set_post)
 {
+  assert(grad_results_set_prev.dof > 0);
+  assert(grad_results_set_post.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
   if (grad_results_set_prev.results.empty() && grad_results_set_post.results.empty())
     return err;
@@ -417,16 +433,17 @@ Eigen::VectorXd getAverageWeightedValuesCent(const GradientResultsSet& grad_resu
   return err;
 }
 
-Eigen::VectorXd getLeastSquaresGradientPrev(const GradientResultsSet& grad_results_set, long dof)
+Eigen::VectorXd getLeastSquaresGradientPrev(const GradientResultsSet& grad_results_set)
 {
+  assert(grad_results_set.dof > 0);
   Eigen::MatrixXd jacobian;
   Eigen::VectorXd error;
   long cnt = 0;
 
   if (grad_results_set.cc_num_equations == 0)
-    return Eigen::VectorXd::Zero(dof);
+    return Eigen::VectorXd::Zero(grad_results_set.dof);
 
-  jacobian.resize(3 * grad_results_set.cc_num_equations, dof);
+  jacobian.resize(3 * grad_results_set.cc_num_equations, grad_results_set.dof);
   error.resize(3 * grad_results_set.cc_num_equations);
   double total_error{ 0 };
   for (const auto& grad : grad_results_set.results)
@@ -445,7 +462,7 @@ Eigen::VectorXd getLeastSquaresGradientPrev(const GradientResultsSet& grad_resul
   }
 
   //  return jacobian.householderQr().solve(error);
-  Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(dof);
+  Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(grad_results_set.dof);
   tesseract_kinematics::solvePInv(jacobian, error, delta_jv);
 
   //  return (grad_results_set.max_weighted_error_with_buffer / delta_jv.array());
@@ -454,16 +471,17 @@ Eigen::VectorXd getLeastSquaresGradientPrev(const GradientResultsSet& grad_resul
   //  return jacobian.transpose() * error;
 }
 
-Eigen::VectorXd getLeastSquaresGradientPost(const GradientResultsSet& grad_results_set, long dof)
+Eigen::VectorXd getLeastSquaresGradientPost(const GradientResultsSet& grad_results_set)
 {
+  assert(grad_results_set.dof > 0);
   Eigen::MatrixXd jacobian;
   Eigen::VectorXd error;
   long cnt = 0;
 
   if (grad_results_set.num_equations == 0)
-    return Eigen::VectorXd::Zero(dof);
+    return Eigen::VectorXd::Zero(grad_results_set.dof);
 
-  jacobian.resize(3 * grad_results_set.num_equations, dof);
+  jacobian.resize(3 * grad_results_set.num_equations, grad_results_set.dof);
   error.resize(3 * grad_results_set.num_equations);
   double total_error{ 0 };
   for (const auto& grad : grad_results_set.results)
@@ -482,7 +500,7 @@ Eigen::VectorXd getLeastSquaresGradientPost(const GradientResultsSet& grad_resul
   }
 
   //  return jacobian.householderQr().solve(error);
-  Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(dof);
+  Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(grad_results_set.dof);
   tesseract_kinematics::solvePInv(jacobian, error, delta_jv);
   std::cout << jacobian << std::endl;
 
@@ -493,17 +511,19 @@ Eigen::VectorXd getLeastSquaresGradientPost(const GradientResultsSet& grad_resul
 }
 
 Eigen::VectorXd getLeastSquaresGradientCent(const GradientResultsSet& grad_results_set_prev,
-                                            const GradientResultsSet& grad_results_set_post,
-                                            long dof)
+                                            const GradientResultsSet& grad_results_set_post)
 {
+  assert(grad_results_set_prev.dof > 0);
+  assert(grad_results_set_post.dof > 0);
   Eigen::MatrixXd jacobian;
   Eigen::VectorXd error;
   long cnt = 0;
 
   if (grad_results_set_prev.cc_num_equations == 0 && grad_results_set_post.num_equations == 0)
-    return Eigen::VectorXd::Zero(dof);
+    return Eigen::VectorXd::Zero(grad_results_set_prev.dof);
 
-  jacobian.resize(3 * (grad_results_set_prev.cc_num_equations + grad_results_set_post.num_equations), dof);
+  jacobian.resize(3 * (grad_results_set_prev.cc_num_equations + grad_results_set_post.num_equations),
+                  grad_results_set_prev.dof);
   error.resize(3 * (grad_results_set_prev.cc_num_equations + grad_results_set_post.num_equations));
   double total_error{ 0 };
   for (const auto& grad : grad_results_set_prev.results)
@@ -537,7 +557,7 @@ Eigen::VectorXd getLeastSquaresGradientCent(const GradientResultsSet& grad_resul
   }
 
   //  return jacobian.householderQr().solve(error);
-  Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(dof);
+  Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(grad_results_set_prev.dof);
   tesseract_kinematics::solvePInv(jacobian, error, delta_jv);
 
   //  return (std::max(grad_results_set_prev.max_weighted_error_with_buffer,
@@ -548,16 +568,17 @@ Eigen::VectorXd getLeastSquaresGradientCent(const GradientResultsSet& grad_resul
   //  return jacobian.transpose() * error;
 }
 
-Eigen::VectorXd getWeightedLeastSquaresGradientPrev(const GradientResultsSet& grad_results_set, long dof)
+Eigen::VectorXd getWeightedLeastSquaresGradientPrev(const GradientResultsSet& grad_results_set)
 {
+  assert(grad_results_set.dof > 0);
   Eigen::MatrixXd jacobian;
   Eigen::VectorXd error;
   long cnt = 0;
 
   if (grad_results_set.cc_num_equations == 0)
-    return Eigen::VectorXd::Zero(dof);
+    return Eigen::VectorXd::Zero(grad_results_set.dof);
 
-  jacobian.resize(3 * grad_results_set.cc_num_equations, dof);
+  jacobian.resize(3 * grad_results_set.cc_num_equations, grad_results_set.dof);
   error.resize(3 * grad_results_set.cc_num_equations);
   double total_weight{ 0 };
   double total_error{ 0 };
@@ -581,7 +602,7 @@ Eigen::VectorXd getWeightedLeastSquaresGradientPrev(const GradientResultsSet& gr
   }
 
   // H=(A^T * W * A)^−1 * A^T * W so that y=Hb
-  Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(dof);
+  Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(grad_results_set.dof);
   Eigen::MatrixXd weights = error.cwiseAbs().normalized().asDiagonal();
   Eigen::MatrixXd jacobian_transpose = jacobian.transpose();
   tesseract_kinematics::solvePInv(
@@ -594,16 +615,17 @@ Eigen::VectorXd getWeightedLeastSquaresGradientPrev(const GradientResultsSet& gr
   //  return (jacobian_transpose * weights * jacobian).householderQr().solve(jacobian_transpose * weights * error);
 }
 
-Eigen::VectorXd getWeightedLeastSquaresGradientPost(const GradientResultsSet& grad_results_set, long dof)
+Eigen::VectorXd getWeightedLeastSquaresGradientPost(const GradientResultsSet& grad_results_set)
 {
+  assert(grad_results_set.dof > 0);
   Eigen::MatrixXd jacobian;
   Eigen::VectorXd error;
   long cnt = 0;
 
   if (grad_results_set.num_equations == 0)
-    return Eigen::VectorXd::Zero(dof);
+    return Eigen::VectorXd::Zero(grad_results_set.dof);
 
-  jacobian.resize(3 * grad_results_set.num_equations, dof);
+  jacobian.resize(3 * grad_results_set.num_equations, grad_results_set.dof);
   error.resize(3 * grad_results_set.num_equations);
   double total_weight{ 0 };
   double total_error{ 0 };
@@ -627,7 +649,7 @@ Eigen::VectorXd getWeightedLeastSquaresGradientPost(const GradientResultsSet& gr
   }
 
   // H=(A^T * W * A)^−1 * A^T * W so that y=Hb
-  Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(dof);
+  Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(grad_results_set.dof);
   Eigen::MatrixXd weights = error.cwiseAbs().normalized().asDiagonal();
   Eigen::MatrixXd jacobian_transpose = jacobian.transpose();
   tesseract_kinematics::solvePInv(
@@ -641,22 +663,24 @@ Eigen::VectorXd getWeightedLeastSquaresGradientPost(const GradientResultsSet& gr
 }
 
 Eigen::VectorXd getWeightedLeastSquaresGradientCent(const GradientResultsSet& grad_results_set_prev,
-                                                    const GradientResultsSet& grad_results_set_post,
-                                                    long dof)
+                                                    const GradientResultsSet& grad_results_set_post)
 {
+  assert(grad_results_set_prev.dof > 0);
+  assert(grad_results_set_post.dof > 0);
   Eigen::MatrixXd jacobian;
   Eigen::VectorXd error;
   long cnt = 0;
 
   if (grad_results_set_prev.cc_num_equations == 0 && grad_results_set_post.num_equations == 0)
-    return Eigen::VectorXd::Zero(dof);
+    return Eigen::VectorXd::Zero(grad_results_set_prev.dof);
 
   double max_error_with_buffer =
       std::max(grad_results_set_prev.max_error_with_buffer, grad_results_set_post.max_error_with_buffer);
   double max_weighted_error_with_buffer = std::max(grad_results_set_prev.max_weighted_error_with_buffer,
                                                    grad_results_set_post.max_weighted_error_with_buffer);
 
-  jacobian.resize(3 * (grad_results_set_prev.cc_num_equations + grad_results_set_post.num_equations), dof);
+  jacobian.resize(3 * (grad_results_set_prev.cc_num_equations + grad_results_set_post.num_equations),
+                  grad_results_set_prev.dof);
   error.resize(3 * (grad_results_set_prev.cc_num_equations + grad_results_set_post.num_equations));
   double total_weight{ 0 };
   double total_error{ 0 };
@@ -699,7 +723,7 @@ Eigen::VectorXd getWeightedLeastSquaresGradientCent(const GradientResultsSet& gr
   }
 
   // H=(A^T * W * A)^−1 * A^T * W so that y=Hb
-  Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(dof);
+  Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(grad_results_set_prev.dof);
   Eigen::MatrixXd weights = error.cwiseAbs().normalized().asDiagonal();
   Eigen::MatrixXd jacobian_transpose = jacobian.transpose();
   tesseract_kinematics::solvePInv(
@@ -714,9 +738,10 @@ Eigen::VectorXd getWeightedLeastSquaresGradientCent(const GradientResultsSet& gr
   //  return (jacobian_transpose * weights * jacobian).householderQr().solve(jacobian_transpose * weights * error);
 }
 
-Eigen::VectorXd getAvgGradientPost(const GradientResultsSet& grad_results_set_post, long dof)
+Eigen::VectorXd getAvgGradientPost(const GradientResultsSet& grad_results_set_post)
 {
-  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  assert(grad_results_set_post.dof > 0);
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(grad_results_set_post.dof);
   if (grad_results_set_post.results.empty())
     return grad_vec;
 
@@ -737,9 +762,10 @@ Eigen::VectorXd getAvgGradientPost(const GradientResultsSet& grad_results_set_po
   return (grad_vec / cnt);
 }
 
-Eigen::VectorXd getAvgGradientPrev(const GradientResultsSet& grad_results_set_prev, long dof)
+Eigen::VectorXd getAvgGradientPrev(const GradientResultsSet& grad_results_set_prev)
 {
-  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  assert(grad_results_set_prev.dof > 0);
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(grad_results_set_prev.dof);
   if (grad_results_set_prev.results.empty())
     return grad_vec;
 
@@ -761,10 +787,11 @@ Eigen::VectorXd getAvgGradientPrev(const GradientResultsSet& grad_results_set_pr
 }
 
 Eigen::VectorXd getAvgGradientCent(const GradientResultsSet& grad_results_set_prev,
-                                   const GradientResultsSet& grad_results_set_post,
-                                   long dof)
+                                   const GradientResultsSet& grad_results_set_post)
 {
-  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  assert(grad_results_set_prev.dof > 0);
+  assert(grad_results_set_post.dof > 0);
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(grad_results_set_prev.dof);
   if (grad_results_set_prev.results.empty() && grad_results_set_post.results.empty())
     return grad_vec;
 
@@ -803,9 +830,10 @@ Eigen::VectorXd getAvgGradientCent(const GradientResultsSet& grad_results_set_pr
   return (grad_vec / cnt);
 }
 
-Eigen::VectorXd getWeightedAvgGradientPost(const GradientResultsSet& grad_results_set_post, long dof)
+Eigen::VectorXd getWeightedAvgGradientPost(const GradientResultsSet& grad_results_set_post)
 {
-  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  assert(grad_results_set_post.dof > 0);
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(grad_results_set_post.dof);
   if (grad_results_set_post.results.empty() || !(grad_results_set_post.max_error_with_buffer > 0))
     return grad_vec;
 
@@ -828,9 +856,10 @@ Eigen::VectorXd getWeightedAvgGradientPost(const GradientResultsSet& grad_result
   return (1.0 / total_weight) * grad_vec;
 }
 
-Eigen::VectorXd getWeightedAvgGradientPrev(const GradientResultsSet& grad_results_set_prev, long dof)
+Eigen::VectorXd getWeightedAvgGradientPrev(const GradientResultsSet& grad_results_set_prev)
 {
-  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  assert(grad_results_set_prev.dof > 0);
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(grad_results_set_prev.dof);
   if (grad_results_set_prev.results.empty() || !(grad_results_set_prev.max_error_with_buffer > 0))
     return grad_vec;
 
@@ -854,10 +883,11 @@ Eigen::VectorXd getWeightedAvgGradientPrev(const GradientResultsSet& grad_result
 }
 
 Eigen::VectorXd getWeightedAvgGradientCent(const GradientResultsSet& grad_results_set_prev,
-                                           const GradientResultsSet& grad_results_set_post,
-                                           long dof)
+                                           const GradientResultsSet& grad_results_set_post)
 {
-  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  assert(grad_results_set_prev.dof > 0);
+  assert(grad_results_set_post.dof > 0);
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(grad_results_set_prev.dof);
   if (grad_results_set_prev.results.empty() && grad_results_set_post.results.empty())
     return grad_vec;
 
@@ -903,9 +933,10 @@ Eigen::VectorXd getWeightedAvgGradientCent(const GradientResultsSet& grad_result
   return (1.0 / total_weight) * grad_vec;
 }
 
-Eigen::VectorXd getSumGradientPost(const GradientResultsSet& grad_results_set_post, long dof)
+Eigen::VectorXd getSumGradientPost(const GradientResultsSet& grad_results_set_post)
 {
-  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  assert(grad_results_set_post.dof > 0);
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(grad_results_set_post.dof);
 
   for (auto& grad : grad_results_set_post.results)
   {
@@ -919,9 +950,10 @@ Eigen::VectorXd getSumGradientPost(const GradientResultsSet& grad_results_set_po
   return grad_vec;
 }
 
-Eigen::VectorXd getSumGradientPrev(const GradientResultsSet& grad_results_set_prev, long dof)
+Eigen::VectorXd getSumGradientPrev(const GradientResultsSet& grad_results_set_prev)
 {
-  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  assert(grad_results_set_prev.dof > 0);
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(grad_results_set_prev.dof);
 
   for (auto& grad : grad_results_set_prev.results)
   {
@@ -936,19 +968,20 @@ Eigen::VectorXd getSumGradientPrev(const GradientResultsSet& grad_results_set_pr
 }
 
 Eigen::VectorXd getSumGradientCent(const GradientResultsSet& grad_results_set_prev,
-                                   const GradientResultsSet& grad_results_set_post,
-                                   long dof)
+                                   const GradientResultsSet& grad_results_set_post)
 {
-  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
-  grad_vec += getSumGradientPrev(grad_results_set_prev, dof);
-  grad_vec += getSumGradientPost(grad_results_set_post, dof);
+  assert(grad_results_set_prev.dof > 0);
+  assert(grad_results_set_post.dof > 0);
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(grad_results_set_prev.dof);
+  grad_vec += getSumGradientPrev(grad_results_set_prev);
+  grad_vec += getSumGradientPost(grad_results_set_post);
 
   return grad_vec;
 }
 
-Eigen::VectorXd getWeightedSumGradientPost(const GradientResultsSet& grad_results_set_post, long dof)
+Eigen::VectorXd getWeightedSumGradientPost(const GradientResultsSet& grad_results_set_post)
 {
-  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(grad_results_set_post.dof);
 
   for (auto& grad : grad_results_set_post.results)
   {
@@ -967,9 +1000,9 @@ Eigen::VectorXd getWeightedSumGradientPost(const GradientResultsSet& grad_result
   return grad_vec;
 }
 
-Eigen::VectorXd getWeightedSumGradientPrev(const GradientResultsSet& grad_results_set_prev, long dof)
+Eigen::VectorXd getWeightedSumGradientPrev(const GradientResultsSet& grad_results_set_prev)
 {
-  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(grad_results_set_prev.dof);
 
   for (auto& grad : grad_results_set_prev.results)
   {
@@ -989,12 +1022,11 @@ Eigen::VectorXd getWeightedSumGradientPrev(const GradientResultsSet& grad_result
 }
 
 Eigen::VectorXd getWeightedSumGradientCent(const GradientResultsSet& grad_results_set_prev,
-                                           const GradientResultsSet& grad_results_set_post,
-                                           long dof)
+                                           const GradientResultsSet& grad_results_set_post)
 {
-  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
-  grad_vec += getWeightedSumGradientPrev(grad_results_set_prev, dof);
-  grad_vec += getWeightedSumGradientPost(grad_results_set_post, dof);
+  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(grad_results_set_prev.dof);
+  grad_vec += getWeightedSumGradientPrev(grad_results_set_prev);
+  grad_vec += getWeightedSumGradientPost(grad_results_set_post);
 
   return grad_vec;
 }

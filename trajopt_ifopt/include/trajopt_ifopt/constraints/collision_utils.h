@@ -91,11 +91,10 @@ Eigen::VectorXd getAverageWeightedValuesCent(const GradientResultsSet& grad_resu
  * @param dof The DOF of the system
  * @return A gradient
  */
-Eigen::VectorXd getLeastSquaresGradientPrev(const GradientResultsSet& grad_results_set, long dof);
-Eigen::VectorXd getLeastSquaresGradientPost(const GradientResultsSet& grad_results_set, long dof);
+Eigen::VectorXd getLeastSquaresGradientPrev(const GradientResultsSet& grad_results_set);
+Eigen::VectorXd getLeastSquaresGradientPost(const GradientResultsSet& grad_results_set);
 Eigen::VectorXd getLeastSquaresGradientCent(const GradientResultsSet& grad_results_set_prev,
-                                            const GradientResultsSet& grad_results_set_post,
-                                            long dof);
+                                            const GradientResultsSet& grad_results_set_post);
 
 /**
  * @brief This takes a vector of gradient results and outputs a single gradient using weighted least squares
@@ -109,11 +108,10 @@ Eigen::VectorXd getLeastSquaresGradientCent(const GradientResultsSet& grad_resul
  * @param num_eq The number equations
  * @return A gradient
  */
-Eigen::VectorXd getWeightedLeastSquaresGradientPrev(const GradientResultsSet& grad_results_set, long dof);
-Eigen::VectorXd getWeightedLeastSquaresGradientPost(const GradientResultsSet& grad_results_set, long dof);
+Eigen::VectorXd getWeightedLeastSquaresGradientPrev(const GradientResultsSet& grad_results_set);
+Eigen::VectorXd getWeightedLeastSquaresGradientPost(const GradientResultsSet& grad_results_set);
 Eigen::VectorXd getWeightedLeastSquaresGradientCent(const GradientResultsSet& grad_results_set_prev,
-                                                    const GradientResultsSet& grad_results_set_post,
-                                                    long dof);
+                                                    const GradientResultsSet& grad_results_set_post);
 
 /**
  * @brief These were from the original trajopt
@@ -122,29 +120,25 @@ Eigen::VectorXd getWeightedLeastSquaresGradientCent(const GradientResultsSet& gr
  * with the gradient results to correctly calculate the gradient for the start or end state. This is already being done
  * internal to these functions.
  */
-Eigen::VectorXd getAvgGradientPrev(const GradientResultsSet& grad_results_set_prev, long dof);
-Eigen::VectorXd getAvgGradientPost(const GradientResultsSet& grad_results_set_post, long dof);
+Eigen::VectorXd getAvgGradientPrev(const GradientResultsSet& grad_results_set_prev);
+Eigen::VectorXd getAvgGradientPost(const GradientResultsSet& grad_results_set_post);
 Eigen::VectorXd getAvgGradientCent(const GradientResultsSet& grad_results_set_prev,
-                                   const GradientResultsSet& grad_results_set_post,
-                                   long dof);
+                                   const GradientResultsSet& grad_results_set_post);
 
-Eigen::VectorXd getWeightedAvgGradientPrev(const GradientResultsSet& grad_results_set_prev, long dof);
-Eigen::VectorXd getWeightedAvgGradientPost(const GradientResultsSet& grad_results_set_post, long dof);
+Eigen::VectorXd getWeightedAvgGradientPrev(const GradientResultsSet& grad_results_set_prev);
+Eigen::VectorXd getWeightedAvgGradientPost(const GradientResultsSet& grad_results_set_post);
 Eigen::VectorXd getWeightedAvgGradientCent(const GradientResultsSet& grad_results_set_prev,
-                                           const GradientResultsSet& grad_results_set_post,
-                                           long dof);
+                                           const GradientResultsSet& grad_results_set_post);
 
-Eigen::VectorXd getSumGradientPrev(const GradientResultsSet& grad_results_set_prev, long dof);
-Eigen::VectorXd getSumGradientPost(const GradientResultsSet& grad_results_set_post, long dof);
+Eigen::VectorXd getSumGradientPrev(const GradientResultsSet& grad_results_set_prev);
+Eigen::VectorXd getSumGradientPost(const GradientResultsSet& grad_results_set_post);
 Eigen::VectorXd getSumGradientCent(const GradientResultsSet& grad_results_set_prev,
-                                   const GradientResultsSet& grad_results_set_post,
-                                   long dof);
+                                   const GradientResultsSet& grad_results_set_post);
 
-Eigen::VectorXd getWeightedSumGradientPrev(const GradientResultsSet& grad_results_set_prev, long dof);
-Eigen::VectorXd getWeightedSumGradientPost(const GradientResultsSet& grad_results_set_post, long dof);
+Eigen::VectorXd getWeightedSumGradientPrev(const GradientResultsSet& grad_results_set_prev);
+Eigen::VectorXd getWeightedSumGradientPost(const GradientResultsSet& grad_results_set_post);
 Eigen::VectorXd getWeightedSumGradientCent(const GradientResultsSet& grad_results_set_prev,
-                                           const GradientResultsSet& grad_results_set_post,
-                                           long dof);
+                                           const GradientResultsSet& grad_results_set_post);
 
 /**
  * @brief Extracts the gradient information based on the contact results

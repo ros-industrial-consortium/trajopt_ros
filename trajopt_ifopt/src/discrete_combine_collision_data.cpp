@@ -29,7 +29,7 @@
 
 namespace trajopt
 {
-DiscreteCombineCollisionData::DiscreteCombineCollisionData(CombineCollisionDataMethod method, long dof)
+DiscreteCombineCollisionData::DiscreteCombineCollisionData(CombineCollisionDataMethod method)
 {
   switch (method)
   {
@@ -39,13 +39,13 @@ DiscreteCombineCollisionData::DiscreteCombineCollisionData(CombineCollisionDataM
         return getSumValuesPost(collision_data.gradient_results_set);
       };
 
-      combine_jacobian = [dof](ifopt::Component::Jacobian& jac_block, const CollisionCacheData& collision_data) {
+      combine_jacobian = [](ifopt::Component::Jacobian& jac_block, const CollisionCacheData& collision_data) {
         // Reserve enough room in the sparse matrix
-        jac_block.reserve(dof);
-        Eigen::VectorXd grad_vec = getSumGradientPost(collision_data.gradient_results_set, dof);
+        jac_block.reserve(collision_data.gradient_results_set.dof);
+        Eigen::VectorXd grad_vec = getSumGradientPost(collision_data.gradient_results_set);
 
         // Collision is 1 x n_dof
-        for (int j = 0; j < dof; j++)
+        for (int j = 0; j < collision_data.gradient_results_set.dof; j++)
           jac_block.coeffRef(0, j) = -1.0 * grad_vec[j];
       };
 
@@ -57,13 +57,13 @@ DiscreteCombineCollisionData::DiscreteCombineCollisionData(CombineCollisionDataM
         return getSumWeightedValuesPost(collision_data.gradient_results_set);
       };
 
-      combine_jacobian = [dof](ifopt::Component::Jacobian& jac_block, const CollisionCacheData& collision_data) {
+      combine_jacobian = [](ifopt::Component::Jacobian& jac_block, const CollisionCacheData& collision_data) {
         // Reserve enough room in the sparse matrix
-        jac_block.reserve(dof);
-        Eigen::VectorXd grad_vec = getWeightedSumGradientPost(collision_data.gradient_results_set, dof);
+        jac_block.reserve(collision_data.gradient_results_set.dof);
+        Eigen::VectorXd grad_vec = getWeightedSumGradientPost(collision_data.gradient_results_set);
 
         // Collision is 1 x n_dof
-        for (int j = 0; j < dof; j++)
+        for (int j = 0; j < collision_data.gradient_results_set.dof; j++)
           jac_block.coeffRef(0, j) = -1.0 * grad_vec[j];
       };
 
@@ -75,13 +75,13 @@ DiscreteCombineCollisionData::DiscreteCombineCollisionData(CombineCollisionDataM
         return getAverageValuesPost(collision_data.gradient_results_set);
       };
 
-      combine_jacobian = [dof](ifopt::Component::Jacobian& jac_block, const CollisionCacheData& collision_data) {
+      combine_jacobian = [](ifopt::Component::Jacobian& jac_block, const CollisionCacheData& collision_data) {
         // Reserve enough room in the sparse matrix
-        jac_block.reserve(dof);
-        Eigen::VectorXd grad_vec = getAvgGradientPost(collision_data.gradient_results_set, dof);
+        jac_block.reserve(collision_data.gradient_results_set.dof);
+        Eigen::VectorXd grad_vec = getAvgGradientPost(collision_data.gradient_results_set);
 
         // Collision is 1 x n_dof
-        for (int j = 0; j < dof; j++)
+        for (int j = 0; j < collision_data.gradient_results_set.dof; j++)
           jac_block.coeffRef(0, j) = -1.0 * grad_vec[j];
       };
 
@@ -93,13 +93,13 @@ DiscreteCombineCollisionData::DiscreteCombineCollisionData(CombineCollisionDataM
         return getAverageWeightedValuesPost(collision_data.gradient_results_set);
       };
 
-      combine_jacobian = [dof](ifopt::Component::Jacobian& jac_block, const CollisionCacheData& collision_data) {
+      combine_jacobian = [](ifopt::Component::Jacobian& jac_block, const CollisionCacheData& collision_data) {
         // Reserve enough room in the sparse matrix
-        jac_block.reserve(dof);
-        Eigen::VectorXd grad_vec = getWeightedAvgGradientPost(collision_data.gradient_results_set, dof);
+        jac_block.reserve(collision_data.gradient_results_set.dof);
+        Eigen::VectorXd grad_vec = getWeightedAvgGradientPost(collision_data.gradient_results_set);
 
         // Collision is 1 x n_dof
-        for (int j = 0; j < dof; j++)
+        for (int j = 0; j < collision_data.gradient_results_set.dof; j++)
           jac_block.coeffRef(0, j) = -1.0 * grad_vec[j];
       };
       break;
@@ -110,13 +110,13 @@ DiscreteCombineCollisionData::DiscreteCombineCollisionData(CombineCollisionDataM
         return getAverageValuesPost(collision_data.gradient_results_set);
       };
 
-      combine_jacobian = [dof](ifopt::Component::Jacobian& jac_block, const CollisionCacheData& collision_data) {
+      combine_jacobian = [](ifopt::Component::Jacobian& jac_block, const CollisionCacheData& collision_data) {
         // Reserve enough room in the sparse matrix
-        jac_block.reserve(dof);
-        Eigen::VectorXd grad_vec = getLeastSquaresGradientPost(collision_data.gradient_results_set, dof);
+        jac_block.reserve(collision_data.gradient_results_set.dof);
+        Eigen::VectorXd grad_vec = getLeastSquaresGradientPost(collision_data.gradient_results_set);
 
         // Collision is 1 x n_dof
-        for (int j = 0; j < dof; j++)
+        for (int j = 0; j < collision_data.gradient_results_set.dof; j++)
           jac_block.coeffRef(0, j) = -1.0 * grad_vec[j];
       };
       break;
@@ -127,13 +127,13 @@ DiscreteCombineCollisionData::DiscreteCombineCollisionData(CombineCollisionDataM
         return getAverageWeightedValuesPost(collision_data.gradient_results_set);
       };
 
-      combine_jacobian = [dof](ifopt::Component::Jacobian& jac_block, const CollisionCacheData& collision_data) {
+      combine_jacobian = [](ifopt::Component::Jacobian& jac_block, const CollisionCacheData& collision_data) {
         // Reserve enough room in the sparse matrix
-        jac_block.reserve(dof);
-        Eigen::VectorXd grad_vec = getWeightedLeastSquaresGradientPost(collision_data.gradient_results_set, dof);
+        jac_block.reserve(collision_data.gradient_results_set.dof);
+        Eigen::VectorXd grad_vec = getWeightedLeastSquaresGradientPost(collision_data.gradient_results_set);
 
         // Collision is 1 x n_dof
-        for (int j = 0; j < dof; j++)
+        for (int j = 0; j < collision_data.gradient_results_set.dof; j++)
           jac_block.coeffRef(0, j) = -1.0 * grad_vec[j];
       };
       break;

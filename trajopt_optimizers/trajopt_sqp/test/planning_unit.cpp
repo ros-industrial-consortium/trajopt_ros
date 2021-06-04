@@ -158,7 +158,7 @@ TEST_F(PlanningTest, arm_around_table)  // NOLINT
     std::array<JointPosition::ConstPtr, 3> position_vars{ vars[i - 1], vars[i], vars[i + 1] };
     auto cnt = std::make_shared<trajopt::ContinuousCollisionConstraintIfopt>(
         collision_evaluator,
-        trajopt::ContinuousCombineCollisionData(CombineCollisionDataMethod::WEIGHTED_AVERAGE, 7),
+        trajopt::ContinuousCombineCollisionData(CombineCollisionDataMethod::WEIGHTED_AVERAGE),
         position_vars);
     nlp.AddConstraintSet(cnt);
   }

@@ -147,7 +147,7 @@ void runDiscreteGradientTest(const Environment::Ptr& env, double coeff, CombineC
           kin, env, adj_map, Eigen::Isometry3d::Identity(), trajopt_collision_config);
 
   auto cnt = std::make_shared<trajopt::DiscreteCollisionConstraintIfopt>(
-      collision_evaluator, DiscreteCombineCollisionData(method, 2), vars[0]);
+      collision_evaluator, DiscreteCombineCollisionData(method), vars[0]);
   nlp.AddConstraintSet(cnt);
 
   std::cout << "Jacobian: \n" << nlp.GetJacobianOfConstraints().toDense() << std::endl;

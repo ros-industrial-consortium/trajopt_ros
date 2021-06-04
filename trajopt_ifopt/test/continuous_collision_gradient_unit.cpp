@@ -158,7 +158,7 @@ void runContinuousGradientTest(const Environment::Ptr& env, double coeff, Combin
 
     std::array<JointPosition::ConstPtr, 3> position_vars{ vars[i - 1], vars[i], vars[i + 1] };
     auto cnt = std::make_shared<trajopt::ContinuousCollisionConstraintIfopt>(
-        collision_evaluator, trajopt::ContinuousCombineCollisionData(method, 2), position_vars);
+        collision_evaluator, trajopt::ContinuousCombineCollisionData(method), position_vars);
     nlp.AddConstraintSet(cnt);
   }
 

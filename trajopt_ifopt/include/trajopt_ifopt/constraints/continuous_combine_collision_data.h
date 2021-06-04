@@ -51,7 +51,7 @@ struct ContinuousCombineCollisionData
   CombineJacobianPostFn combine_jacobian_post;
 
   ContinuousCombineCollisionData() = default;
-  ContinuousCombineCollisionData(CombineCollisionDataMethod method, long dof);
+  ContinuousCombineCollisionData(CombineCollisionDataMethod method);
 };
 }  // namespace trajopt
 

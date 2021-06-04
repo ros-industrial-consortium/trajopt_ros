@@ -84,6 +84,7 @@ LVSContinuousCollisionEvaluator::CalcCollisionData(const Eigen::Ref<const Eigen:
   CalcCollisionsHelper(dof_vals0, dof_vals1, data->contact_results_map);
   tesseract_collision::flattenCopyResults(data->contact_results_map, data->contact_results_vector);
   data->gradient_results_set.results.reserve(data->contact_results_vector.size());
+  data->gradient_results_set.dof = static_cast<int>(dof_vals0.size());
   for (tesseract_collision::ContactResult& dist_result : data->contact_results_vector)
   {
     GradientResults result = CalcGradientData(dof_vals0, dof_vals1, dist_result);
@@ -241,6 +242,7 @@ LVSDiscreteCollisionEvaluator::CalcCollisionData(const Eigen::Ref<const Eigen::V
   CalcCollisionsHelper(dof_vals0, dof_vals1, data->contact_results_map);
   tesseract_collision::flattenCopyResults(data->contact_results_map, data->contact_results_vector);
   data->gradient_results_set.results.reserve(data->contact_results_vector.size());
+  data->gradient_results_set.dof = static_cast<int>(dof_vals0.size());
   for (tesseract_collision::ContactResult& dist_result : data->contact_results_vector)
   {
     GradientResults result = CalcGradientData(dof_vals0, dof_vals1, dist_result);

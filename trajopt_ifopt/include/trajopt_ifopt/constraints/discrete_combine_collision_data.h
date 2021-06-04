@@ -47,7 +47,7 @@ struct DiscreteCombineCollisionData
   CombineJacobianPostFn combine_jacobian;
 
   DiscreteCombineCollisionData() = default;
-  DiscreteCombineCollisionData(CombineCollisionDataMethod method, long dof);
+  DiscreteCombineCollisionData(CombineCollisionDataMethod method);
 };
 }  // namespace trajopt
 #endif  // TRAJOPT_IFOPT_DISCRETE_COMBINE_COLLISION_DATA_H
