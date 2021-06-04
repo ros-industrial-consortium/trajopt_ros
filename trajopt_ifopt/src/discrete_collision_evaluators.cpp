@@ -84,6 +84,7 @@ SingleTimestepCollisionEvaluator::CalcCollisions(const Eigen::Ref<const Eigen::V
   tesseract_collision::flattenCopyResults(data->contact_results_map, data->contact_results_vector);
   data->gradient_results_set.results.reserve(data->contact_results_vector.size());
   data->gradient_results_set.dof = static_cast<int>(dof_vals.size());
+  data->gradient_results_set.collision_margin_buffer = collision_config_->collision_margin_buffer;
   for (tesseract_collision::ContactResult& dist_result : data->contact_results_vector)
   {
     GradientResults result = GetGradient(dof_vals, dist_result);

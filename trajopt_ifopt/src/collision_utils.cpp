@@ -137,8 +137,12 @@ Eigen::VectorXd getSumValuesPrev(const GradientResultsSet& grad_results_set_prev
 {
   assert(grad_results_set_prev.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
-  if (grad_results_set_prev.results.empty() || !(grad_results_set_prev.max_error > 0))
-    return err;
+
+  if (grad_results_set_prev.results.empty())
+    return Eigen::VectorXd::Constant(1, -grad_results_set_prev.collision_margin_buffer);
+
+  if (!(grad_results_set_prev.max_error > 0))
+    return Eigen::VectorXd::Constant(1, grad_results_set_prev.max_error);
 
   for (const GradientResults& grad_result : grad_results_set_prev.results)
     err[0] += std::max<double>(grad_result.error * grad_result.data[2], 0.);
@@ -150,8 +154,12 @@ Eigen::VectorXd getSumValuesPost(const GradientResultsSet& grad_results_set_post
 {
   assert(grad_results_set_post.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
-  if (grad_results_set_post.results.empty() || !(grad_results_set_post.max_error > 0))
-    return err;
+
+  if (grad_results_set_post.results.empty())
+    return Eigen::VectorXd::Constant(1, -grad_results_set_post.collision_margin_buffer);
+
+  if (!(grad_results_set_post.max_error > 0))
+    return Eigen::VectorXd::Constant(1, grad_results_set_post.max_error);
 
   for (const GradientResults& grad_result : grad_results_set_post.results)
     err[0] += std::max<double>(grad_result.error * grad_result.data[2], 0.);
@@ -166,10 +174,18 @@ Eigen::VectorXd getSumValuesCent(const GradientResultsSet& grad_results_set_prev
   assert(grad_results_set_post.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
   if (grad_results_set_prev.results.empty() && grad_results_set_post.results.empty())
-    return err;
+    return Eigen::VectorXd::Constant(
+        1, -std::min(grad_results_set_prev.collision_margin_buffer, grad_results_set_post.collision_margin_buffer));
 
   if (!(grad_results_set_prev.max_error > 0) && !(grad_results_set_post.max_error > 0))
-    return err;
+  {
+    if (!grad_results_set_prev.results.empty() && !grad_results_set_post.results.empty())
+      return Eigen::VectorXd::Constant(1, std::max(grad_results_set_prev.max_error, grad_results_set_post.max_error));
+    else if (!grad_results_set_prev.results.empty())
+      return Eigen::VectorXd::Constant(1, grad_results_set_prev.max_error);
+    else
+      return Eigen::VectorXd::Constant(1, grad_results_set_post.max_error);
+  }
 
   for (const GradientResults& grad_result : grad_results_set_prev.results)
     err[0] += std::max<double>(grad_result.error * grad_result.data[2], 0.);
@@ -184,8 +200,12 @@ Eigen::VectorXd getSumWeightedValuesPrev(const GradientResultsSet& grad_results_
 {
   assert(grad_results_set_prev.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
-  if (grad_results_set_prev.results.empty() || !(grad_results_set_prev.max_error > 0))
-    return err;
+
+  if (grad_results_set_prev.results.empty())
+    return Eigen::VectorXd::Constant(1, -grad_results_set_prev.collision_margin_buffer);
+
+  if (!(grad_results_set_prev.max_error > 0))
+    return Eigen::VectorXd::Constant(1, grad_results_set_prev.max_error);
 
   for (const GradientResults& grad_result : grad_results_set_prev.results)
   {
@@ -206,8 +226,12 @@ Eigen::VectorXd getSumWeightedValuesPost(const GradientResultsSet& grad_results_
 {
   assert(grad_results_set_post.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
-  if (grad_results_set_post.results.empty() || !(grad_results_set_post.max_error > 0))
-    return err;
+
+  if (grad_results_set_post.results.empty())
+    return Eigen::VectorXd::Constant(1, -grad_results_set_post.collision_margin_buffer);
+
+  if (!(grad_results_set_post.max_error > 0))
+    return Eigen::VectorXd::Constant(1, grad_results_set_post.max_error);
 
   for (const GradientResults& grad_result : grad_results_set_post.results)
   {
@@ -230,11 +254,20 @@ Eigen::VectorXd getSumWeightedValuesCent(const GradientResultsSet& grad_results_
   assert(grad_results_set_prev.dof > 0);
   assert(grad_results_set_post.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
+
   if (grad_results_set_prev.results.empty() && grad_results_set_post.results.empty())
-    return err;
+    return Eigen::VectorXd::Constant(
+        1, -std::min(grad_results_set_prev.collision_margin_buffer, grad_results_set_post.collision_margin_buffer));
 
   if (!(grad_results_set_prev.max_error > 0) && !(grad_results_set_post.max_error > 0))
-    return err;
+  {
+    if (!grad_results_set_prev.results.empty() && !grad_results_set_post.results.empty())
+      return Eigen::VectorXd::Constant(1, std::max(grad_results_set_prev.max_error, grad_results_set_post.max_error));
+    else if (!grad_results_set_prev.results.empty())
+      return Eigen::VectorXd::Constant(1, grad_results_set_prev.max_error);
+    else
+      return Eigen::VectorXd::Constant(1, grad_results_set_post.max_error);
+  }
 
   double max_error_with_buffer =
       std::max(grad_results_set_prev.max_error_with_buffer, grad_results_set_post.max_error_with_buffer);
@@ -270,8 +303,12 @@ Eigen::VectorXd getAverageValuesPrev(const GradientResultsSet& grad_results_set_
 {
   assert(grad_results_set_prev.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
-  if (grad_results_set_prev.results.empty() || !(grad_results_set_prev.max_error > 0))
-    return err;
+
+  if (grad_results_set_prev.results.empty())
+    return Eigen::VectorXd::Constant(1, -grad_results_set_prev.collision_margin_buffer);
+
+  if (!(grad_results_set_prev.max_error > 0))
+    return Eigen::VectorXd::Constant(1, grad_results_set_prev.max_error);
 
   long cnt{ 0 };
   for (const GradientResults& grad_result : grad_results_set_prev.results)
@@ -293,8 +330,12 @@ Eigen::VectorXd getAverageValuesPost(const GradientResultsSet& grad_results_set_
 {
   assert(grad_results_set_post.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
-  if (grad_results_set_post.results.empty() || !(grad_results_set_post.max_error > 0))
-    return err;
+
+  if (grad_results_set_post.results.empty())
+    return Eigen::VectorXd::Constant(1, -grad_results_set_post.collision_margin_buffer);
+
+  if (!(grad_results_set_post.max_error > 0))
+    return Eigen::VectorXd::Constant(1, grad_results_set_post.max_error);
 
   long cnt{ 0 };
   for (const GradientResults& grad_result : grad_results_set_post.results)
@@ -317,11 +358,20 @@ Eigen::VectorXd getAverageValuesCent(const GradientResultsSet& grad_results_set_
   assert(grad_results_set_prev.dof > 0);
   assert(grad_results_set_post.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
+
   if (grad_results_set_prev.results.empty() && grad_results_set_post.results.empty())
-    return err;
+    return Eigen::VectorXd::Constant(
+        1, -std::min(grad_results_set_prev.collision_margin_buffer, grad_results_set_post.collision_margin_buffer));
 
   if (!(grad_results_set_prev.max_error > 0) && !(grad_results_set_post.max_error > 0))
-    return err;
+  {
+    if (!grad_results_set_prev.results.empty() && !grad_results_set_post.results.empty())
+      return Eigen::VectorXd::Constant(1, std::max(grad_results_set_prev.max_error, grad_results_set_post.max_error));
+    else if (!grad_results_set_prev.results.empty())
+      return Eigen::VectorXd::Constant(1, grad_results_set_prev.max_error);
+    else
+      return Eigen::VectorXd::Constant(1, grad_results_set_post.max_error);
+  }
 
   long cnt{ 0 };
   for (const GradientResults& grad_result : grad_results_set_prev.results)
@@ -353,8 +403,12 @@ Eigen::VectorXd getAverageWeightedValuesPrev(const GradientResultsSet& grad_resu
 {
   assert(grad_results_set_prev.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
-  if (grad_results_set_prev.results.empty() || !(grad_results_set_prev.max_error > 0))
-    return err;
+
+  if (grad_results_set_prev.results.empty())
+    return Eigen::VectorXd::Constant(1, -grad_results_set_prev.collision_margin_buffer);
+
+  if (!(grad_results_set_prev.max_error > 0))
+    return Eigen::VectorXd::Constant(1, grad_results_set_prev.max_error);
 
   double total_weight{ 0 };
   for (const GradientResults& grad_result : grad_results_set_prev.results)
@@ -376,8 +430,12 @@ Eigen::VectorXd getAverageWeightedValuesPost(const GradientResultsSet& grad_resu
 {
   assert(grad_results_set_post.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
-  if (grad_results_set_post.results.empty() || !(grad_results_set_post.max_error > 0))
-    return err;
+
+  if (grad_results_set_post.results.empty())
+    return Eigen::VectorXd::Constant(1, -grad_results_set_post.collision_margin_buffer);
+
+  if (!(grad_results_set_post.max_error > 0))
+    return Eigen::VectorXd::Constant(1, grad_results_set_post.max_error);
 
   double total_weight{ 0 };
   for (const GradientResults& grad_result : grad_results_set_post.results)
@@ -401,11 +459,20 @@ Eigen::VectorXd getAverageWeightedValuesCent(const GradientResultsSet& grad_resu
   assert(grad_results_set_prev.dof > 0);
   assert(grad_results_set_post.dof > 0);
   Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
+
   if (grad_results_set_prev.results.empty() && grad_results_set_post.results.empty())
-    return err;
+    return Eigen::VectorXd::Constant(
+        1, -std::min(grad_results_set_prev.collision_margin_buffer, grad_results_set_post.collision_margin_buffer));
 
   if (!(grad_results_set_prev.max_error > 0) && !(grad_results_set_post.max_error > 0))
-    return err;
+  {
+    if (!grad_results_set_prev.results.empty() && !grad_results_set_post.results.empty())
+      return Eigen::VectorXd::Constant(1, std::max(grad_results_set_prev.max_error, grad_results_set_post.max_error));
+    else if (!grad_results_set_prev.results.empty())
+      return Eigen::VectorXd::Constant(1, grad_results_set_prev.max_error);
+    else
+      return Eigen::VectorXd::Constant(1, grad_results_set_post.max_error);
+  }
 
   double max_weighted_error_with_buffer = std::max(grad_results_set_prev.max_weighted_error_with_buffer,
                                                    grad_results_set_post.max_weighted_error_with_buffer);

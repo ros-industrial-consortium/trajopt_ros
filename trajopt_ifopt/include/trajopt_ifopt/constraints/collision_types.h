@@ -182,6 +182,9 @@ struct GradientResultsSet
   /** @brief The number of dof */
   int dof{ -1 };
 
+  /** @brief The collision margin buffer used when calculating the results */
+  double collision_margin_buffer{ 0 };
+
   /**
    * @brief Indicate if this set is from a continuous contact checker
    * @details If false, the data is from a discrete contact checker
