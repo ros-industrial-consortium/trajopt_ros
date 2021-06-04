@@ -51,7 +51,14 @@ public:
 
   /**
    * @brief Returns the values associated with the constraint.
-   * @return
+   * @warning Make sure that the values returns are not just the violation but the constraint values.
+   * Remember the values are the constant in the quadratic function, so if you only return the
+   * violation then if it is not violating the constraint this would be zero which means it
+   * will always appear to be on the constraint boundary which will cause issue when solving.
+   * If it is not voliating the constraint then return the max negative number.
+   * If no contacts are found return the negative of the collision margin buffer. This is why
+   * it is important to not set the collision margin buffer to zero.
+   * @return The constraint values not the violations
    */
   Eigen::VectorXd GetValues() const override;
 

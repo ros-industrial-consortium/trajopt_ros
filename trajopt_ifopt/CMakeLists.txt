@@ -40,6 +40,7 @@ set(TRAJOPT_IFOPT_SOURCE_FILES
     src/discrete_collision_evaluators.cpp
     src/continuous_collision_constraint.cpp
     src/continuous_collision_evaluators.cpp
+    src/continuous_combine_collision_data.cpp
     src/inverse_kinematics_constraint.cpp
     src/joint_position_constraint.cpp
     src/joint_velocity_constraint.cpp

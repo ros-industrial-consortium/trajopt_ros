@@ -133,6 +133,290 @@ void removeInvalidContactResults(tesseract_collision::ContactResultVector& conta
   contact_results.erase(end, contact_results.end());
 }
 
+Eigen::VectorXd getSumValuesPrev(const GradientResultsSet& grad_results_set_prev)
+{
+  Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
+  if (grad_results_set_prev.results.empty() || !(grad_results_set_prev.max_error > 0))
+    return err;
+
+  for (const GradientResults& grad_result : grad_results_set_prev.results)
+    err[0] += std::max<double>(grad_result.error * grad_result.data[2], 0.);
+
+  return err;
+}
+
+Eigen::VectorXd getSumValuesPost(const GradientResultsSet& grad_results_set_post)
+{
+  Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
+  if (grad_results_set_post.results.empty() || !(grad_results_set_post.max_error > 0))
+    return err;
+
+  for (const GradientResults& grad_result : grad_results_set_post.results)
+    err[0] += std::max<double>(grad_result.error * grad_result.data[2], 0.);
+
+  return err;
+}
+
+Eigen::VectorXd getSumValuesCent(const GradientResultsSet& grad_results_set_prev,
+                                 const GradientResultsSet& grad_results_set_post)
+{
+  Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
+  if (grad_results_set_prev.results.empty() && grad_results_set_post.results.empty())
+    return err;
+
+  if (!(grad_results_set_prev.max_error > 0) && !(grad_results_set_post.max_error > 0))
+    return err;
+
+  for (const GradientResults& grad_result : grad_results_set_prev.results)
+    err[0] += std::max<double>(grad_result.error * grad_result.data[2], 0.);
+
+  for (const GradientResults& grad_result : grad_results_set_post.results)
+    err[0] += std::max<double>(grad_result.error * grad_result.data[2], 0.);
+
+  return err;
+}
+
+Eigen::VectorXd getSumWeightedValuesPrev(const GradientResultsSet& grad_results_set_prev)
+{
+  Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
+  if (grad_results_set_prev.results.empty() || !(grad_results_set_prev.max_error > 0))
+    return err;
+
+  for (const GradientResults& grad_result : grad_results_set_prev.results)
+  {
+    double e = grad_result.error * grad_result.data[2];
+    if (e > 0)
+    {
+      assert(grad_results_set_prev.max_error_with_buffer > 0);
+      double eb = std::max<double>(grad_result.error_with_buffer * grad_result.data[2], 0.);
+      double we = eb / grad_results_set_prev.max_error_with_buffer;
+      err[0] += we * std::max<double>(e, 0.);
+    }
+  }
+
+  return err;
+}
+
+Eigen::VectorXd getSumWeightedValuesPost(const GradientResultsSet& grad_results_set_post)
+{
+  Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
+  if (grad_results_set_post.results.empty() || !(grad_results_set_post.max_error > 0))
+    return err;
+
+  for (const GradientResults& grad_result : grad_results_set_post.results)
+  {
+    double e = grad_result.error * grad_result.data[2];
+    if (e > 0)
+    {
+      assert(grad_results_set_post.max_error_with_buffer > 0);
+      double eb = std::max<double>(grad_result.error_with_buffer * grad_result.data[2], 0.);
+      double we = eb / grad_results_set_post.max_error_with_buffer;
+      err[0] += we * std::max<double>(e, 0.);
+    }
+  }
+
+  return err;
+}
+
+Eigen::VectorXd getSumWeightedValuesCent(const GradientResultsSet& grad_results_set_prev,
+                                         const GradientResultsSet& grad_results_set_post)
+{
+  Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
+  if (grad_results_set_prev.results.empty() && grad_results_set_post.results.empty())
+    return err;
+
+  if (!(grad_results_set_prev.max_error > 0) && !(grad_results_set_post.max_error > 0))
+    return err;
+
+  double max_error_with_buffer =
+      std::max(grad_results_set_prev.max_error_with_buffer, grad_results_set_post.max_error_with_buffer);
+
+  for (const GradientResults& grad_result : grad_results_set_prev.results)
+  {
+    double e = grad_result.error * grad_result.data[2];
+    if (e > 0)
+    {
+      assert(max_error_with_buffer > 0);
+      double eb = std::max<double>(grad_result.error_with_buffer * grad_result.data[2], 0.);
+      double we = eb / max_error_with_buffer;
+      err[0] += we * std::max<double>(e, 0.);
+    }
+  }
+
+  for (const GradientResults& grad_result : grad_results_set_post.results)
+  {
+    double e = grad_result.error * grad_result.data[2];
+    if (e > 0)
+    {
+      assert(max_error_with_buffer > 0);
+      double eb = std::max<double>(grad_result.error_with_buffer * grad_result.data[2], 0.);
+      double we = eb / max_error_with_buffer;
+      err[0] += we * std::max<double>(e, 0.);
+    }
+  }
+
+  return err;
+}
+
+Eigen::VectorXd getAverageValuesPrev(const GradientResultsSet& grad_results_set_prev)
+{
+  Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
+  if (grad_results_set_prev.results.empty() || !(grad_results_set_prev.max_error > 0))
+    return err;
+
+  long cnt{ 0 };
+  for (const GradientResults& grad_result : grad_results_set_prev.results)
+  {
+    double e = grad_result.error * grad_result.data[2];
+    if (e > 0)
+    {
+      err[0] += std::max<double>(e, 0.);
+      ++cnt;
+    }
+  }
+
+  (cnt == 0) ? err[0] = 0 : err[0] = err[0] / double(cnt);
+
+  return err;
+}
+
+Eigen::VectorXd getAverageValuesPost(const GradientResultsSet& grad_results_set_post)
+{
+  Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
+  if (grad_results_set_post.results.empty() || !(grad_results_set_post.max_error > 0))
+    return err;
+
+  long cnt{ 0 };
+  for (const GradientResults& grad_result : grad_results_set_post.results)
+  {
+    double e = grad_result.error * grad_result.data[2];
+    if (e > 0)
+    {
+      err[0] += std::max<double>(e, 0.);
+      ++cnt;
+    }
+  }
+
+  (cnt == 0) ? err[0] = 0 : err[0] = err[0] / double(cnt);
+
+  return err;
+}
+Eigen::VectorXd getAverageValuesCent(const GradientResultsSet& grad_results_set_prev,
+                                     const GradientResultsSet& grad_results_set_post)
+{
+  Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
+  if (grad_results_set_prev.results.empty() && grad_results_set_post.results.empty())
+    return err;
+
+  if (!(grad_results_set_prev.max_error > 0) && !(grad_results_set_post.max_error > 0))
+    return err;
+
+  long cnt{ 0 };
+  for (const GradientResults& grad_result : grad_results_set_prev.results)
+  {
+    double e = grad_result.error * grad_result.data[2];
+    if (e > 0)
+    {
+      err[0] += std::max<double>(e, 0.);
+      ++cnt;
+    }
+  }
+
+  for (const GradientResults& grad_result : grad_results_set_post.results)
+  {
+    double e = grad_result.error * grad_result.data[2];
+    if (e > 0)
+    {
+      err[0] += std::max<double>(e, 0.);
+      ++cnt;
+    }
+  }
+
+  (cnt == 0) ? err[0] = 0 : err[0] = err[0] / double(cnt);
+
+  return err;
+}
+
+Eigen::VectorXd getAverageWeightedValuesPrev(const GradientResultsSet& grad_results_set_prev)
+{
+  Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
+  if (grad_results_set_prev.results.empty() || !(grad_results_set_prev.max_error > 0))
+    return err;
+
+  double total_weight{ 0 };
+  for (const GradientResults& grad_result : grad_results_set_prev.results)
+  {
+    double d = std::max<double>(grad_result.error, 0.) * grad_result.data[2];
+    double w = (std::max(grad_result.error_with_buffer * grad_result.data[2], 0.) /
+                grad_results_set_prev.max_weighted_error_with_buffer);
+    total_weight += w;
+    err[0] += (w * d);
+  }
+
+  assert(total_weight > 0);
+  (total_weight > 0) ? err[0] = err[0] / total_weight : err[0] = 0;
+
+  return err;
+}
+
+Eigen::VectorXd getAverageWeightedValuesPost(const GradientResultsSet& grad_results_set_post)
+{
+  Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
+  if (grad_results_set_post.results.empty() || !(grad_results_set_post.max_error > 0))
+    return err;
+
+  double total_weight{ 0 };
+  for (const GradientResults& grad_result : grad_results_set_post.results)
+  {
+    double d = std::max<double>(grad_result.error, 0.) * grad_result.data[2];
+    double w = (std::max(grad_result.error_with_buffer * grad_result.data[2], 0.) /
+                grad_results_set_post.max_weighted_error_with_buffer);
+    total_weight += w;
+    err[0] += (w * d);
+  }
+
+  assert(total_weight > 0);
+  (total_weight > 0) ? err[0] = err[0] / total_weight : err[0] = 0;
+
+  return err;
+}
+
+Eigen::VectorXd getAverageWeightedValuesCent(const GradientResultsSet& grad_results_set_prev,
+                                             const GradientResultsSet& grad_results_set_post)
+{
+  Eigen::VectorXd err = Eigen::VectorXd::Zero(1);
+  if (grad_results_set_prev.results.empty() && grad_results_set_post.results.empty())
+    return err;
+
+  if (!(grad_results_set_prev.max_error > 0) && !(grad_results_set_post.max_error > 0))
+    return err;
+
+  double max_weighted_error_with_buffer = std::max(grad_results_set_prev.max_weighted_error_with_buffer,
+                                                   grad_results_set_post.max_weighted_error_with_buffer);
+  double total_weight{ 0 };
+
+  for (const GradientResults& grad_result : grad_results_set_prev.results)
+  {
+    double d = std::max<double>(grad_result.error, 0.) * grad_result.data[2];
+    double w = (std::max(grad_result.error_with_buffer * grad_result.data[2], 0.) / max_weighted_error_with_buffer);
+    total_weight += w;
+    err[0] += (w * d);
+  }
+
+  for (const GradientResults& grad_result : grad_results_set_post.results)
+  {
+    double d = std::max<double>(grad_result.error, 0.) * grad_result.data[2];
+    double w = (std::max(grad_result.error_with_buffer * grad_result.data[2], 0.) / max_weighted_error_with_buffer);
+    total_weight += w;
+    err[0] += (w * d);
+  }
+
+  assert(total_weight > 0);
+  (total_weight > 0) ? err[0] = err[0] / total_weight : err[0] = 0;
+
+  return err;
+}
+
 Eigen::VectorXd getLeastSquaresGradientPrev(const GradientResultsSet& grad_results_set, long dof)
 {
   Eigen::MatrixXd jacobian;
@@ -144,12 +428,14 @@ Eigen::VectorXd getLeastSquaresGradientPrev(const GradientResultsSet& grad_resul
 
   jacobian.resize(3 * grad_results_set.cc_num_equations, dof);
   error.resize(3 * grad_results_set.cc_num_equations);
+  double total_error{ 0 };
   for (const auto& grad : grad_results_set.results)
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
       if (grad.cc_gradients[i].has_gradient)
       {
+        total_error += std::max(grad.error_with_buffer * grad.data[2], 0.);
         long start_idx = cnt * 3;
         error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.cc_gradients[i].translation_vector;
         jacobian.middleRows(start_idx, 3) = grad.cc_gradients[i].scale * grad.cc_gradients[i].jacobian;
@@ -162,7 +448,9 @@ Eigen::VectorXd getLeastSquaresGradientPrev(const GradientResultsSet& grad_resul
   Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(dof);
   tesseract_kinematics::solvePInv(jacobian, error, delta_jv);
 
-  return (grad_results_set.max_weighted_error_with_buffer / delta_jv.array());
+  //  return (grad_results_set.max_weighted_error_with_buffer / delta_jv.array());
+  assert(cnt != 0);
+  return ((total_error / double(cnt)) / delta_jv.array());
   //  return jacobian.transpose() * error;
 }
 
@@ -177,12 +465,14 @@ Eigen::VectorXd getLeastSquaresGradientPost(const GradientResultsSet& grad_resul
 
   jacobian.resize(3 * grad_results_set.num_equations, dof);
   error.resize(3 * grad_results_set.num_equations);
+  double total_error{ 0 };
   for (const auto& grad : grad_results_set.results)
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
       if (grad.gradients[i].has_gradient)
       {
+        total_error += std::max(grad.error_with_buffer * grad.data[2], 0.);
         long start_idx = cnt * 3;
         error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
         jacobian.middleRows(start_idx, 3) = grad.gradients[i].scale * grad.gradients[i].jacobian;
@@ -196,10 +486,9 @@ Eigen::VectorXd getLeastSquaresGradientPost(const GradientResultsSet& grad_resul
   tesseract_kinematics::solvePInv(jacobian, error, delta_jv);
   std::cout << jacobian << std::endl;
 
-  auto temp = (jacobian * delta_jv);
-  UNUSED(temp);
-  std::cout << temp << std::endl;
-  return (grad_results_set.max_weighted_error_with_buffer / delta_jv.array());
+  //  return (grad_results_set.max_weighted_error_with_buffer / delta_jv.array());
+  assert(cnt != 0);
+  return ((total_error / double(cnt)) / delta_jv.array());
   //  return jacobian.transpose() * error;
 }
 
@@ -216,12 +505,14 @@ Eigen::VectorXd getLeastSquaresGradientCent(const GradientResultsSet& grad_resul
 
   jacobian.resize(3 * (grad_results_set_prev.cc_num_equations + grad_results_set_post.num_equations), dof);
   error.resize(3 * (grad_results_set_prev.cc_num_equations + grad_results_set_post.num_equations));
+  double total_error{ 0 };
   for (const auto& grad : grad_results_set_prev.results)
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
       if (grad.cc_gradients[i].has_gradient)
       {
+        total_error += std::max(grad.error_with_buffer * grad.data[2], 0.);
         long start_idx = cnt * 3;
         error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.cc_gradients[i].translation_vector;
         jacobian.middleRows(start_idx, 3) = grad.cc_gradients[i].scale * grad.cc_gradients[i].jacobian;
@@ -236,6 +527,7 @@ Eigen::VectorXd getLeastSquaresGradientCent(const GradientResultsSet& grad_resul
     {
       if (grad.gradients[i].has_gradient)
       {
+        total_error += std::max(grad.error_with_buffer * grad.data[2], 0.);
         long start_idx = cnt * 3;
         error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
         jacobian.middleRows(start_idx, 3) = grad.gradients[i].scale * grad.gradients[i].jacobian;
@@ -248,9 +540,11 @@ Eigen::VectorXd getLeastSquaresGradientCent(const GradientResultsSet& grad_resul
   Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(dof);
   tesseract_kinematics::solvePInv(jacobian, error, delta_jv);
 
-  return (std::max(grad_results_set_prev.max_weighted_error_with_buffer,
-                   grad_results_set_post.max_weighted_error_with_buffer) /
-          delta_jv.array());
+  //  return (std::max(grad_results_set_prev.max_weighted_error_with_buffer,
+  //                   grad_results_set_post.max_weighted_error_with_buffer) /
+  //          delta_jv.array());
+  assert(cnt != 0);
+  return ((total_error / double(cnt)) / delta_jv.array());
   //  return jacobian.transpose() * error;
 }
 
@@ -265,12 +559,19 @@ Eigen::VectorXd getWeightedLeastSquaresGradientPrev(const GradientResultsSet& gr
 
   jacobian.resize(3 * grad_results_set.cc_num_equations, dof);
   error.resize(3 * grad_results_set.cc_num_equations);
+  double total_weight{ 0 };
+  double total_error{ 0 };
   for (const auto& grad : grad_results_set.results)
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
       if (grad.cc_gradients[i].has_gradient)
       {
+        double e = std::max(grad.error_with_buffer * grad.data[2], 0.);
+        double w = e / grad_results_set.max_error_with_buffer;
+        total_weight += w;
+        total_error += w * e;
+
         long start_idx = cnt * 3;
         error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.cc_gradients[i].translation_vector;
         jacobian.middleRows(start_idx, 3) = grad.cc_gradients[i].scale * grad.cc_gradients[i].jacobian;
@@ -281,12 +582,15 @@ Eigen::VectorXd getWeightedLeastSquaresGradientPrev(const GradientResultsSet& gr
 
   // H=(A^T * W * A)^−1 * A^T * W so that y=Hb
   Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(dof);
-  Eigen::MatrixXd weights = error.normalized().asDiagonal();
+  Eigen::MatrixXd weights = error.cwiseAbs().normalized().asDiagonal();
   Eigen::MatrixXd jacobian_transpose = jacobian.transpose();
   tesseract_kinematics::solvePInv(
       jacobian_transpose * weights * jacobian, jacobian_transpose * weights * error, delta_jv);
-  return (grad_results_set.max_error_with_buffer / delta_jv.array());
-
+  //  return (grad_results_set.max_error_with_buffer / delta_jv.array());
+  assert(total_weight > 0);
+  //  return ((total_error/ total_weight) / delta_jv.array());
+  return (grad_results_set.max_weighted_error_with_buffer / grad_results_set.max_error_with_buffer) *
+         (delta_jv.array());
   //  return (jacobian_transpose * weights * jacobian).householderQr().solve(jacobian_transpose * weights * error);
 }
 
@@ -301,12 +605,19 @@ Eigen::VectorXd getWeightedLeastSquaresGradientPost(const GradientResultsSet& gr
 
   jacobian.resize(3 * grad_results_set.num_equations, dof);
   error.resize(3 * grad_results_set.num_equations);
+  double total_weight{ 0 };
+  double total_error{ 0 };
   for (const auto& grad : grad_results_set.results)
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
       if (grad.gradients[i].has_gradient)
       {
+        double e = std::max(grad.error_with_buffer * grad.data[2], 0.);
+        double w = e / grad_results_set.max_error_with_buffer;
+        total_weight += w;
+        total_error += w * e;
+
         long start_idx = cnt * 3;
         error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
         jacobian.middleRows(start_idx, 3) = grad.gradients[i].scale * grad.gradients[i].jacobian;
@@ -317,12 +628,15 @@ Eigen::VectorXd getWeightedLeastSquaresGradientPost(const GradientResultsSet& gr
 
   // H=(A^T * W * A)^−1 * A^T * W so that y=Hb
   Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(dof);
-  Eigen::MatrixXd weights = error.normalized().asDiagonal();
+  Eigen::MatrixXd weights = error.cwiseAbs().normalized().asDiagonal();
   Eigen::MatrixXd jacobian_transpose = jacobian.transpose();
   tesseract_kinematics::solvePInv(
       jacobian_transpose * weights * jacobian, jacobian_transpose * weights * error, delta_jv);
-  return (grad_results_set.max_error_with_buffer / delta_jv.array());
-
+  //  return (grad_results_set.max_error_with_buffer / delta_jv.array());
+  assert(total_weight > 0);
+  //  return ((total_error/ total_weight) / delta_jv.array());
+  return (grad_results_set.max_weighted_error_with_buffer / grad_results_set.max_error_with_buffer) *
+         (delta_jv.array());
   //  return (jacobian_transpose * weights * jacobian).householderQr().solve(jacobian_transpose * weights * error);
 }
 
@@ -337,14 +651,26 @@ Eigen::VectorXd getWeightedLeastSquaresGradientCent(const GradientResultsSet& gr
   if (grad_results_set_prev.cc_num_equations == 0 && grad_results_set_post.num_equations == 0)
     return Eigen::VectorXd::Zero(dof);
 
+  double max_error_with_buffer =
+      std::max(grad_results_set_prev.max_error_with_buffer, grad_results_set_post.max_error_with_buffer);
+  double max_weighted_error_with_buffer = std::max(grad_results_set_prev.max_weighted_error_with_buffer,
+                                                   grad_results_set_post.max_weighted_error_with_buffer);
+
   jacobian.resize(3 * (grad_results_set_prev.cc_num_equations + grad_results_set_post.num_equations), dof);
   error.resize(3 * (grad_results_set_prev.cc_num_equations + grad_results_set_post.num_equations));
+  double total_weight{ 0 };
+  double total_error{ 0 };
   for (const auto& grad : grad_results_set_prev.results)
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
       if (grad.cc_gradients[i].has_gradient)
       {
+        double e = std::max(grad.error_with_buffer * grad.data[2], 0.);
+        double w = e / max_weighted_error_with_buffer;
+        total_weight += w;
+        total_error += w * e;
+
         long start_idx = cnt * 3;
         error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.cc_gradients[i].translation_vector;
         jacobian.middleRows(start_idx, 3) = grad.cc_gradients[i].scale * grad.cc_gradients[i].jacobian;
@@ -359,6 +685,11 @@ Eigen::VectorXd getWeightedLeastSquaresGradientCent(const GradientResultsSet& gr
     {
       if (grad.gradients[i].has_gradient)
       {
+        double e = std::max(grad.error_with_buffer * grad.data[2], 0.);
+        double w = e / max_weighted_error_with_buffer;
+        total_weight += w;
+        total_error += w * e;
+
         long start_idx = cnt * 3;
         error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
         jacobian.middleRows(start_idx, 3) = grad.gradients[i].scale * grad.gradients[i].jacobian;
@@ -369,119 +700,19 @@ Eigen::VectorXd getWeightedLeastSquaresGradientCent(const GradientResultsSet& gr
 
   // H=(A^T * W * A)^−1 * A^T * W so that y=Hb
   Eigen::VectorXd delta_jv = Eigen::VectorXd::Zero(dof);
-  Eigen::MatrixXd weights = error.normalized().asDiagonal();
+  Eigen::MatrixXd weights = error.cwiseAbs().normalized().asDiagonal();
   Eigen::MatrixXd jacobian_transpose = jacobian.transpose();
   tesseract_kinematics::solvePInv(
       jacobian_transpose * weights * jacobian, jacobian_transpose * weights * error, delta_jv);
-  return (std::max(grad_results_set_prev.max_error_with_buffer, grad_results_set_post.max_error_with_buffer) /
-          delta_jv.array());
+  //  return (std::max(grad_results_set_prev.max_weighted_error_with_buffer,
+  //  grad_results_set_post.max_weighted_error_with_buffer) /
+  //          delta_jv.array());
+  assert(total_weight > 0);
+  //  return ((total_error/ total_weight) / delta_jv.array());
+  return (max_weighted_error_with_buffer / max_error_with_buffer) * (delta_jv.array());
 
   //  return (jacobian_transpose * weights * jacobian).householderQr().solve(jacobian_transpose * weights * error);
 }
-
-// Eigen::VectorXd getWeightedLeastSquaresGradient2(const GradientResultsSet& grad_results_set, long dof,
-// ContinuousCollisionEvaluatorType evaluator_type)
-//{
-//  Eigen::MatrixXd jacobian;
-//  Eigen::VectorXd error;
-//  long cnt = 0;
-//  switch (evaluator_type)
-//  {
-//    case ContinuousCollisionEvaluatorType::NONE: // Used by single timestep evaluator
-//    case ContinuousCollisionEvaluatorType::START_FREE_END_FIXED:
-//    {
-//      if (grad_results_set.num_equations == 0)
-//        return Eigen::VectorXd::Zero(dof);
-
-//      jacobian.resize(grad_results_set.num_equations, dof);
-//      error.resize(grad_results_set.num_equations);
-//      for (const auto& grad : grad_results_set.results)
-//      {
-//        for (std::size_t i = 0; i < 2; ++i)
-//        {
-//          if (grad.gradients[i].has_gradient)
-//          {
-//            error(cnt) = grad.error_with_buffer;
-//            jacobian.row(cnt) = grad.gradients[i].scale * grad.gradients[i].gradient;
-//            //      long start_idx = cnt * 3;
-//            //      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
-//            //      jacobian.middleRows(start_idx, 3) = grad.gradients[i].jacobian;
-//            cnt++;
-//          }
-//        }
-//      }
-//      break;
-//    }
-//    case ContinuousCollisionEvaluatorType::START_FIXED_END_FREE:
-//    {
-//      if (grad_results_set.cc_num_equations == 0)
-//        return Eigen::VectorXd::Zero(dof);
-
-//      jacobian.resize(grad_results_set.cc_num_equations, dof);
-//      error.resize(grad_results_set.cc_num_equations);
-//      for (const auto& grad : grad_results_set.results)
-//      {
-//        for (std::size_t i = 0; i < 2; ++i)
-//        {
-//          if (grad.cc_gradients[i].has_gradient)
-//          {
-//            error(cnt) = grad.error_with_buffer;
-//            jacobian.row(cnt) = grad.cc_gradients[i].scale * grad.cc_gradients[i].gradient;
-//            //      long start_idx = cnt * 3;
-//            //      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
-//            //      jacobian.middleRows(start_idx, 3) = grad.gradients[i].jacobian;
-//            cnt++;
-//          }
-//        }
-//      }
-//      break;
-//    }
-//    case ContinuousCollisionEvaluatorType::START_FREE_END_FREE:
-//    {
-//      if (grad_results_set.num_equations == 0 && grad_results_set.cc_num_equations == 0)
-//        return Eigen::VectorXd::Zero(dof);
-
-//      jacobian.resize(grad_results_set.num_equations + grad_results_set.cc_num_equations, dof);
-//      error.resize(grad_results_set.num_equations + grad_results_set.cc_num_equations);
-//      for (const auto& grad : grad_results_set.results)
-//      {
-//        for (std::size_t i = 0; i < 2; ++i)
-//        {
-//          if (grad.gradients[i].has_gradient)
-//          {
-//            error(cnt) = grad.error_with_buffer;
-//            jacobian.row(cnt) = grad.gradients[i].scale * grad.gradients[i].gradient;
-//            //      long start_idx = cnt * 3;
-//            //      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
-//            //      jacobian.middleRows(start_idx, 3) = grad.gradients[i].jacobian;
-//            cnt++;
-//          }
-
-//          if (grad.cc_gradients[i].has_gradient)
-//          {
-//            error(cnt) = grad.error_with_buffer;
-//            jacobian.row(cnt) = grad.cc_gradients[i].scale * grad.cc_gradients[i].gradient;
-//            //      long start_idx = cnt * 3;
-//            //      error.middleRows(start_idx, 3) = grad.error_with_buffer * grad.gradients[i].translation_vector;
-//            //      jacobian.middleRows(start_idx, 3) = grad.gradients[i].jacobian;
-//            cnt++;
-//          }
-//        }
-//      }
-//      break;
-//    }
-//  }
-
-//  // H=(A^T * W * A)^−1 * A^T * W so that y=Hb
-//  Eigen::MatrixXd weights = error.normalized().asDiagonal();
-//  Eigen::MatrixXd jacobian_transpose = jacobian.transpose();
-//  //  return (jacobian_transpose * weights * jacobian).householderQr().solve(jacobian_transpose * weights * error);
-
-//  Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(dof);
-//  tesseract_kinematics::solvePInv(
-//      jacobian_transpose * weights * jacobian, jacobian_transpose * weights * error, grad_vec);
-//  return grad_vec;
-//}
 
 Eigen::VectorXd getAvgGradientPost(const GradientResultsSet& grad_results_set_post, long dof)
 {

@@ -190,7 +190,9 @@ TEST_F(CastOctomapTest, boxes)  // NOLINT
 
     std::array<JointPosition::ConstPtr, 3> position_vars{ vars[i - 1], vars[i], vars[i + 1] };
     auto cnt = std::make_shared<trajopt::ContinuousCollisionConstraintIfopt>(
-        collision_evaluator, GradientCombineMethod::WEIGHTED_AVERAGE, position_vars);
+        collision_evaluator,
+        trajopt::ContinuousCombineCollisionData(GradientCombineMethod::WEIGHTED_AVERAGE, 2),
+        position_vars);
     nlp.AddConstraintSet(cnt);
   }
 

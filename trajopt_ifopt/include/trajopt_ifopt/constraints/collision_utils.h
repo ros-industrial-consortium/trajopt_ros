@@ -61,6 +61,26 @@ void processInterpolatedCollisionResults(std::vector<tesseract_collision::Contac
 void removeInvalidContactResults(tesseract_collision::ContactResultVector& contact_results,
                                  const Eigen::Vector3d& data);
 
+Eigen::VectorXd getSumValuesPrev(const GradientResultsSet& grad_results_set_prev);
+Eigen::VectorXd getSumValuesPost(const GradientResultsSet& grad_results_set_post);
+Eigen::VectorXd getSumValuesCent(const GradientResultsSet& grad_results_set_prev,
+                                 const GradientResultsSet& grad_results_set_post);
+
+Eigen::VectorXd getSumWeightedValuesPrev(const GradientResultsSet& grad_results_set_prev);
+Eigen::VectorXd getSumWeightedValuesPost(const GradientResultsSet& grad_results_set_post);
+Eigen::VectorXd getSumWeightedValuesCent(const GradientResultsSet& grad_results_set_prev,
+                                         const GradientResultsSet& grad_results_set_post);
+
+Eigen::VectorXd getAverageValuesPrev(const GradientResultsSet& grad_results_set_prev);
+Eigen::VectorXd getAverageValuesPost(const GradientResultsSet& grad_results_set_post);
+Eigen::VectorXd getAverageValuesCent(const GradientResultsSet& grad_results_set_prev,
+                                     const GradientResultsSet& grad_results_set_post);
+
+Eigen::VectorXd getAverageWeightedValuesPrev(const GradientResultsSet& grad_results_set_prev);
+Eigen::VectorXd getAverageWeightedValuesPost(const GradientResultsSet& grad_results_set_post);
+Eigen::VectorXd getAverageWeightedValuesCent(const GradientResultsSet& grad_results_set_prev,
+                                             const GradientResultsSet& grad_results_set_post);
+
 /**
  * @brief This takes a vector of gradient results and outputs a single gradient using least squares
  * @details The gradient results stores the gradient calculated at the point between two states where the contact
@@ -76,11 +96,6 @@ Eigen::VectorXd getLeastSquaresGradientPost(const GradientResultsSet& grad_resul
 Eigen::VectorXd getLeastSquaresGradientCent(const GradientResultsSet& grad_results_set_prev,
                                             const GradientResultsSet& grad_results_set_post,
                                             long dof);
-
-// Eigen::VectorXd getLeastSquaresGradient2Prev(const GradientResultsSet& grad_results_set, long dof);
-// Eigen::VectorXd getLeastSquaresGradient2Post(const GradientResultsSet& grad_results_set, long dof);
-// Eigen::VectorXd getLeastSquaresGradient2Cent(const GradientResultsSet& grad_results_set_prev,
-//                                             const GradientResultsSet& grad_results_set_post, long dof);
 
 /**
  * @brief This takes a vector of gradient results and outputs a single gradient using weighted least squares
@@ -99,8 +114,6 @@ Eigen::VectorXd getWeightedLeastSquaresGradientPost(const GradientResultsSet& gr
 Eigen::VectorXd getWeightedLeastSquaresGradientCent(const GradientResultsSet& grad_results_set_prev,
                                                     const GradientResultsSet& grad_results_set_post,
                                                     long dof);
-// Eigen::VectorXd getWeightedLeastSquaresGradient2(const GradientResultsSet& grad_results_set, long dof,
-// ContinuousCollisionEvaluatorType evaluator_type);
 
 /**
  * @brief These were from the original trajopt

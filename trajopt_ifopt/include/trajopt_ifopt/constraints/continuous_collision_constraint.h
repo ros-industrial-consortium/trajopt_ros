@@ -34,6 +34,7 @@ TRAJOPT_IGNORE_WARNINGS_POP
 
 #include <trajopt_ifopt/constraints/continuous_collision_evaluators.h>
 #include <trajopt_ifopt/variable_sets/joint_position_variable.h>
+#include <trajopt_ifopt/constraints/continuous_combine_collision_data.h>
 
 namespace trajopt
 {
@@ -46,7 +47,7 @@ public:
   /**
    * @brief ContinuousCollisionConstraintIfopt
    * @param collision_evaluator The continuous collision evaluator to use
-   * @param gradient_method The gradient method to use for combining all gradients into a single gradient
+   * @param combine_methods The methods for combining collision data into a single error and jacobian
    * @param position_vars The position vars associated with this constraint. The middle position var is the var set for
    * the constraint. The pre and post are supporting variables for calculating the constraint error and gradient
    *
@@ -58,13 +59,20 @@ public:
    * @param name
    */
   ContinuousCollisionConstraintIfopt(ContinuousCollisionEvaluator::Ptr collision_evaluator,
-                                     GradientCombineMethod gradient_method,
+                                     ContinuousCombineCollisionData combine_methods,
                                      std::array<JointPosition::ConstPtr, 3> position_vars,
                                      const std::string& name = "LVSCollision");
 
   /**
    * @brief Returns the values associated with the constraint.
-   * @return
+   * @warning Make sure that the values returns are not just the violation but the constraint values.
+   * Remember the values are the constant in the quadratic function, so if you only return the
+   * violation then if it is not violating the constraint this would be zero which means it
+   * will always appear to be on the constraint boundary which will cause issue when solving.
+   * If it is not voliating the constraint then return the max negative number.
+   * If no contacts are found return the negative of the collision margin buffer. This is why
+   * it is important to not set the collision margin buffer to zero.
+   * @return The constraint values not the violations
    */
   Eigen::VectorXd GetValues() const override;
 
@@ -120,17 +128,20 @@ private:
   std::array<JointPosition::ConstPtr, 3> position_vars_;
 
   ContinuousCollisionEvaluator::Ptr collision_evaluator_;
-  GradientCombineMethod gradient_method_;
+  ContinuousCombineCollisionData combine_methods_;
+
+  enum class GradientMode
+  {
+    CENT = 0,  // is central
+    POST = 1,  // is post
+    PREV = 2   // is previous
+  };
 
   /**
    * @brief This is used internally to change how the values and gradient is calculated based on the position var set
    * array
-   * @details
-   *    mode_ = 0, is central
-   *    mode_ = 1, is post
-   *    mode_ = 2, is previous
    */
-  int mode_{ -1 };
+  GradientMode mode_{ 0 };
 
   void CalcJacobianBlockPrev(Jacobian& jac_block,
                              const Eigen::Ref<const Eigen::VectorXd>& joint_vals_prev,

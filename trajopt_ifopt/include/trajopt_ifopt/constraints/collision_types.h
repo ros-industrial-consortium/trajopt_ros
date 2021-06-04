@@ -32,6 +32,7 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <memory>
 #include <tesseract_collision/core/types.h>
 #include <tesseract_environment/core/environment.h>
+#include <ifopt/composite.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
 namespace trajopt
@@ -244,6 +245,19 @@ struct CollisionCacheData
   tesseract_collision::ContactResultVector contact_results_vector;
   GradientResultsSet gradient_results_set;
 };
+
+using CombineValuesPrevFn = std::function<Eigen::VectorXd(const CollisionCacheData& collision_data_prev)>;
+using CombineValuesCentFn = std::function<Eigen::VectorXd(const CollisionCacheData& collision_data_prev,
+                                                          const CollisionCacheData& collision_data_post)>;
+using CombineValuesPostFn = std::function<Eigen::VectorXd(const CollisionCacheData& collision_data_post)>;
+
+using CombineJacobianPrevFn =
+    std::function<void(ifopt::Component::Jacobian& jac_block, const CollisionCacheData& collision_data_prev)>;
+using CombineJacobianPostFn =
+    std::function<void(ifopt::Component::Jacobian& jac_block, const CollisionCacheData& collision_data_post)>;
+using CombineJacobianCentFn = std::function<void(ifopt::Component::Jacobian& jac_block,
+                                                 const CollisionCacheData& collision_data_prev,
+                                                 const CollisionCacheData& collision_data_post)>;
 
 }  // namespace trajopt
 #endif  // TRAJOPT_IFOPT_COLLISION_TYPES_H
