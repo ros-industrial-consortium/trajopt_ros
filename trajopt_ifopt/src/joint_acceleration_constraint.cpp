@@ -34,7 +34,7 @@ namespace trajopt
 JointAccelConstraint::JointAccelConstraint(const Eigen::VectorXd& targets,
                                            std::vector<JointPosition::ConstPtr> position_vars,
                                            const std::string& name)
-  : ifopt::ConstraintSet(static_cast<int>(targets.size()) * static_cast<int>(position_vars.size() - 1), name)
+  : ifopt::ConstraintSet(static_cast<int>(targets.size()) * static_cast<int>(position_vars.size() - 2), name)
   , position_vars_(position_vars)
 {
   // Check and make sure the targets size aligns with the vars passed in
@@ -54,7 +54,7 @@ JointAccelConstraint::JointAccelConstraint(const Eigen::VectorXd& targets,
   // Set the bounds to the input targets
   std::vector<ifopt::Bounds> bounds(static_cast<size_t>(GetRows()));
   // All of the positions should be exactly at their targets
-  for (long j = 0; j < n_vars_ - 1; j++)
+  for (long j = 0; j < n_vars_ - 2; j++)
   {
     for (long i = 0; i < n_dof_; i++)
     {
@@ -91,7 +91,7 @@ void JointAccelConstraint::FillJacobianBlock(std::string var_set, Jacobian& jac_
     if (var_set == position_vars_[static_cast<size_t>(i)]->GetName())
     {
       // Reserve enough room in the sparse matrix
-      jac_block.reserve(n_dof_ * 2);
+      jac_block.reserve(n_dof_ * 3);
 
       // jac block will be (n_vars-1)*n_dof x n_dof
       for (int j = 0; j < n_dof_; j++)
