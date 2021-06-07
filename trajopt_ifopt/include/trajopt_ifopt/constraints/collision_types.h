@@ -136,6 +136,9 @@ struct LinkGradientResults
 
   /** @brief Gradient Scale */
   double scale{ 1.0 };
+
+  /** @brief The continuous collision type */
+  tesseract_collision::ContinuousCollisionType cc_type{ tesseract_collision::ContinuousCollisionType::CCType_None };
 };
 
 /** @brief A data structure to contain a link pair gradient results */

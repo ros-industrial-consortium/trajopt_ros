@@ -148,7 +148,15 @@ Eigen::VectorXd getSumValuesPrev(const GradientResultsSet& grad_results_set_prev
     return Eigen::VectorXd::Constant(1, grad_results_set_prev.max_error);
 
   for (const GradientResults& grad_result : grad_results_set_prev.results)
-    err[0] += std::max<double>(grad_result.error * grad_result.data[2], 0.);
+  {
+    if ((grad_result.cc_gradients[0].has_gradient &&
+         (grad_result.cc_gradients[0].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time0)) ||
+        (grad_result.cc_gradients[1].has_gradient &&
+         (grad_result.cc_gradients[1].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time0)))
+    {
+      err[0] += std::max<double>(grad_result.error * grad_result.data[2], 0.);
+    }
+  }
 
   return err;
 }
@@ -165,7 +173,15 @@ Eigen::VectorXd getSumValuesPost(const GradientResultsSet& grad_results_set_post
     return Eigen::VectorXd::Constant(1, grad_results_set_post.max_error);
 
   for (const GradientResults& grad_result : grad_results_set_post.results)
-    err[0] += std::max<double>(grad_result.error * grad_result.data[2], 0.);
+  {
+    if ((grad_result.gradients[0].has_gradient &&
+         (grad_result.gradients[0].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1)) ||
+        (grad_result.gradients[1].has_gradient &&
+         (grad_result.gradients[1].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1)))
+    {
+      err[0] += std::max<double>(grad_result.error * grad_result.data[2], 0.);
+    }
+  }
 
   return err;
 }
@@ -191,10 +207,26 @@ Eigen::VectorXd getSumValuesCent(const GradientResultsSet& grad_results_set_prev
   }
 
   for (const GradientResults& grad_result : grad_results_set_prev.results)
-    err[0] += std::max<double>(grad_result.error * grad_result.data[2], 0.);
+  {
+    if ((grad_result.cc_gradients[0].has_gradient &&
+         (grad_result.cc_gradients[0].cc_type == tesseract_collision::ContinuousCollisionType::CCType_Between)) ||
+        (grad_result.cc_gradients[1].has_gradient &&
+         (grad_result.cc_gradients[1].cc_type == tesseract_collision::ContinuousCollisionType::CCType_Between)))
+    {
+      err[0] += std::max<double>(grad_result.error * grad_result.data[2], 0.);
+    }
+  }
 
   for (const GradientResults& grad_result : grad_results_set_post.results)
-    err[0] += std::max<double>(grad_result.error * grad_result.data[2], 0.);
+  {
+    if ((grad_result.gradients[0].has_gradient &&
+         (grad_result.gradients[0].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1)) ||
+        (grad_result.gradients[1].has_gradient &&
+         (grad_result.gradients[1].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1)))
+    {
+      err[0] += std::max<double>(grad_result.error * grad_result.data[2], 0.);
+    }
+  }
 
   return err;
 }
@@ -212,13 +244,19 @@ Eigen::VectorXd getSumWeightedValuesPrev(const GradientResultsSet& grad_results_
 
   for (const GradientResults& grad_result : grad_results_set_prev.results)
   {
-    double e = grad_result.error * grad_result.data[2];
-    if (e > 0)
+    if ((grad_result.cc_gradients[0].has_gradient &&
+         (grad_result.cc_gradients[0].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time0)) ||
+        (grad_result.cc_gradients[1].has_gradient &&
+         (grad_result.cc_gradients[1].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time0)))
     {
-      assert(grad_results_set_prev.max_error_with_buffer > 0);
-      double eb = std::max<double>(grad_result.error_with_buffer * grad_result.data[2], 0.);
-      double we = eb / grad_results_set_prev.max_error_with_buffer;
-      err[0] += we * std::max<double>(e, 0.);
+      double e = grad_result.error * grad_result.data[2];
+      if (e > 0)
+      {
+        assert(grad_results_set_prev.max_error_with_buffer > 0);
+        double eb = std::max<double>(grad_result.error_with_buffer * grad_result.data[2], 0.);
+        double we = eb / grad_results_set_prev.max_error_with_buffer;
+        err[0] += we * std::max<double>(e, 0.);
+      }
     }
   }
 
@@ -238,13 +276,19 @@ Eigen::VectorXd getSumWeightedValuesPost(const GradientResultsSet& grad_results_
 
   for (const GradientResults& grad_result : grad_results_set_post.results)
   {
-    double e = grad_result.error * grad_result.data[2];
-    if (e > 0)
+    if ((grad_result.gradients[0].has_gradient &&
+         (grad_result.gradients[0].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1)) ||
+        (grad_result.gradients[1].has_gradient &&
+         (grad_result.gradients[1].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1)))
     {
-      assert(grad_results_set_post.max_error_with_buffer > 0);
-      double eb = std::max<double>(grad_result.error_with_buffer * grad_result.data[2], 0.);
-      double we = eb / grad_results_set_post.max_error_with_buffer;
-      err[0] += we * std::max<double>(e, 0.);
+      double e = grad_result.error * grad_result.data[2];
+      if (e > 0)
+      {
+        assert(grad_results_set_post.max_error_with_buffer > 0);
+        double eb = std::max<double>(grad_result.error_with_buffer * grad_result.data[2], 0.);
+        double we = eb / grad_results_set_post.max_error_with_buffer;
+        err[0] += we * std::max<double>(e, 0.);
+      }
     }
   }
 
@@ -277,25 +321,37 @@ Eigen::VectorXd getSumWeightedValuesCent(const GradientResultsSet& grad_results_
 
   for (const GradientResults& grad_result : grad_results_set_prev.results)
   {
-    double e = grad_result.error * grad_result.data[2];
-    if (e > 0)
+    if ((grad_result.cc_gradients[0].has_gradient &&
+         (grad_result.cc_gradients[0].cc_type == tesseract_collision::ContinuousCollisionType::CCType_Between)) ||
+        (grad_result.cc_gradients[1].has_gradient &&
+         (grad_result.cc_gradients[1].cc_type == tesseract_collision::ContinuousCollisionType::CCType_Between)))
     {
-      assert(max_error_with_buffer > 0);
-      double eb = std::max<double>(grad_result.error_with_buffer * grad_result.data[2], 0.);
-      double we = eb / max_error_with_buffer;
-      err[0] += we * std::max<double>(e, 0.);
+      double e = grad_result.error * grad_result.data[2];
+      if (e > 0)
+      {
+        assert(max_error_with_buffer > 0);
+        double eb = std::max<double>(grad_result.error_with_buffer * grad_result.data[2], 0.);
+        double we = eb / max_error_with_buffer;
+        err[0] += we * std::max<double>(e, 0.);
+      }
     }
   }
 
   for (const GradientResults& grad_result : grad_results_set_post.results)
   {
-    double e = grad_result.error * grad_result.data[2];
-    if (e > 0)
+    if ((grad_result.gradients[0].has_gradient &&
+         (grad_result.gradients[0].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1)) ||
+        (grad_result.gradients[1].has_gradient &&
+         (grad_result.gradients[1].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1)))
     {
-      assert(max_error_with_buffer > 0);
-      double eb = std::max<double>(grad_result.error_with_buffer * grad_result.data[2], 0.);
-      double we = eb / max_error_with_buffer;
-      err[0] += we * std::max<double>(e, 0.);
+      double e = grad_result.error * grad_result.data[2];
+      if (e > 0)
+      {
+        assert(max_error_with_buffer > 0);
+        double eb = std::max<double>(grad_result.error_with_buffer * grad_result.data[2], 0.);
+        double we = eb / max_error_with_buffer;
+        err[0] += we * std::max<double>(e, 0.);
+      }
     }
   }
 
@@ -316,11 +372,17 @@ Eigen::VectorXd getAverageValuesPrev(const GradientResultsSet& grad_results_set_
   long cnt{ 0 };
   for (const GradientResults& grad_result : grad_results_set_prev.results)
   {
-    double e = grad_result.error * grad_result.data[2];
-    if (e > 0)
+    if ((grad_result.cc_gradients[0].has_gradient &&
+         (grad_result.cc_gradients[0].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time0)) ||
+        (grad_result.cc_gradients[1].has_gradient &&
+         (grad_result.cc_gradients[1].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time0)))
     {
-      err[0] += std::max<double>(e, 0.);
-      ++cnt;
+      double e = grad_result.error * grad_result.data[2];
+      if (e > 0)
+      {
+        err[0] += std::max<double>(e, 0.);
+        ++cnt;
+      }
     }
   }
 
@@ -343,11 +405,17 @@ Eigen::VectorXd getAverageValuesPost(const GradientResultsSet& grad_results_set_
   long cnt{ 0 };
   for (const GradientResults& grad_result : grad_results_set_post.results)
   {
-    double e = grad_result.error * grad_result.data[2];
-    if (e > 0)
+    if ((grad_result.gradients[0].has_gradient &&
+         (grad_result.gradients[0].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1)) ||
+        (grad_result.gradients[1].has_gradient &&
+         (grad_result.gradients[1].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1)))
     {
-      err[0] += std::max<double>(e, 0.);
-      ++cnt;
+      double e = grad_result.error * grad_result.data[2];
+      if (e > 0)
+      {
+        err[0] += std::max<double>(e, 0.);
+        ++cnt;
+      }
     }
   }
 
@@ -379,21 +447,33 @@ Eigen::VectorXd getAverageValuesCent(const GradientResultsSet& grad_results_set_
   long cnt{ 0 };
   for (const GradientResults& grad_result : grad_results_set_prev.results)
   {
-    double e = grad_result.error * grad_result.data[2];
-    if (e > 0)
+    if ((grad_result.cc_gradients[0].has_gradient &&
+         (grad_result.cc_gradients[0].cc_type == tesseract_collision::ContinuousCollisionType::CCType_Between)) ||
+        (grad_result.cc_gradients[1].has_gradient &&
+         (grad_result.cc_gradients[1].cc_type == tesseract_collision::ContinuousCollisionType::CCType_Between)))
     {
-      err[0] += std::max<double>(e, 0.);
-      ++cnt;
+      double e = grad_result.error * grad_result.data[2];
+      if (e > 0)
+      {
+        err[0] += std::max<double>(e, 0.);
+        ++cnt;
+      }
     }
   }
 
   for (const GradientResults& grad_result : grad_results_set_post.results)
   {
-    double e = grad_result.error * grad_result.data[2];
-    if (e > 0)
+    if ((grad_result.gradients[0].has_gradient &&
+         (grad_result.gradients[0].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1)) ||
+        (grad_result.gradients[1].has_gradient &&
+         (grad_result.gradients[1].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1)))
     {
-      err[0] += std::max<double>(e, 0.);
-      ++cnt;
+      double e = grad_result.error * grad_result.data[2];
+      if (e > 0)
+      {
+        err[0] += std::max<double>(e, 0.);
+        ++cnt;
+      }
     }
   }
 
@@ -416,11 +496,17 @@ Eigen::VectorXd getAverageWeightedValuesPrev(const GradientResultsSet& grad_resu
   double total_weight{ 0 };
   for (const GradientResults& grad_result : grad_results_set_prev.results)
   {
-    double d = std::max<double>(grad_result.error, 0.) * grad_result.data[2];
-    double w = (std::max(grad_result.error_with_buffer * grad_result.data[2], 0.) /
-                grad_results_set_prev.max_weighted_error_with_buffer);
-    total_weight += w;
-    err[0] += (w * d);
+    if ((grad_result.cc_gradients[0].has_gradient &&
+         (grad_result.cc_gradients[0].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time0)) ||
+        (grad_result.cc_gradients[1].has_gradient &&
+         (grad_result.cc_gradients[1].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time0)))
+    {
+      double d = std::max<double>(grad_result.error, 0.) * grad_result.data[2];
+      double w = (std::max(grad_result.error_with_buffer * grad_result.data[2], 0.) /
+                  grad_results_set_prev.max_weighted_error_with_buffer);
+      total_weight += w;
+      err[0] += (w * d);
+    }
   }
 
   assert(total_weight > 0);
@@ -443,11 +529,17 @@ Eigen::VectorXd getAverageWeightedValuesPost(const GradientResultsSet& grad_resu
   double total_weight{ 0 };
   for (const GradientResults& grad_result : grad_results_set_post.results)
   {
-    double d = std::max<double>(grad_result.error, 0.) * grad_result.data[2];
-    double w = (std::max(grad_result.error_with_buffer * grad_result.data[2], 0.) /
-                grad_results_set_post.max_weighted_error_with_buffer);
-    total_weight += w;
-    err[0] += (w * d);
+    if ((grad_result.gradients[0].has_gradient &&
+         (grad_result.gradients[0].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1)) ||
+        (grad_result.gradients[1].has_gradient &&
+         (grad_result.gradients[1].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1)))
+    {
+      double d = std::max<double>(grad_result.error, 0.) * grad_result.data[2];
+      double w = (std::max(grad_result.error_with_buffer * grad_result.data[2], 0.) /
+                  grad_results_set_post.max_weighted_error_with_buffer);
+      total_weight += w;
+      err[0] += (w * d);
+    }
   }
 
   assert(total_weight > 0);
@@ -483,18 +575,30 @@ Eigen::VectorXd getAverageWeightedValuesCent(const GradientResultsSet& grad_resu
 
   for (const GradientResults& grad_result : grad_results_set_prev.results)
   {
-    double d = std::max<double>(grad_result.error, 0.) * grad_result.data[2];
-    double w = (std::max(grad_result.error_with_buffer * grad_result.data[2], 0.) / max_weighted_error_with_buffer);
-    total_weight += w;
-    err[0] += (w * d);
+    if ((grad_result.cc_gradients[0].has_gradient &&
+         (grad_result.cc_gradients[0].cc_type == tesseract_collision::ContinuousCollisionType::CCType_Between)) ||
+        (grad_result.cc_gradients[1].has_gradient &&
+         (grad_result.cc_gradients[1].cc_type == tesseract_collision::ContinuousCollisionType::CCType_Between)))
+    {
+      double d = std::max<double>(grad_result.error, 0.) * grad_result.data[2];
+      double w = (std::max(grad_result.error_with_buffer * grad_result.data[2], 0.) / max_weighted_error_with_buffer);
+      total_weight += w;
+      err[0] += (w * d);
+    }
   }
 
   for (const GradientResults& grad_result : grad_results_set_post.results)
   {
-    double d = std::max<double>(grad_result.error, 0.) * grad_result.data[2];
-    double w = (std::max(grad_result.error_with_buffer * grad_result.data[2], 0.) / max_weighted_error_with_buffer);
-    total_weight += w;
-    err[0] += (w * d);
+    if ((grad_result.gradients[0].has_gradient &&
+         (grad_result.gradients[0].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1)) ||
+        (grad_result.gradients[1].has_gradient &&
+         (grad_result.gradients[1].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1)))
+    {
+      double d = std::max<double>(grad_result.error, 0.) * grad_result.data[2];
+      double w = (std::max(grad_result.error_with_buffer * grad_result.data[2], 0.) / max_weighted_error_with_buffer);
+      total_weight += w;
+      err[0] += (w * d);
+    }
   }
 
   assert(total_weight > 0);
@@ -520,7 +624,8 @@ Eigen::VectorXd getLeastSquaresGradientPrev(const GradientResultsSet& grad_resul
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
-      if (grad.cc_gradients[i].has_gradient)
+      if (grad.cc_gradients[i].has_gradient &&
+          (grad.cc_gradients[i].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time0))
       {
         total_error += std::max(grad.error_with_buffer * grad.data[2], 0.);
         long start_idx = cnt * 3;
@@ -558,7 +663,8 @@ Eigen::VectorXd getLeastSquaresGradientPost(const GradientResultsSet& grad_resul
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
-      if (grad.gradients[i].has_gradient)
+      if (grad.gradients[i].has_gradient &&
+          (grad.gradients[i].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1))
       {
         total_error += std::max(grad.error_with_buffer * grad.data[2], 0.);
         long start_idx = cnt * 3;
@@ -600,7 +706,8 @@ Eigen::VectorXd getLeastSquaresGradientCent(const GradientResultsSet& grad_resul
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
-      if (grad.cc_gradients[i].has_gradient)
+      if (grad.cc_gradients[i].has_gradient &&
+          (grad.cc_gradients[i].cc_type == tesseract_collision::ContinuousCollisionType::CCType_Between))
       {
         total_error += std::max(grad.error_with_buffer * grad.data[2], 0.);
         long start_idx = cnt * 3;
@@ -615,7 +722,8 @@ Eigen::VectorXd getLeastSquaresGradientCent(const GradientResultsSet& grad_resul
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
-      if (grad.gradients[i].has_gradient)
+      if (grad.gradients[i].has_gradient &&
+          (grad.gradients[i].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1))
       {
         total_error += std::max(grad.error_with_buffer * grad.data[2], 0.);
         long start_idx = cnt * 3;
@@ -656,7 +764,8 @@ Eigen::VectorXd getWeightedLeastSquaresGradientPrev(const GradientResultsSet& gr
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
-      if (grad.cc_gradients[i].has_gradient)
+      if (grad.cc_gradients[i].has_gradient &&
+          (grad.cc_gradients[i].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time0))
       {
         double e = std::max(grad.error_with_buffer * grad.data[2], 0.);
         double w = e / grad_results_set.max_error_with_buffer;
@@ -703,7 +812,8 @@ Eigen::VectorXd getWeightedLeastSquaresGradientPost(const GradientResultsSet& gr
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
-      if (grad.gradients[i].has_gradient)
+      if (grad.gradients[i].has_gradient &&
+          (grad.gradients[i].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1))
       {
         double e = std::max(grad.error_with_buffer * grad.data[2], 0.);
         double w = e / grad_results_set.max_error_with_buffer;
@@ -758,7 +868,8 @@ Eigen::VectorXd getWeightedLeastSquaresGradientCent(const GradientResultsSet& gr
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
-      if (grad.cc_gradients[i].has_gradient)
+      if (grad.cc_gradients[i].has_gradient &&
+          (grad.cc_gradients[i].cc_type == tesseract_collision::ContinuousCollisionType::CCType_Between))
       {
         double e = std::max(grad.error_with_buffer * grad.data[2], 0.);
         double w = e / max_weighted_error_with_buffer;
@@ -777,7 +888,8 @@ Eigen::VectorXd getWeightedLeastSquaresGradientCent(const GradientResultsSet& gr
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
-      if (grad.gradients[i].has_gradient)
+      if (grad.gradients[i].has_gradient &&
+          (grad.gradients[i].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1))
       {
         double e = std::max(grad.error_with_buffer * grad.data[2], 0.);
         double w = e / max_weighted_error_with_buffer;
@@ -820,7 +932,8 @@ Eigen::VectorXd getAvgGradientPost(const GradientResultsSet& grad_results_set_po
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
-      if (grad.gradients[i].has_gradient)
+      if (grad.gradients[i].has_gradient &&
+          (grad.gradients[i].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1))
       {
         grad_vec += grad.data[2] * grad.gradients[i].scale * grad.gradients[i].gradient;
         cnt++;
@@ -844,7 +957,8 @@ Eigen::VectorXd getAvgGradientPrev(const GradientResultsSet& grad_results_set_pr
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
-      if (grad.cc_gradients[i].has_gradient)
+      if (grad.cc_gradients[i].has_gradient &&
+          (grad.cc_gradients[i].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time0))
       {
         grad_vec += grad.data[2] * grad.cc_gradients[i].scale * grad.cc_gradients[i].gradient;
         cnt++;
@@ -872,7 +986,8 @@ Eigen::VectorXd getAvgGradientCent(const GradientResultsSet& grad_results_set_pr
     {
       for (std::size_t i = 0; i < 2; ++i)
       {
-        if (grad.cc_gradients[i].has_gradient)
+        if (grad.cc_gradients[i].has_gradient &&
+            (grad.cc_gradients[i].cc_type == tesseract_collision::ContinuousCollisionType::CCType_Between))
         {
           grad_vec += grad.data[2] * grad.cc_gradients[i].scale * grad.cc_gradients[i].gradient;
           cnt++;
@@ -887,7 +1002,8 @@ Eigen::VectorXd getAvgGradientCent(const GradientResultsSet& grad_results_set_pr
     {
       for (std::size_t i = 0; i < 2; ++i)
       {
-        if (grad.gradients[i].has_gradient)
+        if (grad.gradients[i].has_gradient &&
+            (grad.gradients[i].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1))
         {
           grad_vec += grad.data[2] * grad.gradients[i].scale * grad.gradients[i].gradient;
           cnt++;
@@ -912,7 +1028,8 @@ Eigen::VectorXd getWeightedAvgGradientPost(const GradientResultsSet& grad_result
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
-      if (grad.gradients[i].has_gradient)
+      if (grad.gradients[i].has_gradient &&
+          (grad.gradients[i].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1))
       {
         double w = ((std::max(grad.error_with_buffer, 0.0) * grad.data[2]) /
                     grad_results_set_post.max_weighted_error_with_buffer);
@@ -938,7 +1055,8 @@ Eigen::VectorXd getWeightedAvgGradientPrev(const GradientResultsSet& grad_result
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
-      if (grad.cc_gradients[i].has_gradient)
+      if (grad.cc_gradients[i].has_gradient &&
+          (grad.cc_gradients[i].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time0))
       {
         double w = ((std::max(grad.error_with_buffer, 0.0) * grad.data[2]) /
                     grad_results_set_prev.max_weighted_error_with_buffer);
@@ -973,7 +1091,8 @@ Eigen::VectorXd getWeightedAvgGradientCent(const GradientResultsSet& grad_result
     {
       for (std::size_t i = 0; i < 2; ++i)
       {
-        if (grad.cc_gradients[i].has_gradient)
+        if (grad.cc_gradients[i].has_gradient &&
+            (grad.cc_gradients[i].cc_type == tesseract_collision::ContinuousCollisionType::CCType_Between))
         {
           double w = ((std::max(grad.error_with_buffer, 0.0) * grad.data[2]) / max_weighted_error_with_buffer);
           total_weight += w;
@@ -989,7 +1108,8 @@ Eigen::VectorXd getWeightedAvgGradientCent(const GradientResultsSet& grad_result
     {
       for (std::size_t i = 0; i < 2; ++i)
       {
-        if (grad.gradients[i].has_gradient)
+        if (grad.gradients[i].has_gradient &&
+            (grad.gradients[i].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1))
         {
           double w = ((std::max(grad.error_with_buffer, 0.0) * grad.data[2]) / max_weighted_error_with_buffer);
           total_weight += w;
@@ -1012,7 +1132,8 @@ Eigen::VectorXd getSumGradientPost(const GradientResultsSet& grad_results_set_po
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
-      if (grad.gradients[i].has_gradient)
+      if (grad.gradients[i].has_gradient &&
+          (grad.gradients[i].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1))
         grad_vec += grad.data[2] * (grad.gradients[i].scale * grad.gradients[i].gradient);
     }
   }
@@ -1029,7 +1150,8 @@ Eigen::VectorXd getSumGradientPrev(const GradientResultsSet& grad_results_set_pr
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
-      if (grad.cc_gradients[i].has_gradient)
+      if (grad.cc_gradients[i].has_gradient &&
+          (grad.cc_gradients[i].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time0))
         grad_vec += grad.data[2] * (grad.cc_gradients[i].scale * grad.cc_gradients[i].gradient);
     }
   }
@@ -1043,8 +1165,26 @@ Eigen::VectorXd getSumGradientCent(const GradientResultsSet& grad_results_set_pr
   assert(grad_results_set_prev.dof > 0);
   assert(grad_results_set_post.dof > 0);
   Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(grad_results_set_prev.dof);
-  grad_vec += getSumGradientPrev(grad_results_set_prev);
-  grad_vec += getSumGradientPost(grad_results_set_post);
+
+  for (auto& grad : grad_results_set_post.results)
+  {
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+      if (grad.gradients[i].has_gradient &&
+          (grad.gradients[i].cc_type == tesseract_collision::ContinuousCollisionType::CCType_Between))
+        grad_vec += grad.data[2] * (grad.gradients[i].scale * grad.gradients[i].gradient);
+    }
+  }
+
+  for (auto& grad : grad_results_set_prev.results)
+  {
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+      if (grad.cc_gradients[i].has_gradient &&
+          (grad.cc_gradients[i].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time0))
+        grad_vec += grad.data[2] * (grad.cc_gradients[i].scale * grad.cc_gradients[i].gradient);
+    }
+  }
 
   return grad_vec;
 }
@@ -1057,7 +1197,8 @@ Eigen::VectorXd getWeightedSumGradientPost(const GradientResultsSet& grad_result
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
-      if (grad.gradients[i].has_gradient)
+      if (grad.gradients[i].has_gradient &&
+          (grad.gradients[i].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time1))
       {
         assert(grad_results_set_post.max_weighted_error_with_buffer > 0);
         double w =
@@ -1078,7 +1219,8 @@ Eigen::VectorXd getWeightedSumGradientPrev(const GradientResultsSet& grad_result
   {
     for (std::size_t i = 0; i < 2; ++i)
     {
-      if (grad.cc_gradients[i].has_gradient)
+      if (grad.cc_gradients[i].has_gradient &&
+          (grad.cc_gradients[i].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time0))
       {
         assert(grad_results_set_prev.max_weighted_error_with_buffer > 0);
         double w =
@@ -1095,8 +1237,36 @@ Eigen::VectorXd getWeightedSumGradientCent(const GradientResultsSet& grad_result
                                            const GradientResultsSet& grad_results_set_post)
 {
   Eigen::VectorXd grad_vec = Eigen::VectorXd::Zero(grad_results_set_prev.dof);
-  grad_vec += getWeightedSumGradientPrev(grad_results_set_prev);
-  grad_vec += getWeightedSumGradientPost(grad_results_set_post);
+
+  for (auto& grad : grad_results_set_post.results)
+  {
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+      if (grad.gradients[i].has_gradient &&
+          (grad.gradients[i].cc_type == tesseract_collision::ContinuousCollisionType::CCType_Between))
+      {
+        assert(grad_results_set_post.max_weighted_error_with_buffer > 0);
+        double w =
+            std::max(grad.error_with_buffer * grad.data[2], 0.0) / grad_results_set_post.max_weighted_error_with_buffer;
+        grad_vec += (w * grad.data[2] * (grad.gradients[i].scale * grad.gradients[i].gradient));
+      }
+    }
+  }
+
+  for (auto& grad : grad_results_set_prev.results)
+  {
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+      if (grad.cc_gradients[i].has_gradient &&
+          (grad.cc_gradients[i].cc_type != tesseract_collision::ContinuousCollisionType::CCType_Time0))
+      {
+        assert(grad_results_set_prev.max_weighted_error_with_buffer > 0);
+        double w =
+            std::max(grad.error_with_buffer * grad.data[2], 0.0) / grad_results_set_prev.max_weighted_error_with_buffer;
+        grad_vec += w * grad.data[2] * (grad.cc_gradients[i].scale * grad.cc_gradients[i].gradient);
+      }
+    }
+  }
 
   return grad_vec;
 }
@@ -1128,6 +1298,7 @@ void calcGradient(GradientResults& results,
     assert(contact_result.cc_time[i] < 1.0 ||
            tesseract_common::almostEqualRelativeAndAbs(contact_result.cc_time[i], 1.0));
     link_gradient.scale = (isTimestep1) ? contact_result.cc_time[i] : (1 - contact_result.cc_time[i]);
+    link_gradient.cc_type = contact_result.cc_type[i];
     link_transform = (isTimestep1) ? contact_result.cc_transform[i] : contact_result.transform[i];
     /**
      * @todo Look at decoupling this from the cc_transforms so we only have one gradient for timestep0 and timestep1
