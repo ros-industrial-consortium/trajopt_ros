@@ -34,6 +34,18 @@ namespace trajopt_sqp
 using Jacobian = Eigen::SparseMatrix<double, Eigen::RowMajor>;
 using Hessian = Eigen::SparseMatrix<double, Eigen::RowMajor>;
 
+enum class ConstraintType
+{
+  EQ,
+  INEQ
+};
+
+enum class CostPenaltyType
+{
+  SQUARED,
+  ABSOLUTE
+};
+
 /**
  * @brief This struct defines parameters for the SQP optimization. The optimization should not change this struct
  */
@@ -79,10 +91,18 @@ struct SQPResults
 {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  SQPResults(Eigen::Index num_vars, Eigen::Index num_cnts)
+  SQPResults(Eigen::Index num_vars, Eigen::Index num_cnts, Eigen::Index num_costs)
   {
     best_constraint_violations = Eigen::VectorXd::Zero(num_cnts);
     new_constraint_violations = Eigen::VectorXd::Zero(num_cnts);
+    best_approx_constraint_violations = Eigen::VectorXd::Zero(num_cnts);
+    new_approx_constraint_violations = Eigen::VectorXd::Zero(num_cnts);
+
+    best_costs = Eigen::VectorXd::Zero(num_costs);
+    new_costs = Eigen::VectorXd::Zero(num_costs);
+    best_approx_costs = Eigen::VectorXd::Zero(num_costs);
+    new_approx_costs = Eigen::VectorXd::Zero(num_costs);
+
     best_var_vals = Eigen::VectorXd::Zero(num_vars);
     new_var_vals = Eigen::VectorXd::Zero(num_vars);
     box_size = Eigen::VectorXd::Ones(num_vars);
@@ -114,10 +134,26 @@ struct SQPResults
   Eigen::VectorXd box_size;
   /** @brief Coefficients used to weight the constraint violations */
   Eigen::VectorXd merit_error_coeffs;
+
   /** @brief Vector of the constraint violations. Positive is a violation */
   Eigen::VectorXd best_constraint_violations;
   /** @brief Vector of the constraint violations. Positive is a violation */
   Eigen::VectorXd new_constraint_violations;
+
+  /** @brief Vector of the convexified constraint violations. Positive is a violation */
+  Eigen::VectorXd best_approx_constraint_violations;
+  /** @brief Vector of the convexified constraint violations. Positive is a violation */
+  Eigen::VectorXd new_approx_constraint_violations;
+
+  /** @brief Vector of the constraint violations. Positive is a violation */
+  Eigen::VectorXd best_costs;
+  /** @brief Vector of the constraint violations. Positive is a violation */
+  Eigen::VectorXd new_costs;
+
+  /** @brief Vector of the convexified costs.*/
+  Eigen::VectorXd best_approx_costs;
+  /** @brief Vector of the convexified costs.*/
+  Eigen::VectorXd new_approx_costs;
 
   int penalty_iteration{ 0 };
   int convexify_iteration{ 0 };
@@ -142,8 +178,18 @@ struct SQPResults
 
     std::cout << "box_size: " << box_size.transpose().format(format) << std::endl;
     std::cout << "merit_error_coeffs: " << merit_error_coeffs.transpose().format(format) << std::endl;
+
     std::cout << "best_constraint_violations: " << best_constraint_violations.transpose().format(format) << std::endl;
     std::cout << "new_constraint_violations: " << new_constraint_violations.transpose().format(format) << std::endl;
+    std::cout << "best_approx_constraint_violations: " << best_approx_constraint_violations.transpose().format(format)
+              << std::endl;
+    std::cout << "new_approx_constraint_violations: " << new_approx_constraint_violations.transpose().format(format)
+              << std::endl;
+
+    std::cout << "best_costs: " << best_costs.transpose().format(format) << std::endl;
+    std::cout << "new_costs: " << new_costs.transpose().format(format) << std::endl;
+    std::cout << "best_approx_costs: " << best_approx_costs.transpose().format(format) << std::endl;
+    std::cout << "new_approx_costs: " << new_approx_costs.transpose().format(format) << std::endl;
 
     std::cout << "penalty_iteration: " << penalty_iteration << std::endl;
     std::cout << "convexify_iteration: " << convexify_iteration << std::endl;

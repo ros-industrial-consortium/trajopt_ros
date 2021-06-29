@@ -27,7 +27,7 @@
 #include <trajopt_ifopt/constraints/discrete_combine_collision_data.h>
 #include <trajopt_ifopt/constraints/collision_utils.h>
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 DiscreteCombineCollisionData::DiscreteCombineCollisionData(CombineCollisionDataMethod method)
 {
@@ -140,4 +140,4 @@ DiscreteCombineCollisionData::DiscreteCombineCollisionData(CombineCollisionDataM
     }
   }
 }
-}  // namespace trajopt
+}  // namespace trajopt_ifopt

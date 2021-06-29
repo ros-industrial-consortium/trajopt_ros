@@ -44,7 +44,7 @@ TRAJOPT_IGNORE_WARNINGS_POP
 #include <trajopt_sqp/osqp_eigen_solver.h>
 #include "test_suite_utils.hpp"
 
-using namespace trajopt;
+using namespace trajopt_ifopt;
 using namespace tesseract_environment;
 using namespace tesseract_kinematics;
 using namespace tesseract_collision;
@@ -93,13 +93,14 @@ TEST_F(CastTest, boxes)  // NOLINT
   ifopt::Problem nlp;
 
   // 3) Add Variables
-  std::vector<trajopt::JointPosition::ConstPtr> vars;
+  std::vector<trajopt_ifopt::JointPosition::ConstPtr> vars;
   std::vector<Eigen::VectorXd> positions;
   {
     Eigen::VectorXd pos(2);
     pos << -1.9, 0;
     positions.push_back(pos);
-    auto var = std::make_shared<trajopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
+    auto var =
+        std::make_shared<trajopt_ifopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
     vars.push_back(var);
     nlp.AddVariableSet(var);
   }
@@ -107,7 +108,8 @@ TEST_F(CastTest, boxes)  // NOLINT
     Eigen::VectorXd pos(2);
     pos << 0, 1.9;
     positions.push_back(pos);
-    auto var = std::make_shared<trajopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_1");
+    auto var =
+        std::make_shared<trajopt_ifopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_1");
     vars.push_back(var);
     nlp.AddVariableSet(var);
   }
@@ -115,7 +117,8 @@ TEST_F(CastTest, boxes)  // NOLINT
     Eigen::VectorXd pos(2);
     pos << 1.9, 3.8;
     positions.push_back(pos);
-    auto var = std::make_shared<trajopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_2");
+    auto var =
+        std::make_shared<trajopt_ifopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_2");
     vars.push_back(var);
     nlp.AddVariableSet(var);
   }
@@ -127,32 +130,32 @@ TEST_F(CastTest, boxes)  // NOLINT
 
   double margin_coeff = 10;
   double margin = 0.02;
-  auto trajopt_collision_config = std::make_shared<trajopt::TrajOptCollisionConfig>(margin, margin_coeff);
+  auto trajopt_collision_config = std::make_shared<trajopt_ifopt::TrajOptCollisionConfig>(margin, margin_coeff);
   trajopt_collision_config->collision_margin_buffer = 0.05;
 
   // 4) Add constraints
   {  // Fix start position
-    std::vector<trajopt::JointPosition::ConstPtr> fixed_vars = { vars[0] };
-    auto cnt = std::make_shared<trajopt::JointPosConstraint>(positions[0], fixed_vars);
+    std::vector<trajopt_ifopt::JointPosition::ConstPtr> fixed_vars = { vars[0] };
+    auto cnt = std::make_shared<trajopt_ifopt::JointPosConstraint>(positions[0], fixed_vars);
     nlp.AddConstraintSet(cnt);
   }
 
   {  // Fix end position
-    std::vector<trajopt::JointPosition::ConstPtr> fixed_vars = { vars[2] };
-    auto cnt = std::make_shared<trajopt::JointPosConstraint>(positions[2], fixed_vars);
+    std::vector<trajopt_ifopt::JointPosition::ConstPtr> fixed_vars = { vars[2] };
+    auto cnt = std::make_shared<trajopt_ifopt::JointPosConstraint>(positions[2], fixed_vars);
     nlp.AddConstraintSet(cnt);
   }
 
-  auto collision_cache = std::make_shared<trajopt::CollisionCache>(100);
+  auto collision_cache = std::make_shared<trajopt_ifopt::CollisionCache>(100);
   for (std::size_t i = 1; i < (vars.size() - 1); ++i)
   {
-    auto collision_evaluator = std::make_shared<trajopt::LVSContinuousCollisionEvaluator>(
+    auto collision_evaluator = std::make_shared<trajopt_ifopt::LVSContinuousCollisionEvaluator>(
         collision_cache, kin, env, adj_map, Eigen::Isometry3d::Identity(), trajopt_collision_config);
 
     std::array<JointPosition::ConstPtr, 3> position_vars{ vars[i - 1], vars[i], vars[i + 1] };
-    auto cnt = std::make_shared<trajopt::ContinuousCollisionConstraintIfopt>(
+    auto cnt = std::make_shared<trajopt_ifopt::ContinuousCollisionConstraintIfopt>(
         collision_evaluator,
-        trajopt::ContinuousCombineCollisionData(CombineCollisionDataMethod::WEIGHTED_AVERAGE),
+        trajopt_ifopt::ContinuousCombineCollisionData(CombineCollisionDataMethod::WEIGHTED_AVERAGE),
         position_vars);
     nlp.AddConstraintSet(cnt);
   }

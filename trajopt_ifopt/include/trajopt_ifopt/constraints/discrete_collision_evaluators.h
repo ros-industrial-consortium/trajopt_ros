@@ -39,7 +39,7 @@ TRAJOPT_IGNORE_WARNINGS_POP
 #include <trajopt_ifopt/variable_sets/joint_position_variable.h>
 #include <trajopt/cache.hxx>
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 /**
  * @brief This collision evaluator only operates on a single state in the trajectory and does not check for collisions
@@ -128,6 +128,6 @@ private:
                             tesseract_collision::ContactResultMap& dist_results);
 };
 
-}  // namespace trajopt
+}  // namespace trajopt_ifopt
 
 #endif  // TRAJOPT_IFOPT_DISCRETE_COLLISION_EVALUATOR_H

@@ -47,7 +47,7 @@ TRAJOPT_IGNORE_WARNINGS_POP
 #include <trajopt_sqp/osqp_eigen_solver.h>
 #include "test_suite_utils.hpp"
 
-using namespace trajopt;
+using namespace trajopt_ifopt;
 using namespace tesseract_environment;
 using namespace tesseract_collision;
 using namespace tesseract_kinematics;
@@ -114,10 +114,10 @@ TEST_F(PlanningTest, arm_around_table)  // NOLINT
   ifopt::Problem nlp;
 
   // Add Variables
-  std::vector<trajopt::JointPosition::ConstPtr> vars;
+  std::vector<trajopt_ifopt::JointPosition::ConstPtr> vars;
   for (Eigen::Index i = 0; i < 6; ++i)
   {
-    auto var = std::make_shared<trajopt::JointPosition>(
+    auto var = std::make_shared<trajopt_ifopt::JointPosition>(
         trajectory.row(i), forward_kinematics->getJointNames(), "Joint_Position_" + std::to_string(i));
     vars.push_back(var);
     nlp.AddVariableSet(var);
@@ -125,7 +125,7 @@ TEST_F(PlanningTest, arm_around_table)  // NOLINT
 
   double margin_coeff = 50;
   double margin = 0.025;
-  auto trajopt_collision_config = std::make_shared<trajopt::TrajOptCollisionConfig>(margin, margin_coeff);
+  auto trajopt_collision_config = std::make_shared<trajopt_ifopt::TrajOptCollisionConfig>(margin, margin_coeff);
   trajopt_collision_config->collision_margin_buffer = 0.02;
   trajopt_collision_config->longest_valid_segment_length = 0.005;
 
@@ -145,25 +145,26 @@ TEST_F(PlanningTest, arm_around_table)  // NOLINT
   }
 
   {  // Fix end position
-    std::vector<trajopt::JointPosition::ConstPtr> fixed_vars = { vars[5] };
-    auto cnt = std::make_shared<trajopt::JointPosConstraint>(trajectory.row(5), fixed_vars);
+    std::vector<trajopt_ifopt::JointPosition::ConstPtr> fixed_vars = { vars[5] };
+    auto cnt = std::make_shared<trajopt_ifopt::JointPosConstraint>(trajectory.row(5), fixed_vars);
     nlp.AddConstraintSet(cnt);
   }
 
-  auto collision_cache = std::make_shared<trajopt::CollisionCache>(100);
+  auto collision_cache = std::make_shared<trajopt_ifopt::CollisionCache>(100);
   for (std::size_t i = 1; i < (vars.size() - 1); ++i)
   {
-    auto collision_evaluator = std::make_shared<trajopt::LVSContinuousCollisionEvaluator>(collision_cache,
-                                                                                          forward_kinematics,
-                                                                                          env,
-                                                                                          adjacency_map,
-                                                                                          Eigen::Isometry3d::Identity(),
-                                                                                          trajopt_collision_config);
+    auto collision_evaluator =
+        std::make_shared<trajopt_ifopt::LVSContinuousCollisionEvaluator>(collision_cache,
+                                                                         forward_kinematics,
+                                                                         env,
+                                                                         adjacency_map,
+                                                                         Eigen::Isometry3d::Identity(),
+                                                                         trajopt_collision_config);
 
     std::array<JointPosition::ConstPtr, 3> position_vars{ vars[i - 1], vars[i], vars[i + 1] };
-    auto cnt = std::make_shared<trajopt::ContinuousCollisionConstraintIfopt>(
+    auto cnt = std::make_shared<trajopt_ifopt::ContinuousCollisionConstraintIfopt>(
         collision_evaluator,
-        trajopt::ContinuousCombineCollisionData(CombineCollisionDataMethod::WEIGHTED_AVERAGE),
+        trajopt_ifopt::ContinuousCombineCollisionData(CombineCollisionDataMethod::WEIGHTED_AVERAGE),
         position_vars);
     nlp.AddConstraintSet(cnt);
   }

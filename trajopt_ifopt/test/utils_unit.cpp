@@ -33,7 +33,7 @@ TRAJOPT_IGNORE_WARNINGS_POP
 #include <trajopt_ifopt/utils/ifopt_utils.h>
 #include <console_bridge/console.h>
 
-using namespace trajopt;
+using namespace trajopt_ifopt;
 using namespace std;
 
 TEST(UtilsUnit, toBoundsMatrixX2d)  // NOLINT
@@ -103,7 +103,7 @@ TEST(UtilsUnit, getClosestValidPoint1)  // NOLINT
   ifopt::Bounds bound(-2.0, 2.0);
   std::vector<ifopt::Bounds> bounds(3, bound);
   Eigen::VectorXd input = Eigen::VectorXd::Ones(3) * 1.0;
-  Eigen::VectorXd output = trajopt::getClosestValidPoint(input, bounds);
+  Eigen::VectorXd output = trajopt_ifopt::getClosestValidPoint(input, bounds);
   EXPECT_TRUE(output.isApprox(input));
 }
 
@@ -113,7 +113,7 @@ TEST(UtilsUnit, getClosestValidPoint2)  // NOLINT
   ifopt::Bounds bound(-2.0, 2.0);
   std::vector<ifopt::Bounds> bounds(3, bound);
   Eigen::VectorXd input = Eigen::VectorXd::Ones(3) * 3.0;
-  Eigen::VectorXd output = trajopt::getClosestValidPoint(input, bounds);
+  Eigen::VectorXd output = trajopt_ifopt::getClosestValidPoint(input, bounds);
   Eigen::VectorXd desired_results = Eigen::VectorXd::Ones(3) * 2.0;
   EXPECT_TRUE(output.isApprox(desired_results));
 }
@@ -124,7 +124,7 @@ TEST(UtilsUnit, getClosestValidPoint3)  // NOLINT
   ifopt::Bounds bound(-2.0, 2.0);
   std::vector<ifopt::Bounds> bounds(3, bound);
   Eigen::VectorXd input = Eigen::VectorXd::Ones(3) * -3.0;
-  Eigen::VectorXd output = trajopt::getClosestValidPoint(input, bounds);
+  Eigen::VectorXd output = trajopt_ifopt::getClosestValidPoint(input, bounds);
   Eigen::VectorXd desired_results = Eigen::VectorXd::Ones(3) * -2.0;
   EXPECT_TRUE(output.isApprox(desired_results));
 }
@@ -135,7 +135,7 @@ TEST(UtilsUnit, getClosestValidPoint4)  // NOLINT
   ifopt::Bounds bound(ifopt::BoundGreaterZero);
   std::vector<ifopt::Bounds> bounds(3, bound);
   Eigen::VectorXd input = Eigen::VectorXd::Ones(3) * 3.0e6;
-  Eigen::VectorXd output = trajopt::getClosestValidPoint(input, bounds);
+  Eigen::VectorXd output = trajopt_ifopt::getClosestValidPoint(input, bounds);
   EXPECT_TRUE(output.isApprox(input));
 }
 
@@ -145,7 +145,7 @@ TEST(UtilsUnit, getClosestValidPoint5)  // NOLINT
   ifopt::Bounds bound(ifopt::BoundSmallerZero);
   std::vector<ifopt::Bounds> bounds(3, bound);
   Eigen::VectorXd input = Eigen::VectorXd::Ones(3) * -3.0e6;
-  Eigen::VectorXd output = trajopt::getClosestValidPoint(input, bounds);
+  Eigen::VectorXd output = trajopt_ifopt::getClosestValidPoint(input, bounds);
   EXPECT_TRUE(output.isApprox(input));
 }
 
@@ -156,9 +156,9 @@ TEST(UtilsUnit, calcBoundsErrorsAndViolations)  // NOLINT
     ifopt::Bounds bound(ifopt::BoundSmallerZero);
     std::vector<ifopt::Bounds> bounds(3, bound);
     Eigen::VectorXd input = Eigen::VectorXd::Constant(3, 3.5);
-    Eigen::VectorXd output = trajopt::calcBoundsErrors(input, bounds);
+    Eigen::VectorXd output = trajopt_ifopt::calcBoundsErrors(input, bounds);
     EXPECT_TRUE(output.isApprox(input));
-    Eigen::VectorXd output2 = trajopt::calcBoundsViolations(input, bounds);
+    Eigen::VectorXd output2 = trajopt_ifopt::calcBoundsViolations(input, bounds);
     EXPECT_TRUE(output2.isApprox(output.cwiseAbs()));
   }
 
@@ -166,9 +166,9 @@ TEST(UtilsUnit, calcBoundsErrorsAndViolations)  // NOLINT
     ifopt::Bounds bound(ifopt::BoundSmallerZero);
     std::vector<ifopt::Bounds> bounds(3, bound);
     Eigen::VectorXd input = Eigen::VectorXd::Constant(3, -3.5);
-    Eigen::VectorXd output = trajopt::calcBoundsErrors(input, bounds);
+    Eigen::VectorXd output = trajopt_ifopt::calcBoundsErrors(input, bounds);
     EXPECT_TRUE(output.isApprox(Eigen::VectorXd::Zero(3)));
-    Eigen::VectorXd output2 = trajopt::calcBoundsViolations(input, bounds);
+    Eigen::VectorXd output2 = trajopt_ifopt::calcBoundsViolations(input, bounds);
     EXPECT_TRUE(output2.isApprox(output.cwiseAbs()));
   }
 
@@ -176,9 +176,9 @@ TEST(UtilsUnit, calcBoundsErrorsAndViolations)  // NOLINT
     ifopt::Bounds bound(ifopt::BoundGreaterZero);
     std::vector<ifopt::Bounds> bounds(3, bound);
     Eigen::VectorXd input = Eigen::VectorXd::Constant(3, -3.5);
-    Eigen::VectorXd output = trajopt::calcBoundsErrors(input, bounds);
+    Eigen::VectorXd output = trajopt_ifopt::calcBoundsErrors(input, bounds);
     EXPECT_TRUE(output.isApprox(input));
-    Eigen::VectorXd output2 = trajopt::calcBoundsViolations(input, bounds);
+    Eigen::VectorXd output2 = trajopt_ifopt::calcBoundsViolations(input, bounds);
     EXPECT_TRUE(output2.isApprox(output.cwiseAbs()));
   }
 
@@ -186,9 +186,9 @@ TEST(UtilsUnit, calcBoundsErrorsAndViolations)  // NOLINT
     ifopt::Bounds bound(ifopt::BoundGreaterZero);
     std::vector<ifopt::Bounds> bounds(3, bound);
     Eigen::VectorXd input = Eigen::VectorXd::Constant(3, 3.5);
-    Eigen::VectorXd output = trajopt::calcBoundsErrors(input, bounds);
+    Eigen::VectorXd output = trajopt_ifopt::calcBoundsErrors(input, bounds);
     EXPECT_TRUE(output.isApprox(Eigen::VectorXd::Zero(3)));
-    Eigen::VectorXd output2 = trajopt::calcBoundsViolations(input, bounds);
+    Eigen::VectorXd output2 = trajopt_ifopt::calcBoundsViolations(input, bounds);
     EXPECT_TRUE(output2.isApprox(output.cwiseAbs()));
   }
 
@@ -196,9 +196,9 @@ TEST(UtilsUnit, calcBoundsErrorsAndViolations)  // NOLINT
     ifopt::Bounds bound(ifopt::BoundZero);
     std::vector<ifopt::Bounds> bounds(3, bound);
     Eigen::VectorXd input = Eigen::VectorXd::Constant(3, 3.5);
-    Eigen::VectorXd output = trajopt::calcBoundsErrors(input, bounds);
+    Eigen::VectorXd output = trajopt_ifopt::calcBoundsErrors(input, bounds);
     EXPECT_TRUE(output.isApprox(input));
-    Eigen::VectorXd output2 = trajopt::calcBoundsViolations(input, bounds);
+    Eigen::VectorXd output2 = trajopt_ifopt::calcBoundsViolations(input, bounds);
     EXPECT_TRUE(output2.isApprox(output.cwiseAbs()));
   }
 
@@ -206,9 +206,9 @@ TEST(UtilsUnit, calcBoundsErrorsAndViolations)  // NOLINT
     ifopt::Bounds bound(ifopt::BoundZero);
     std::vector<ifopt::Bounds> bounds(3, bound);
     Eigen::VectorXd input = Eigen::VectorXd::Constant(3, -3.5);
-    Eigen::VectorXd output = trajopt::calcBoundsErrors(input, bounds);
+    Eigen::VectorXd output = trajopt_ifopt::calcBoundsErrors(input, bounds);
     EXPECT_TRUE(output.isApprox(input));
-    Eigen::VectorXd output2 = trajopt::calcBoundsViolations(input, bounds);
+    Eigen::VectorXd output2 = trajopt_ifopt::calcBoundsViolations(input, bounds);
     EXPECT_TRUE(output2.isApprox(output.cwiseAbs()));
   }
 
@@ -216,9 +216,9 @@ TEST(UtilsUnit, calcBoundsErrorsAndViolations)  // NOLINT
     ifopt::Bounds bound(ifopt::BoundZero);
     std::vector<ifopt::Bounds> bounds(3, bound);
     Eigen::VectorXd input = Eigen::VectorXd::Zero(3);
-    Eigen::VectorXd output = trajopt::calcBoundsErrors(input, bounds);
+    Eigen::VectorXd output = trajopt_ifopt::calcBoundsErrors(input, bounds);
     EXPECT_TRUE(output.isApprox(input));
-    Eigen::VectorXd output2 = trajopt::calcBoundsViolations(input, bounds);
+    Eigen::VectorXd output2 = trajopt_ifopt::calcBoundsViolations(input, bounds);
     EXPECT_TRUE(output2.isApprox(output.cwiseAbs()));
   }
 
@@ -226,10 +226,10 @@ TEST(UtilsUnit, calcBoundsErrorsAndViolations)  // NOLINT
     ifopt::Bounds bound(-3, 6);
     std::vector<ifopt::Bounds> bounds(3, bound);
     Eigen::VectorXd input = Eigen::VectorXd::Constant(3, -3.5);
-    Eigen::VectorXd output = trajopt::calcBoundsErrors(input, bounds);
+    Eigen::VectorXd output = trajopt_ifopt::calcBoundsErrors(input, bounds);
     Eigen::VectorXd viol = Eigen::VectorXd::Constant(3, -0.5);
     EXPECT_TRUE(output.isApprox(viol));
-    Eigen::VectorXd output2 = trajopt::calcBoundsViolations(input, bounds);
+    Eigen::VectorXd output2 = trajopt_ifopt::calcBoundsViolations(input, bounds);
     EXPECT_TRUE(output2.isApprox(output.cwiseAbs()));
   }
 
@@ -237,10 +237,10 @@ TEST(UtilsUnit, calcBoundsErrorsAndViolations)  // NOLINT
     ifopt::Bounds bound(-3, 6);
     std::vector<ifopt::Bounds> bounds(3, bound);
     Eigen::VectorXd input = Eigen::VectorXd::Constant(3, 6.5);
-    Eigen::VectorXd output = trajopt::calcBoundsErrors(input, bounds);
+    Eigen::VectorXd output = trajopt_ifopt::calcBoundsErrors(input, bounds);
     Eigen::VectorXd viol = Eigen::VectorXd::Constant(3, 0.5);
     EXPECT_TRUE(output.isApprox(viol));
-    Eigen::VectorXd output2 = trajopt::calcBoundsViolations(input, bounds);
+    Eigen::VectorXd output2 = trajopt_ifopt::calcBoundsViolations(input, bounds);
     EXPECT_TRUE(output2.isApprox(output.cwiseAbs()));
   }
 
@@ -248,9 +248,9 @@ TEST(UtilsUnit, calcBoundsErrorsAndViolations)  // NOLINT
     ifopt::Bounds bound(-3, 6);
     std::vector<ifopt::Bounds> bounds(3, bound);
     Eigen::VectorXd input = Eigen::VectorXd::Constant(3, 1);
-    Eigen::VectorXd output = trajopt::calcBoundsErrors(input, bounds);
+    Eigen::VectorXd output = trajopt_ifopt::calcBoundsErrors(input, bounds);
     EXPECT_TRUE(output.isApprox(Eigen::VectorXd::Zero(3)));
-    Eigen::VectorXd output2 = trajopt::calcBoundsViolations(input, bounds);
+    Eigen::VectorXd output2 = trajopt_ifopt::calcBoundsViolations(input, bounds);
     EXPECT_TRUE(output2.isApprox(output.cwiseAbs()));
   }
 }

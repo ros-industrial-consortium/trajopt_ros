@@ -57,11 +57,11 @@ public:
       console_bridge::setLogLevel(console_bridge::LogLevel::CONSOLE_BRIDGE_LOG_NONE);
 
     // 2) Add Variables
-    std::vector<trajopt::JointPosition::ConstPtr> vars;
+    std::vector<trajopt_ifopt::JointPosition::ConstPtr> vars;
     std::vector<std::string> joint_names(7, "name");
     {
       auto pos = Eigen::VectorXd::Zero(7);
-      auto var = std::make_shared<trajopt::JointPosition>(pos, joint_names, "Joint_Position_0");
+      auto var = std::make_shared<trajopt_ifopt::JointPosition>(pos, joint_names, "Joint_Position_0");
       auto bounds = std::vector<ifopt::Bounds>(7, ifopt::NoBound);
       var->SetBounds(bounds);
       vars.push_back(var);
@@ -70,7 +70,8 @@ public:
     for (int ind = 1; ind < 3; ind++)
     {
       auto pos = Eigen::VectorXd::Ones(7) * 10;
-      auto var = std::make_shared<trajopt::JointPosition>(pos, joint_names, "Joint_Position_" + std::to_string(ind));
+      auto var =
+          std::make_shared<trajopt_ifopt::JointPosition>(pos, joint_names, "Joint_Position_" + std::to_string(ind));
       auto bounds = std::vector<ifopt::Bounds>(7, ifopt::NoBound);
       var->SetBounds(bounds);
       vars.push_back(var);
@@ -79,25 +80,25 @@ public:
 
     // 3) Add constraints
     Eigen::VectorXd start_pos = Eigen::VectorXd::Zero(7);
-    std::vector<trajopt::JointPosition::ConstPtr> start;
+    std::vector<trajopt_ifopt::JointPosition::ConstPtr> start;
     start.push_back(vars.front());
-    auto start_constraint = std::make_shared<trajopt::JointPosConstraint>(start_pos, start, "StartPosition");
+    auto start_constraint = std::make_shared<trajopt_ifopt::JointPosConstraint>(start_pos, start, "StartPosition");
     nlp_.AddConstraintSet(start_constraint);
 
     Eigen::VectorXd end_pos = Eigen::VectorXd::Ones(7) * 10;
-    std::vector<trajopt::JointPosition::ConstPtr> end;
+    std::vector<trajopt_ifopt::JointPosition::ConstPtr> end;
     end.push_back(vars.back());
-    auto end_constraint = std::make_shared<trajopt::JointPosConstraint>(end_pos, end, "EndPosition");
+    auto end_constraint = std::make_shared<trajopt_ifopt::JointPosConstraint>(end_pos, end, "EndPosition");
     nlp_.AddConstraintSet(end_constraint);
 
     // 4) Add costs
     Eigen::VectorXd vel_target = Eigen::VectorXd::Zero(7);
-    auto vel_constraint = std::make_shared<trajopt::JointVelConstraint>(vel_target, vars, "jv");
+    auto vel_constraint = std::make_shared<trajopt_ifopt::JointVelConstraint>(vel_target, vars, "jv");
 
     // Must link the variables to the constraint since that happens in AddConstraintSet
     vel_constraint->LinkWithVariables(nlp_.GetOptVariables());
     Eigen::VectorXd weights = Eigen::VectorXd::Constant(vel_constraint->GetRows(), 0.01);
-    auto vel_cost = std::make_shared<trajopt::SquaredCost>(vel_constraint, weights);
+    auto vel_cost = std::make_shared<trajopt_ifopt::SquaredCost>(vel_constraint, weights);
     nlp_.AddCostSet(vel_cost);
 
     if (DEBUG)

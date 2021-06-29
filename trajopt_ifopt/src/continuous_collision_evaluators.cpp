@@ -26,7 +26,7 @@
 #include <trajopt_ifopt/constraints/continuous_collision_constraint.h>
 #include <trajopt_ifopt/constraints/collision_utils.h>
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 LVSContinuousCollisionEvaluator::LVSContinuousCollisionEvaluator(
     std::shared_ptr<CollisionCache> collision_cache,
@@ -34,7 +34,7 @@ LVSContinuousCollisionEvaluator::LVSContinuousCollisionEvaluator(
     tesseract_environment::Environment::ConstPtr env,
     tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
     const Eigen::Isometry3d& world_to_base,
-    trajopt::TrajOptCollisionConfig::ConstPtr collision_config,
+    trajopt_ifopt::TrajOptCollisionConfig::ConstPtr collision_config,
     bool dynamic_environment)
   : collision_cache_(collision_cache)
   , manip_(std::move(manip))
@@ -186,7 +186,7 @@ LVSContinuousCollisionEvaluator::CalcGradientData(const Eigen::Ref<const Eigen::
   return getGradient(dof_vals0, dof_vals1, contact_results, data, manip_, adjacency_map_, world_to_base_);
 }
 
-const trajopt::TrajOptCollisionConfig& LVSContinuousCollisionEvaluator::GetCollisionConfig() const
+const trajopt_ifopt::TrajOptCollisionConfig& LVSContinuousCollisionEvaluator::GetCollisionConfig() const
 {
   return *collision_config_;
 }
@@ -199,7 +199,7 @@ LVSDiscreteCollisionEvaluator::LVSDiscreteCollisionEvaluator(
     tesseract_environment::Environment::ConstPtr env,
     tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
     const Eigen::Isometry3d& world_to_base,
-    trajopt::TrajOptCollisionConfig::ConstPtr collision_config,
+    trajopt_ifopt::TrajOptCollisionConfig::ConstPtr collision_config,
     bool dynamic_environment)
   : collision_cache_(collision_cache)
   , manip_(std::move(manip))
@@ -331,9 +331,9 @@ LVSDiscreteCollisionEvaluator::CalcGradientData(const Eigen::Ref<const Eigen::Ve
   return getGradient(dof_vals0, dof_vals1, contact_results, data, manip_, adjacency_map_, world_to_base_);
 }
 
-const trajopt::TrajOptCollisionConfig& LVSDiscreteCollisionEvaluator::GetCollisionConfig() const
+const trajopt_ifopt::TrajOptCollisionConfig& LVSDiscreteCollisionEvaluator::GetCollisionConfig() const
 {
   return *collision_config_;
 }
 
-}  // namespace trajopt
+}  // namespace trajopt_ifopt

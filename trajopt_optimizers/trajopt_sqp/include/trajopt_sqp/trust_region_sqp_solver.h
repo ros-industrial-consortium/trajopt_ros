@@ -33,7 +33,7 @@
 
 #include <ifopt/problem.h>
 #include <ifopt/solver.h>
-#include <trajopt_sqp/qp_problem.h>
+#include <trajopt_sqp/ifopt_qp_problem.h>
 #include <trajopt_sqp/qp_solver.h>
 #include <trajopt_sqp/sqp_callback.h>
 
@@ -119,8 +119,9 @@ public:
 
   /** @brief The QP Solver used to solve a single step of the SQP routine  */
   QPSolver::Ptr qp_solver;
+
   /** @brief The QP problem created from the NLP */
-  QPProblem::Ptr qp_problem;
+  IfoptQPProblem::Ptr qp_problem;
 
 protected:
   SQPStatus status_;

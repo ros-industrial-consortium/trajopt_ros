@@ -9,7 +9,7 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <memory>
 TRAJOPT_IGNORE_WARNINGS_POP
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 template <typename KeyT, class ValueT>
 class Cache
@@ -41,5 +41,5 @@ private:
   std::vector<ValueT> valbuf_;  // circular buffer
 };
 
-}  // namespace trajopt
+}  // namespace trajopt_ifopt
 #endif  // TRAJOPT_IFOPT_CACHE_H

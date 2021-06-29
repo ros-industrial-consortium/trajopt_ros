@@ -37,7 +37,7 @@ TRAJOPT_IGNORE_WARNINGS_POP
 
 #include <trajopt_ifopt/cache.h>
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 using GetStateFn =
     std::function<tesseract_environment::EnvState::Ptr(const std::vector<std::string>& joint_names,
@@ -272,5 +272,5 @@ using CombineJacobianCentFn = std::function<void(ifopt::Component::Jacobian& jac
                                                  const CollisionCacheData& collision_data_prev,
                                                  const CollisionCacheData& collision_data_post)>;
 
-}  // namespace trajopt
+}  // namespace trajopt_ifopt
 #endif  // TRAJOPT_IFOPT_COLLISION_TYPES_H

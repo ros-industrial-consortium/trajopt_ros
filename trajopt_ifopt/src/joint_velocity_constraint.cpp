@@ -29,7 +29,7 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <console_bridge/console.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 JointVelConstraint::JointVelConstraint(const Eigen::VectorXd& targets,
                                        std::vector<JointPosition::ConstPtr> position_vars,
@@ -118,4 +118,4 @@ void JointVelConstraint::FillJacobianBlock(std::string var_set, Jacobian& jac_bl
   }
 }
 
-}  // namespace trajopt
+}  // namespace trajopt_ifopt

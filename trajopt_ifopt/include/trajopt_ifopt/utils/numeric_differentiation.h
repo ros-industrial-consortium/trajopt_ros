@@ -32,7 +32,7 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <ifopt/cost_term.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 using ErrorCalculator = std::function<Eigen::VectorXd(const Eigen::Ref<const Eigen::VectorXd>&)>;
 using Jacobian = Eigen::SparseMatrix<double, Eigen::RowMajor>;
@@ -58,6 +58,6 @@ inline Jacobian calcForwardNumJac(const ErrorCalculator& f, const Eigen::Ref<con
   }
   return out.sparseView();
 }
-}  // namespace trajopt
+}  // namespace trajopt_ifopt
 
 #endif

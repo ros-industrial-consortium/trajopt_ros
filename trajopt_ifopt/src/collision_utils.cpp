@@ -32,7 +32,7 @@ TRAJOPT_IGNORE_WARNINGS_POP
 
 #include <trajopt_ifopt/constraints/collision_utils.h>
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 std::size_t getHash(const TrajOptCollisionConfig& collision_config, const Eigen::Ref<const Eigen::VectorXd>& dof_vals)
 {
@@ -942,7 +942,7 @@ Eigen::VectorXd getAvgGradientPost(const GradientResultsSet& grad_results_set_po
   }
 
   assert(cnt > 0);
-  return (grad_vec / cnt);
+  return ((cnt == 0) ? grad_vec : (grad_vec / cnt));
 }
 
 Eigen::VectorXd getAvgGradientPrev(const GradientResultsSet& grad_results_set_prev)
@@ -967,7 +967,7 @@ Eigen::VectorXd getAvgGradientPrev(const GradientResultsSet& grad_results_set_pr
   }
 
   assert(cnt > 0);
-  return (grad_vec / cnt);
+  return ((cnt == 0) ? grad_vec : (grad_vec / cnt));
 }
 
 Eigen::VectorXd getAvgGradientCent(const GradientResultsSet& grad_results_set_prev,
@@ -1013,7 +1013,7 @@ Eigen::VectorXd getAvgGradientCent(const GradientResultsSet& grad_results_set_pr
   }
 
   assert(cnt > 0);
-  return (grad_vec / cnt);
+  return ((cnt == 0) ? grad_vec : (grad_vec / cnt));
 }
 
 Eigen::VectorXd getWeightedAvgGradientPost(const GradientResultsSet& grad_results_set_post)
@@ -1523,4 +1523,4 @@ void debugPrintInfo(const tesseract_collision::ContactResult& res,
 
   std::printf("\n");
 }
-}  // namespace trajopt
+}  // namespace trajopt_ifopt

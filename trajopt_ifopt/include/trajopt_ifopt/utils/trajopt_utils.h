@@ -35,14 +35,14 @@ TRAJOPT_IGNORE_WARNINGS_POP
 #include <trajopt/typedefs.hpp>
 #include <trajopt_ifopt/variable_sets/joint_position_variable.h>
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 /**
  * @brief Converts a vector of trajopt variables into the legacy TrajArray format
  * @param joint_positions Vector of joint positions. Must be in order and all the same length
  * @return TrajArray - size = [joint_positions.size(), joint_positions.n_dof]
  */
-inline trajopt::TrajArray toTrajArray(const std::vector<trajopt::JointPosition::ConstPtr>& joint_positions)
+inline trajopt::TrajArray toTrajArray(const std::vector<trajopt_ifopt::JointPosition::ConstPtr>& joint_positions)
 {
   trajopt::TrajArray traj_array;
   if (!joint_positions.empty())
@@ -58,7 +58,7 @@ inline trajopt::TrajArray toTrajArray(const std::vector<trajopt::JointPosition::
  * @return JointTrajectory
  */
 inline tesseract_common::JointTrajectory
-toJointTrajectory(const std::vector<trajopt::JointPosition::ConstPtr>& joint_positions)
+toJointTrajectory(const std::vector<trajopt_ifopt::JointPosition::ConstPtr>& joint_positions)
 {
   tesseract_common::JointTrajectory joint_trajectory;
 
@@ -71,5 +71,5 @@ toJointTrajectory(const std::vector<trajopt::JointPosition::ConstPtr>& joint_pos
   return joint_trajectory;
 }
 
-}  // namespace trajopt
+}  // namespace trajopt_ifopt
 #endif

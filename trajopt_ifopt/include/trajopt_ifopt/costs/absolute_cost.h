@@ -33,7 +33,7 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <Eigen/Eigen>
 TRAJOPT_IGNORE_WARNINGS_POP
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 /**
  * @brief This class converts a constraint to a cost with a absolute error
@@ -104,6 +104,6 @@ private:
   Eigen::VectorXd weights_;
 };
 
-}  // namespace trajopt
+}  // namespace trajopt_ifopt
 
 #endif  // TRAJOPT_IFOPT_ABSOLUTE_COST_H

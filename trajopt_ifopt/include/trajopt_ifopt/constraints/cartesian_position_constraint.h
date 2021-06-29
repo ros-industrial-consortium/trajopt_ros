@@ -39,45 +39,68 @@ TRAJOPT_IGNORE_WARNINGS_POP
 
 #include <trajopt/utils.hpp>
 #include <trajopt_ifopt/variable_sets/joint_position_variable.h>
+#include <trajopt_ifopt/kinematics_info.h>
 
-namespace trajopt
+namespace trajopt_ifopt
 {
-/**
- * @brief Contains kinematic information for the cartesian position cost
- */
-struct CartPosKinematicInfo
+/** @brief Contains Cartesian pose constraint information */
+struct CartPosInfo
 {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  using Ptr = std::shared_ptr<CartPosKinematicInfo>;
-  using ConstPtr = std::shared_ptr<const CartPosKinematicInfo>;
+  using Ptr = std::shared_ptr<CartPosInfo>;
+  using ConstPtr = std::shared_ptr<const CartPosInfo>;
 
-  CartPosKinematicInfo() = default;
-  CartPosKinematicInfo(tesseract_kinematics::ForwardKinematics::ConstPtr manip,
-                       tesseract_environment::AdjacencyMap::ConstPtr adjacency_map,
-                       const Eigen::Isometry3d& world_to_base,
-                       std::string link,
-                       const Eigen::Isometry3d& tcp = Eigen::Isometry3d::Identity())
-    : manip(std::move(manip))
-    , adjacency_map(std::move(adjacency_map))
-    , world_to_base(world_to_base)
-    , link(std::move(link))
-    , tcp(tcp)
+  CartPosInfo() = default;
+  CartPosInfo(KinematicsInfo::ConstPtr kin_info,
+              const Eigen::Isometry3d& target_pose,
+              std::string source_link,
+              const Eigen::Isometry3d& source_tcp = Eigen::Isometry3d::Identity(),
+              Eigen::VectorXi indices = Eigen::Matrix<int, 1, 6>(std::vector<int>({ 0, 1, 2, 3, 4, 5 }).data()))
+    : kin_info(std::move(kin_info))
+    , source_link(std::move(source_link))
+    , source_tcp(source_tcp)
+    , target_pose(target_pose)
+    , target_pose_inv(target_pose.inverse())
+    , indices(std::move(indices))
   {
-    this->kin_link = this->adjacency_map->getLinkMapping(this->link);
-    if (this->kin_link == nullptr)
-    {
-      CONSOLE_BRIDGE_logError("Link name '%s' provided does not exist.", this->link.c_str());
-      assert(false);
-    }
+    this->source_kin_link = this->kin_info->adjacency_map->getLinkMapping(this->source_link);
+    if (this->source_kin_link == nullptr)
+      throw std::runtime_error("CartPosKinematicInfo: Source Link name '" + this->source_link +
+                               "' provided does not exist.");
+
+    if (this->indices.size() > 6)
+      throw std::runtime_error("CartPosKinematicInfo: The indicies list length cannot be larger than six.");
+
+    if (this->indices.size() == 0)
+      throw std::runtime_error("CartPosKinematicInfo: The indicies list length is zero.");
   }
 
-  tesseract_kinematics::ForwardKinematics::ConstPtr manip;
-  tesseract_environment::AdjacencyMap::ConstPtr adjacency_map;
-  Eigen::Isometry3d world_to_base;
-  std::string link;
-  tesseract_environment::AdjacencyMapPair::ConstPtr kin_link;
-  Eigen::Isometry3d tcp;
+  /** @brief The kinematics information */
+  KinematicsInfo::ConstPtr kin_info;
+
+  /** @brief Link which should reach desired pos */
+  std::string source_link;
+
+  /** @brief Static transform applied to the link_ location */
+  Eigen::Isometry3d source_tcp;
+
+  /** @brief This is a map containing the transform from link_ to its adjacent moving link in the kinematics object */
+  tesseract_environment::AdjacencyMapPair::ConstPtr source_kin_link;
+
+  /** @brief The target TCP pose in world frame. Not used for calculation. Stored for convenience */
+  Eigen::Isometry3d target_pose;
+
+  /** @brief The inverse of target_pose_ used for error calculations */
+  Eigen::Isometry3d target_pose_inv;
+
+  /**
+   * @brief This is a vector of indices to be returned Default: {0, 1, 2, 3, 4, 5}
+   *
+   * If you only care about x, y and z error, this is {0, 1, 2}
+   * If you only care about rotation error around x, y and z, this is {3, 4, 5}
+   */
+  Eigen::VectorXi indices;
 };
 
 class CartPosConstraint : public ifopt::ConstraintSet
@@ -88,9 +111,11 @@ public:
   using Ptr = std::shared_ptr<CartPosConstraint>;
   using ConstPtr = std::shared_ptr<const CartPosConstraint>;
 
-  CartPosConstraint(const Eigen::Isometry3d& target_pose,
-                    CartPosKinematicInfo::ConstPtr kinematic_info,
+  CartPosConstraint(CartPosInfo info, JointPosition::ConstPtr position_var, const std::string& name = "CartPos");
+
+  CartPosConstraint(CartPosInfo info,
                     JointPosition::ConstPtr position_var,
+                    const Eigen::VectorXd& coeffs,
                     const std::string& name = "CartPos");
 
   /**
@@ -127,19 +152,28 @@ public:
    */
   void FillJacobianBlock(std::string var_set, Jacobian& jac_block) const override;
 
-  void SetTargetPose(const Eigen::Isometry3d& target_pose);
+  /**
+   * @brief Gets the Cartesian Pose info used to create this constraint
+   * @return The Cartesian Pose info used to create this constraint
+   */
+  const CartPosInfo& GetInfo() const { return info_; }
+  CartPosInfo& GetInfo() { return info_; }
 
   /**
-   * @brief Gets the kinematic info used to create this constraint
-   * @return The kinematic info used to create this constraint
+   * @brief Set the target pose
+   * @param pose
    */
-  const CartPosKinematicInfo::ConstPtr& getKinematicInfo() { return kinematic_info_; }
+  void SetTargetPose(const Eigen::Isometry3d& pose)
+  {
+    info_.target_pose = pose;
+    info_.target_pose_inv = pose.inverse();
+  }
 
   /**
    * @brief Returns the target pose for the constraint
    * @return The target pose for the constraint
    */
-  Eigen::Isometry3d GetTargetPose() const { return target_pose_; }
+  Eigen::Isometry3d GetTargetPose() const { return info_.target_pose; }
 
   /**
    * @brief Returns the current TCP pose in world frame given the input kinematic info and the current variable values
@@ -158,20 +192,20 @@ private:
   /** @brief The number of joints in a single JointPosition */
   long n_dof_;
 
+  /** @brief The constraint coefficients */
+  Eigen::VectorXd coeffs_;
+
   /** @brief Bounds on the positions of each joint */
   std::vector<ifopt::Bounds> bounds_;
 
-  /** @brief Pointers to the vars used by this constraint.
-   *
-   * Do not access them directly. Instead use this->GetVariables()->GetComponent(position_var->GetName())->GetValues()*/
+  /**
+   * @brief Pointers to the vars used by this constraint.
+   * Do not access them directly. Instead use this->GetVariables()->GetComponent(position_var->GetName())->GetValues()
+   */
   JointPosition::ConstPtr position_var_;
 
-  /** @brief The target TCP pose in world frame. Not used for calculation. Stored for convenience */
-  Eigen::Isometry3d target_pose_;
-  /** @brief The inverse of target_pose_ used for error calculations */
-  Eigen::Isometry3d target_pose_inv_;
   /** @brief The kinematic information used when calculating error */
-  CartPosKinematicInfo::ConstPtr kinematic_info_;
+  CartPosInfo info_;
 };
-};  // namespace trajopt
+};  // namespace trajopt_ifopt
 #endif

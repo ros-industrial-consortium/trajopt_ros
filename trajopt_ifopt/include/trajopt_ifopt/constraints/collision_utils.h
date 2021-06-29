@@ -34,7 +34,7 @@ TRAJOPT_IGNORE_WARNINGS_POP
 
 #include <trajopt_ifopt/constraints/collision_types.h>
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 std::size_t getHash(const TrajOptCollisionConfig& collision_config, const Eigen::Ref<const Eigen::VectorXd>& dof_vals);
 std::size_t getHash(const TrajOptCollisionConfig& collision_config,
@@ -179,5 +179,5 @@ void debugPrintInfo(const tesseract_collision::ContactResult& res,
                     const Eigen::VectorXd& dist_grad_B,
                     const Eigen::VectorXd& dof_vals,
                     bool header = false);
-}  // namespace trajopt
+}  // namespace trajopt_ifopt
 #endif  // TRAJOPT_IFOPT_COLLISION_UTILS_H

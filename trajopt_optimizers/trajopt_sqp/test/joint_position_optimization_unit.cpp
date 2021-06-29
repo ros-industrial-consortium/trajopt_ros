@@ -58,28 +58,29 @@ public:
     ifopt::Problem nlp;
 
     // 2) Add Variables
-    std::vector<trajopt::JointPosition::ConstPtr> vars;
+    std::vector<trajopt_ifopt::JointPosition::ConstPtr> vars;
     for (int ind = 0; ind < 2; ind++)
     {
       auto pos = Eigen::VectorXd::Zero(7);
       std::vector<std::string> joint_names(7, "name");
-      auto var = std::make_shared<trajopt::JointPosition>(pos, joint_names, "Joint_Position_" + std::to_string(ind));
+      auto var =
+          std::make_shared<trajopt_ifopt::JointPosition>(pos, joint_names, "Joint_Position_" + std::to_string(ind));
       vars.push_back(var);
       nlp_.AddVariableSet(var);
     }
 
     // 3) Add constraints
     Eigen::VectorXd start_pos = Eigen::VectorXd::Zero(7);
-    std::vector<trajopt::JointPosition::ConstPtr> start;
+    std::vector<trajopt_ifopt::JointPosition::ConstPtr> start;
     start.push_back(vars.front());
 
-    auto start_constraint = std::make_shared<trajopt::JointPosConstraint>(start_pos, start, "StartPosition");
+    auto start_constraint = std::make_shared<trajopt_ifopt::JointPosConstraint>(start_pos, start, "StartPosition");
     nlp_.AddConstraintSet(start_constraint);
 
     Eigen::VectorXd end_pos = Eigen::VectorXd::Ones(7);
-    std::vector<trajopt::JointPosition::ConstPtr> end;
+    std::vector<trajopt_ifopt::JointPosition::ConstPtr> end;
     end.push_back(vars.back());
-    auto end_constraint = std::make_shared<trajopt::JointPosConstraint>(end_pos, end, "EndPosition");
+    auto end_constraint = std::make_shared<trajopt_ifopt::JointPosConstraint>(end_pos, end, "EndPosition");
     nlp_.AddConstraintSet(end_constraint);
 
     if (DEBUG)

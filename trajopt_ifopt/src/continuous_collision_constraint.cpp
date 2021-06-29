@@ -31,7 +31,7 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <console_bridge/console.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 ContinuousCollisionConstraintIfopt::ContinuousCollisionConstraintIfopt(
     ContinuousCollisionEvaluator::Ptr collision_evaluator,
@@ -212,4 +212,4 @@ ContinuousCollisionEvaluator::Ptr ContinuousCollisionConstraintIfopt::GetCollisi
   return collision_evaluator_;
 }
 
-}  // namespace trajopt
+}  // namespace trajopt_ifopt

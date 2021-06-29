@@ -45,7 +45,7 @@ TRAJOPT_IGNORE_WARNINGS_POP
 #include <trajopt_sqp/osqp_eigen_solver.h>
 #include "test_suite_utils.hpp"
 
-using namespace trajopt;
+using namespace trajopt_ifopt;
 using namespace tesseract_environment;
 using namespace tesseract_collision;
 using namespace tesseract_kinematics;
@@ -95,7 +95,7 @@ TEST_F(NumericalIKTest, numerical_ik)  // NOLINT
   // 3) Add Variables
   Eigen::VectorXd cur_position(7);  // env->getCurrentJointValues(forward_kinematics->getJointNames());
   cur_position << 0, 0, 0, -0.001, 0, -0.001, 0;
-  auto var = std::make_shared<trajopt::JointPosition>(
+  auto var = std::make_shared<trajopt_ifopt::JointPosition>(
       cur_position, forward_kinematics->getJointNames(), forward_kinematics->getLimits(), "Joint_Position_0");
   nlp.AddVariableSet(var);
 
@@ -104,9 +104,9 @@ TEST_F(NumericalIKTest, numerical_ik)  // NOLINT
   target_pose.linear() = Eigen::Quaterniond(0, 0, 1, 0).toRotationMatrix();
   target_pose.translation() = Eigen::Vector3d(0.4, 0, 0.8);
 
-  auto kinematic_info =
-      std::make_shared<CartPosKinematicInfo>(forward_kinematics, adjacency_map, change_base, "l_gripper_tool_frame");
-  auto cnt = std::make_shared<trajopt::CartPosConstraint>(target_pose, kinematic_info, var);
+  auto kinematic_info = std::make_shared<KinematicsInfo>(forward_kinematics, adjacency_map, change_base);
+  CartPosInfo cart_info(kinematic_info, target_pose, "l_gripper_tool_frame");
+  auto cnt = std::make_shared<trajopt_ifopt::CartPosConstraint>(cart_info, var);
   nlp.AddConstraintSet(cnt);
 
   nlp.PrintCurrent();

@@ -43,7 +43,7 @@ TRAJOPT_IGNORE_WARNINGS_POP
 #include <trajopt_ifopt/utils/numeric_differentiation.h>
 #include <trajopt_test_utils.hpp>
 
-using namespace trajopt;
+using namespace trajopt_ifopt;
 using namespace std;
 using namespace util;
 using namespace tesseract_environment;
@@ -61,7 +61,7 @@ public:
 
   tesseract_kinematics::ForwardKinematics::Ptr forward_kinematics;
   tesseract_kinematics::InverseKinematics::Ptr inverse_kinematics;
-  CartPosKinematicInfo::Ptr kinematic_info;
+  KinematicsInfo::Ptr kinematics_info;
   CartPosConstraint::Ptr constraint;
 
   Eigen::Index n_dof;
@@ -84,16 +84,17 @@ public:
 
     tesseract_environment::AdjacencyMap::Ptr adjacency_map = std::make_shared<tesseract_environment::AdjacencyMap>(
         env->getSceneGraph(), forward_kinematics->getActiveLinkNames(), env->getCurrentState()->link_transforms);
-    kinematic_info = std::make_shared<trajopt::CartPosKinematicInfo>(
-        forward_kinematics, adjacency_map, Eigen::Isometry3d::Identity(), forward_kinematics->getTipLinkName());
+    kinematics_info =
+        std::make_shared<KinematicsInfo>(forward_kinematics, adjacency_map, Eigen::Isometry3d::Identity());
 
     auto pos = Eigen::VectorXd::Ones(forward_kinematics->numJoints());
-    auto var0 = std::make_shared<trajopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
+    auto var0 =
+        std::make_shared<trajopt_ifopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
     nlp.AddVariableSet(var0);
 
     // 4) Add constraints
-    auto target_pose = Eigen::Isometry3d::Identity();
-    constraint = std::make_shared<trajopt::CartPosConstraint>(target_pose, kinematic_info, var0);
+    CartPosInfo cart_info(kinematics_info, Eigen::Isometry3d::Identity(), forward_kinematics->getTipLinkName());
+    constraint = std::make_shared<trajopt_ifopt::CartPosConstraint>(cart_info, var0);
     nlp.AddConstraintSet(constraint);
   }
 };
@@ -169,18 +170,19 @@ TEST_F(CartesianPositionConstraintUnit, FillJacobian)  // NOLINT
 
     // Calculate jacobian numerically
     auto error_calculator = [&](const Eigen::Ref<const Eigen::VectorXd>& x) { return constraint->CalcValues(x); };
-    trajopt::Jacobian num_jac_block = trajopt::calcForwardNumJac(error_calculator, joint_position_mod, 1e-4);
+    trajopt_ifopt::Jacobian num_jac_block =
+        trajopt_ifopt::calcForwardNumJac(error_calculator, joint_position_mod, 1e-4);
 
     // Compare to constraint jacobian
     {
-      trajopt::Jacobian jac_block(num_jac_block.rows(), num_jac_block.cols());
+      trajopt_ifopt::Jacobian jac_block(num_jac_block.rows(), num_jac_block.cols());
       constraint->CalcJacobianBlock(joint_position_mod, jac_block);
       EXPECT_TRUE(jac_block.isApprox(num_jac_block, 1e-3));
       //      std::cout << "Numeric:\n" << num_jac_block.toDense() << std::endl;
       //      std::cout << "Analytic:\n" << jac_block.toDense() << std::endl;
     }
     {
-      trajopt::Jacobian jac_block(num_jac_block.rows(), num_jac_block.cols());
+      trajopt_ifopt::Jacobian jac_block(num_jac_block.rows(), num_jac_block.cols());
       constraint->FillJacobianBlock("Joint_Position_0", jac_block);
       EXPECT_TRUE(jac_block.toDense().isApprox(num_jac_block.toDense(), 1e-3));
       //      std::cout << "Numeric:\n" << num_jac_block.toDense() << std::endl;
@@ -199,10 +201,11 @@ TEST_F(CartesianPositionConstraintUnit, GetSetBounds)  // NOLINT
   // Check that setting bounds works
   {
     Eigen::VectorXd pos = Eigen::VectorXd::Ones(forward_kinematics->numJoints());
-    auto var0 = std::make_shared<trajopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
+    auto var0 =
+        std::make_shared<trajopt_ifopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
 
-    auto target_pose = Eigen::Isometry3d::Identity();
-    auto constraint_2 = std::make_shared<trajopt::CartPosConstraint>(target_pose, kinematic_info, var0);
+    CartPosInfo cart_info(kinematics_info, Eigen::Isometry3d::Identity(), kinematics_info->manip->getTipLinkName());
+    auto constraint_2 = std::make_shared<trajopt_ifopt::CartPosConstraint>(cart_info, var0);
 
     ifopt::Bounds bounds(-0.1234, 0.5678);
     std::vector<ifopt::Bounds> bounds_vec = std::vector<ifopt::Bounds>(6, bounds);

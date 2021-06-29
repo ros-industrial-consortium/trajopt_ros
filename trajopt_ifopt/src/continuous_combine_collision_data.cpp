@@ -27,7 +27,7 @@
 #include <trajopt_ifopt/constraints/continuous_combine_collision_data.h>
 #include <trajopt_ifopt/constraints/collision_utils.h>
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 ContinuousCombineCollisionData::ContinuousCombineCollisionData(CombineCollisionDataMethod method)
 {
@@ -309,4 +309,4 @@ ContinuousCombineCollisionData::ContinuousCombineCollisionData(CombineCollisionD
     }
   }
 }
-}  // namespace trajopt
+}  // namespace trajopt_ifopt

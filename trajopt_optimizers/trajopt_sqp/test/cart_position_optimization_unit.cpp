@@ -104,8 +104,8 @@ public:
     auto world_to_base = env->getCurrentState()->link_transforms.at(forward_kinematics->getBaseLinkName());
     tesseract_environment::AdjacencyMap::Ptr adjacency_map = std::make_shared<tesseract_environment::AdjacencyMap>(
         env->getSceneGraph(), forward_kinematics->getActiveLinkNames(), env->getCurrentState()->link_transforms);
-    auto kinematic_info = std::make_shared<trajopt::CartPosKinematicInfo>(
-        forward_kinematics, adjacency_map, world_to_base, forward_kinematics->getTipLinkName());
+    auto kinematic_info =
+        std::make_shared<trajopt_ifopt::KinematicsInfo>(forward_kinematics, adjacency_map, world_to_base);
 
     // Get target position
     Eigen::VectorXd start_pos(forward_kinematics->numJoints());
@@ -118,11 +118,11 @@ public:
     target_pose = world_to_base * target_pose;
 
     // 3) Add Variables
-    std::vector<trajopt::JointPosition::ConstPtr> vars;
+    std::vector<trajopt_ifopt::JointPosition::ConstPtr> vars;
     for (int ind = 0; ind < 1; ind++)
     {
       auto zero = Eigen::VectorXd::Zero(7);
-      auto var = std::make_shared<trajopt::JointPosition>(
+      auto var = std::make_shared<trajopt_ifopt::JointPosition>(
           zero, forward_kinematics->getJointNames(), "Joint_Position_" + std::to_string(ind));
       vars.push_back(var);
       nlp_.AddVariableSet(var);
@@ -131,7 +131,8 @@ public:
     // 4) Add constraints
     for (const auto& var : vars)
     {
-      auto cnt = std::make_shared<trajopt::CartPosConstraint>(target_pose, kinematic_info, var);
+      trajopt_ifopt::CartPosInfo cart_info(kinematic_info, target_pose, forward_kinematics->getTipLinkName());
+      auto cnt = std::make_shared<trajopt_ifopt::CartPosConstraint>(cart_info, var);
       nlp_.AddConstraintSet(cnt);
     }
 

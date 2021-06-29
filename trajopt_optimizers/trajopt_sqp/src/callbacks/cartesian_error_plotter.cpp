@@ -62,13 +62,14 @@ void CartesianErrorPlottingCallback::plot(const ifopt::Problem& /*nlp*/)
   }
 }
 
-void CartesianErrorPlottingCallback::addConstraintSet(const trajopt::CartPosConstraint::ConstPtr& cart_position_cnt)
+void CartesianErrorPlottingCallback::addConstraintSet(
+    const trajopt_ifopt::CartPosConstraint::ConstPtr& cart_position_cnt)
 {
   cart_position_cnts_.push_back(cart_position_cnt);
 };
 
 void CartesianErrorPlottingCallback::addConstraintSet(
-    const std::vector<trajopt::CartPosConstraint::ConstPtr>& cart_position_cnts)
+    const std::vector<trajopt_ifopt::CartPosConstraint::ConstPtr>& cart_position_cnts)
 {
   for (const auto& cnt : cart_position_cnts)
     cart_position_cnts_.push_back(cnt);

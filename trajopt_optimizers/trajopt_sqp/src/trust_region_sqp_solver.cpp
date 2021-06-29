@@ -34,11 +34,11 @@
 
 namespace trajopt_sqp
 {
-const bool SUPER_DEBUG_MODE = false;
+const bool SUPER_DEBUG_MODE = true;
 
 TrustRegionSQPSolver::TrustRegionSQPSolver(QPSolver::Ptr qp_solver) : qp_solver(std::move(qp_solver))
 {
-  qp_problem = std::make_shared<QPProblem>();
+  qp_problem = std::make_shared<IfoptQPProblem>();
 }
 
 bool TrustRegionSQPSolver::init(ifopt::Problem& nlp)
@@ -49,14 +49,17 @@ bool TrustRegionSQPSolver::init(ifopt::Problem& nlp)
   qp_problem->init(nlp);
 
   // Initialize optimization parameters
-  results_ = SQPResults(nlp.GetNumberOfOptimizationVariables(), nlp.GetNumberOfConstraints());
+  results_ = SQPResults(nlp.GetNumberOfOptimizationVariables(), nlp.GetNumberOfConstraints(), nlp.GetCosts().GetRows());
   results_.best_var_vals = nlp_->GetVariableValues();
+
+  // Evaluate exact constraint violations (expensive)
+  results_.best_costs = qp_problem->getExactCosts();
 
   // Evaluate exact constraint violations (expensive)
   results_.best_constraint_violations = qp_problem->getExactConstraintViolations();
 
   // Calculate exact NLP merits (expensive) - TODO: Look into caching for qp_solver->Convexify()
-  results_.best_exact_merit = nlp_->EvaluateCostFunction(results_.best_var_vals.data()) +
+  results_.best_exact_merit = qp_problem->evaluateTotalExactCost(results_.best_var_vals) +
                               results_.best_constraint_violations.dot(results_.merit_error_coeffs);
 
   setBoxSize(params.initial_trust_box_size);
@@ -253,9 +256,14 @@ void TrustRegionSQPSolver::runTrustRegionLoop()
     else
     {
       results_.best_var_vals = results_.new_var_vals;
+
       results_.best_exact_merit = results_.new_exact_merit;
-      results_.best_approx_merit = results_.new_approx_merit;
       results_.best_constraint_violations = results_.new_constraint_violations;
+      results_.best_costs = results_.new_costs;
+
+      results_.best_approx_merit = results_.new_approx_merit;
+      results_.best_approx_constraint_violations = results_.new_approx_constraint_violations;
+      results_.best_approx_costs = results_.new_approx_costs;
 
       if (SUPER_DEBUG_MODE)
         results_.print();
@@ -283,18 +291,27 @@ SQPStatus TrustRegionSQPSolver::solveQPProblem()
     // Calculate approximate QP merits (cheap)
     nlp_->SetVariables(results_.new_var_vals.data());
 
+    // Evaluate convexified constraint violations (expensive)
+    results_.new_approx_constraint_violations = qp_problem->evaluateConvexConstraintViolations(results_.new_var_vals);
+
+    // Evaluate convexified costs (expensive)
+    results_.new_approx_costs = qp_problem->evaluateConvexCosts(results_.new_var_vals);
+
+    // Convexified merit
     results_.new_approx_merit =
-        qp_problem->evaluateTotalConvexCost(results_.new_var_vals) +
-        qp_problem->evaluateConvexConstraintViolation(results_.new_var_vals).dot(results_.merit_error_coeffs);
+        results_.new_approx_costs.sum() + results_.new_approx_constraint_violations.dot(results_.merit_error_coeffs);
 
     results_.approx_merit_improve = results_.best_exact_merit - results_.new_approx_merit;
+
+    // Evaluate exact costs (expensive)
+    results_.new_costs = qp_problem->evaluateExactCosts(results_.new_var_vals);
 
     // Evaluate exact constraint violations (expensive)
     results_.new_constraint_violations = qp_problem->evaluateExactConstraintViolations(results_.new_var_vals);
 
     // Calculate exact NLP merits (expensive) - TODO: Look into caching for qp_solver->Convexify()
-    results_.new_exact_merit = nlp_->EvaluateCostFunction(results_.new_var_vals.data()) +
-                               results_.new_constraint_violations.dot(results_.merit_error_coeffs);
+    results_.new_exact_merit =
+        results_.new_costs.sum() + results_.new_constraint_violations.dot(results_.merit_error_coeffs);
     results_.exact_merit_improve = results_.best_exact_merit - results_.new_exact_merit;
     results_.merit_improve_ratio = results_.exact_merit_improve / results_.approx_merit_improve;
 
@@ -355,6 +372,8 @@ void TrustRegionSQPSolver::printStepInfo() const
               "Penalty",
               results_.penalty_iteration);
   std::printf("| %s |\n", std::string(75, '=').c_str());
+
+  // Print Cost and Constraint Data
   std::printf(
       "| %10s | %10s | %10s | %10s | %10s | %10s |\n", "merit", "oldexact", "new_exact", "dapprox", "dexact", "ratio");
   // Costs
@@ -377,13 +396,13 @@ void TrustRegionSQPSolver::printStepInfo() const
     // Loop over each constraint in the set
     for (Eigen::Index j = 0; j < cost->GetRows(); j++)
     {
-      double approx_improve = 0;  // old_cost_vals[i] - model_cost_vals[i];
-      double exact_improve = 0;   // old_cost_vals[i] - new_cost_vals[i];
+      double approx_improve = results_.best_costs[j] - results_.new_approx_costs[j];
+      double exact_improve = results_.best_costs[j] - results_.new_costs[j];
       if (fabs(approx_improve) > 1e-8)
         std::printf("| %10s | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %-15s \n",
                     "----------",
-                    results_.best_exact_merit,
-                    results_.new_exact_merit,
+                    results_.best_costs[j],
+                    results_.new_costs[j],
                     approx_improve,
                     exact_improve,
                     exact_improve / approx_improve,
@@ -391,8 +410,8 @@ void TrustRegionSQPSolver::printStepInfo() const
       else
         std::printf("| %10s | %10.3e | %10.3e | %10.3e | %10.3e | %10s | %-15s\n",
                     "----------",
-                    results_.best_exact_merit,
-                    results_.new_exact_merit,
+                    results_.best_costs[j],
+                    results_.new_costs[j],
                     approx_improve,
                     exact_improve,
                     "  ------  ",
@@ -406,7 +425,6 @@ void TrustRegionSQPSolver::printStepInfo() const
   if (results_.new_constraint_violations.size() != 0)
   {
     std::printf("| %s | CONSTRAINTS\n", std::string(75, '-').c_str());
-    Eigen::VectorXd exact_cnt_improve = results_.best_constraint_violations - results_.new_constraint_violations;
     std::vector<ifopt::Component::Ptr> constraints = nlp_->GetConstraints().GetComponents();
     // Loop over constraint sets
     Eigen::Index cnt_number = 0;
@@ -415,23 +433,26 @@ void TrustRegionSQPSolver::printStepInfo() const
       // Loop over each constraint in the set
       for (Eigen::Index j = 0; j < cnt->GetRows(); j++)
       {
-        double approx_improve = 0;  // old_cnt_viols[i] - model_cnt_viols[i];  // TODO
+        double approx_improve =
+            results_.best_constraint_violations[cnt_number] - results_.new_approx_constraint_violations[cnt_number];
+        double exact_improve =
+            results_.best_constraint_violations[cnt_number] - results_.new_constraint_violations[cnt_number];
         if (fabs(approx_improve) > 1e-8)
-          std::printf("| %10.3e | %10.3e | %10.3e | %10s | %10.3e | %10.3e | %-15s\n",
+          std::printf("| %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %-15s\n",
                       results_.merit_error_coeffs[cnt_number],
                       results_.merit_error_coeffs[cnt_number] * results_.best_constraint_violations[cnt_number],
                       results_.merit_error_coeffs[cnt_number] * results_.new_constraint_violations[cnt_number],
-                      "  ------  ",
-                      results_.merit_error_coeffs[cnt_number] * exact_cnt_improve[cnt_number],
-                      exact_cnt_improve[cnt_number] / approx_improve,
+                      results_.merit_error_coeffs[cnt_number] * approx_improve,
+                      results_.merit_error_coeffs[cnt_number] * exact_improve,
+                      exact_improve / approx_improve,
                       (cnt->GetName() + "_" + std::to_string(j)).c_str());
         else
-          std::printf("| %10.3e | %10.3e | %10.3e | %10s | %10.3e | %10s | %-15s \n",
+          std::printf("| %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %10s | %-15s \n",
                       results_.merit_error_coeffs[cnt_number],
                       results_.merit_error_coeffs[cnt_number] * results_.best_constraint_violations[cnt_number],
                       results_.merit_error_coeffs[cnt_number] * results_.new_constraint_violations[cnt_number],
-                      "  ------  ",
-                      results_.merit_error_coeffs[cnt_number] * exact_cnt_improve[cnt_number],
+                      results_.merit_error_coeffs[cnt_number] * approx_improve,
+                      results_.merit_error_coeffs[cnt_number] * exact_improve,
                       "  ------  ",
                       (cnt->GetName() + "_" + std::to_string(j)).c_str());
         cnt_number++;

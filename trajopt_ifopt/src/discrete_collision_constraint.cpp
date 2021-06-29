@@ -34,7 +34,7 @@ TRAJOPT_IGNORE_WARNINGS_POP
 #include <trajopt_ifopt/constraints/collision_utils.h>
 #include <trajopt_ifopt/utils/numeric_differentiation.h>
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 DiscreteCollisionConstraintIfopt::DiscreteCollisionConstraintIfopt(DiscreteCollisionEvaluator::Ptr collision_evaluator,
                                                                    DiscreteCombineCollisionData combine_methods,
@@ -101,4 +101,4 @@ DiscreteCollisionEvaluator::Ptr DiscreteCollisionConstraintIfopt::GetCollisionEv
   return collision_evaluator_;
 }
 
-}  // namespace trajopt
+}  // namespace trajopt_ifopt

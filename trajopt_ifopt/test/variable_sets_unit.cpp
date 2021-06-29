@@ -32,7 +32,7 @@ TRAJOPT_IGNORE_WARNINGS_POP
 #include <trajopt_ifopt/variable_sets/joint_position_variable.h>
 #include <console_bridge/console.h>
 
-using namespace trajopt;
+using namespace trajopt_ifopt;
 using namespace std;
 
 /**
