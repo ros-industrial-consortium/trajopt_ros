@@ -40,6 +40,9 @@ public:
   using Ptr = std::shared_ptr<IfoptQPProblem>;
   using ConstPtr = std::shared_ptr<const IfoptQPProblem>;
 
+  IfoptQPProblem() = default;
+  IfoptQPProblem(ifopt::Problem& nlp);
+
   /**
    * @brief Sets up the problem and initializes matrices
    * @param nlp
@@ -47,6 +50,7 @@ public:
   void init(ifopt::Problem& nlp);
 
   void setVariables(const double* x) override;
+  Eigen::VectorXd getVariableValues() const override;
 
   void convexify() override;
   void updateHessian() override;
@@ -134,6 +138,9 @@ public:
   Eigen::Index getNumQPVars() const override { return num_qp_vars_; }
   Eigen::Index getNumQPConstraints() const override { return num_qp_cnts_; }
 
+  const std::vector<std::string>& getNLPConstraintNames() const override { return constraint_names_; }
+  const std::vector<std::string>& getNLPCostNames() const override { return cost_names_; }
+
   const Eigen::Ref<const Eigen::VectorXd> getBoxSize() override { return box_size_; }
   const Eigen::Ref<const Eigen::VectorXd> getConstraintMeritCoeff() override { return constraint_merit_coeff_; }
 
@@ -152,6 +159,9 @@ protected:
   Eigen::Index num_nlp_costs_;
   Eigen::Index num_qp_vars_;
   Eigen::Index num_qp_cnts_;
+  std::vector<std::string> constraint_names_;
+  std::vector<std::string> cost_names_;
+
   std::vector<ConstraintType> constraint_types_;
 
   /** @brief Box size - constraint is set at current_val +/- box_size */

@@ -42,6 +42,9 @@ TRAJOPT_IGNORE_WARNINGS_POP
 #include <trajopt_ifopt/constraints/continuous_collision_evaluators.h>
 #include <trajopt_ifopt/constraints/joint_position_constraint.h>
 #include <trajopt_ifopt/costs/squared_cost.h>
+
+#include <trajopt_sqp/ifopt_qp_problem.h>
+#include <trajopt_sqp/trajopt_qp_problem.h>
 #include <trajopt_sqp/trust_region_sqp_solver.h>
 #include <trajopt_sqp/osqp_eigen_solver.h>
 #include "test_suite_utils.hpp"
@@ -214,9 +217,12 @@ TEST_F(CastOctomapTest, boxes)  // NOLINT
   qp_solver->solver_.settings()->setAbsoluteTolerance(1e-4);
   qp_solver->solver_.settings()->setRelativeTolerance(1e-6);
 
+  // Create problem
+  auto qp_problem = std::make_shared<trajopt_sqp::IfoptQPProblem>(nlp);
+
   // 6) solve
   solver.verbose = true;
-  solver.Solve(nlp);
+  solver.solve(qp_problem);
   Eigen::VectorXd x = nlp.GetOptVariables()->GetValues();
   std::cout << x.transpose() << std::endl;
 

@@ -47,7 +47,14 @@ public:
    */
   void addCostSet(ifopt::ConstraintSet::Ptr constraint_set, CostPenaltyType penalty_type);
 
+  /**
+   * @brief This setups the QP problems based on the constraints and cost sets added to the problem.
+   * @details This must be called after all constraints and costs have been added to the problem
+   */
+  void setup();
+
   void setVariables(const double* x) override;
+  Eigen::VectorXd getVariableValues() const override;
 
   void convexify() override;
   void updateHessian() override;
@@ -87,6 +94,9 @@ public:
   Eigen::Index getNumQPVars() const override;
   Eigen::Index getNumQPConstraints() const override;
 
+  const std::vector<std::string>& getNLPConstraintNames() const override;
+  const std::vector<std::string>& getNLPCostNames() const override;
+
   const Eigen::Ref<const Eigen::VectorXd> getBoxSize() override;
   const Eigen::Ref<const Eigen::VectorXd> getConstraintMeritCoeff() override;
 
@@ -98,17 +108,19 @@ public:
   const Eigen::Ref<const Eigen::VectorXd> getBoundsUpper() override;
 
 protected:
+  bool initialized_{ false };
   ifopt::Composite::Ptr variables_;
   ifopt::Composite constraints_;
-  ifopt::Composite costs_;
+  ifopt::Composite squared_costs_;
+  ifopt::Composite abs_costs_;
+  ifopt::Composite hing_costs_;
   std::vector<ConstraintType> constraint_types_;
-  std::vector<CostPenaltyType> cost_penalty_types_;
 
-  Eigen::Index num_nlp_vars_;
-  Eigen::Index num_nlp_cnts_;
-  Eigen::Index num_nlp_costs_;
   Eigen::Index num_qp_vars_;
   Eigen::Index num_qp_cnts_;
+
+  std::vector<std::string> constraint_names_;
+  std::vector<std::string> cost_names_;
 
   /** @brief Box size - constraint is set at current_val +/- box_size */
   Eigen::VectorXd box_size_;
@@ -116,7 +128,7 @@ protected:
 
   Eigen::SparseMatrix<double> hessian_;
   Eigen::VectorXd gradient_;
-  Eigen::VectorXd cost_constant_;
+  Eigen::VectorXd cost_constant_{ Eigen::VectorXd::Zero(1) };
 
   Eigen::SparseMatrix<double> constraint_matrix_;
   Eigen::VectorXd bounds_lower_;

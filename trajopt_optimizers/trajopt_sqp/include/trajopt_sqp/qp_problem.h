@@ -16,6 +16,9 @@ public:
   /** @brief Set the current Optimization variables */
   virtual void setVariables(const double* x) = 0;
 
+  /** @brief Set the current Optimization variable values */
+  virtual Eigen::VectorXd getVariableValues() const = 0;
+
   /** @brief Run the full convexification routine */
   virtual void convexify() = 0;
 
@@ -164,6 +167,9 @@ public:
   virtual Eigen::Index getNumNLPCosts() const = 0;
   virtual Eigen::Index getNumQPVars() const = 0;
   virtual Eigen::Index getNumQPConstraints() const = 0;
+
+  virtual const std::vector<std::string>& getNLPConstraintNames() const = 0;
+  virtual const std::vector<std::string>& getNLPCostNames() const = 0;
 
   virtual const Eigen::Ref<const Eigen::VectorXd> getBoxSize() = 0;
   virtual const Eigen::Ref<const Eigen::VectorXd> getConstraintMeritCoeff() = 0;

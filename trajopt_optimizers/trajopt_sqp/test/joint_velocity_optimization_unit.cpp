@@ -34,6 +34,9 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <console_bridge/console.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
+#include <trajopt_sqp/ifopt_qp_problem.h>
+#include <trajopt_sqp/trajopt_qp_problem.h>
+
 #include <trajopt_sqp/trust_region_sqp_solver.h>
 #include <trajopt_sqp/osqp_eigen_solver.h>
 #include <trajopt_ifopt/constraints/joint_position_constraint.h>
@@ -152,9 +155,12 @@ TEST_F(VelocityConstraintOptimization, velocity_constraint_optimization_trajopt_
   qp_solver->solver_.settings()->setPolish(true);
   qp_solver->solver_.settings()->setAdaptiveRho(false);
 
+  // Create problem
+  auto qp_problem = std::make_shared<trajopt_sqp::IfoptQPProblem>(nlp_);
+
   // 6) solve
   solver.verbose = DEBUG;
-  solver.Solve(nlp_trajopt_sqp);
+  solver.solve(qp_problem);
   Eigen::VectorXd x = nlp_trajopt_sqp.GetOptVariables()->GetValues();
 
   for (Eigen::Index i = 0; i < 7; i++)

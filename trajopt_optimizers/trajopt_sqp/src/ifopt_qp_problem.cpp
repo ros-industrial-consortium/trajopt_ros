@@ -29,6 +29,8 @@
 
 namespace trajopt_sqp
 {
+IfoptQPProblem::IfoptQPProblem(ifopt::Problem& nlp) { init(nlp); }
+
 void IfoptQPProblem::init(ifopt::Problem& nlp)
 {
   nlp_ = &nlp;
@@ -43,9 +45,20 @@ void IfoptQPProblem::init(ifopt::Problem& nlp)
   box_size_ = Eigen::VectorXd::Constant(num_nlp_vars_, 1e-1);
   constraint_merit_coeff_ = Eigen::VectorXd::Constant(num_nlp_cnts_, 10);
 
-  ////////////////////////////////////////////////////////
-  // Get NLP bounds and detect constraint type
-  ////////////////////////////////////////////////////////
+  // Get NLP Cost and Constraint Names for Debug Print
+  for (const auto& cnt : nlp_->GetConstraints().GetComponents())
+  {
+    for (Eigen::Index j = 0; j < cnt->GetRows(); j++)
+      constraint_names_.push_back(cnt->GetName() + "_" + std::to_string(j));
+  }
+
+  for (const auto& cost : nlp_->GetCosts().GetComponents())
+  {
+    for (Eigen::Index j = 0; j < cost->GetRows(); j++)
+      cost_names_.push_back(cost->GetName() + "_" + std::to_string(j));
+  }
+
+  // Get bounds
   Eigen::VectorXd nlp_bounds_l(num_nlp_cnts_);
   Eigen::VectorXd nlp_bounds_u(num_nlp_cnts_);
   // Convert constraint bounds to VectorXd
@@ -83,6 +96,7 @@ void IfoptQPProblem::init(ifopt::Problem& nlp)
 }
 
 void IfoptQPProblem::setVariables(const double* x) { nlp_->SetVariables(x); }
+Eigen::VectorXd IfoptQPProblem::getVariableValues() const { return nlp_->GetVariableValues(); }
 
 void IfoptQPProblem::convexify()
 {

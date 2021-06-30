@@ -36,21 +36,15 @@ namespace trajopt_sqp
 {
 const bool SUPER_DEBUG_MODE = true;
 
-TrustRegionSQPSolver::TrustRegionSQPSolver(QPSolver::Ptr qp_solver) : qp_solver(std::move(qp_solver))
-{
-  qp_problem = std::make_shared<IfoptQPProblem>();
-}
+TrustRegionSQPSolver::TrustRegionSQPSolver(QPSolver::Ptr qp_solver) : qp_solver(std::move(qp_solver)) {}
 
-bool TrustRegionSQPSolver::init(ifopt::Problem& nlp)
+bool TrustRegionSQPSolver::init(QPProblem::Ptr qp_prob)
 {
-  console_bridge::setLogLevel(console_bridge::LogLevel::CONSOLE_BRIDGE_LOG_INFO);
-  nlp_ = &nlp;
-
-  qp_problem->init(nlp);
+  qp_problem = qp_prob;
 
   // Initialize optimization parameters
-  results_ = SQPResults(nlp.GetNumberOfOptimizationVariables(), nlp.GetNumberOfConstraints(), nlp.GetCosts().GetRows());
-  results_.best_var_vals = nlp_->GetVariableValues();
+  results_ = SQPResults(qp_problem->getNumNLPVars(), qp_problem->getNumNLPConstraints(), qp_problem->getNumNLPCosts());
+  results_.best_var_vals = qp_problem->getVariableValues();
 
   // Evaluate exact constraint violations (expensive)
   results_.best_costs = qp_problem->getExactCosts();
@@ -68,7 +62,7 @@ bool TrustRegionSQPSolver::init(ifopt::Problem& nlp)
 
 void TrustRegionSQPSolver::setBoxSize(double box_size)
 {
-  results_.box_size = Eigen::VectorXd::Constant(nlp_->GetNumberOfOptimizationVariables(), box_size);
+  results_.box_size = Eigen::VectorXd::Constant(qp_problem->getNumNLPVars(), box_size);
   qp_problem->setBoxSize(results_.box_size);
   qp_problem->updateNLPVariableBounds(); /** @todo should setBoxSize do this? */
 }
@@ -79,12 +73,12 @@ const SQPStatus& TrustRegionSQPSolver::getStatus() { return status_; }
 
 const SQPResults& TrustRegionSQPSolver::getResults() { return results_; }
 
-void TrustRegionSQPSolver::Solve(ifopt::Problem& nlp)
+void TrustRegionSQPSolver::solve(QPProblem::Ptr qp_problem)
 {
   status_ = SQPStatus::RUNNING;
 
   // Initialize solver
-  init(nlp);
+  init(qp_problem);
 
   // Penalty Iteration Loop
   for (int penalty_iteration = 0; penalty_iteration < params.max_merit_coeff_increases; penalty_iteration++)
@@ -120,7 +114,8 @@ void TrustRegionSQPSolver::Solve(ifopt::Problem& nlp)
   // Final Cleanup
   if (SUPER_DEBUG_MODE)
     results_.print();
-  nlp.SetVariables(results_.best_var_vals.data());
+
+  qp_problem->setVariables(results_.best_var_vals.data());
 }
 
 bool TrustRegionSQPSolver::verifySQPSolverConvergence()
@@ -211,7 +206,7 @@ void TrustRegionSQPSolver::runTrustRegionLoop()
     status_ = solveQPProblem();
     if (status_ != SQPStatus::RUNNING)
     {
-      nlp_->SetVariables(results_.best_var_vals.data());
+      qp_problem->setVariables(results_.best_var_vals.data());
       return;
     }
 
@@ -268,7 +263,7 @@ void TrustRegionSQPSolver::runTrustRegionLoop()
       if (SUPER_DEBUG_MODE)
         results_.print();
 
-      nlp_->SetVariables(results_.best_var_vals.data());
+      qp_problem->setVariables(results_.best_var_vals.data());
 
       qp_problem->scaleBoxSize(params.trust_expand_ratio);
       qp_problem->updateNLPVariableBounds();
@@ -289,7 +284,7 @@ SQPStatus TrustRegionSQPSolver::solveQPProblem()
     results_.new_var_vals = qp_solver->getSolution();
 
     // Calculate approximate QP merits (cheap)
-    nlp_->SetVariables(results_.new_var_vals.data());
+    qp_problem->setVariables(results_.new_var_vals.data());
 
     // Evaluate convexified constraint violations (expensive)
     results_.new_approx_constraint_violations = qp_problem->evaluateConvexConstraintViolations(results_.new_var_vals);
@@ -317,7 +312,7 @@ SQPStatus TrustRegionSQPSolver::solveQPProblem()
 
     // The variable are changed to the new values to calculated data but must be set
     // to best var vals because the new values may not improve the merit which is determined later.
-    nlp_->SetVariables(results_.best_var_vals.data());
+    qp_problem->setVariables(results_.best_var_vals.data());
 
     // Print debugging info
     if (verbose)
@@ -344,8 +339,8 @@ SQPStatus TrustRegionSQPSolver::solveQPProblem()
 bool TrustRegionSQPSolver::callCallbacks()
 {
   bool success = true;
-  for (const auto& callback : callbacks_)
-    success &= callback->execute(*nlp_, results_);
+  //  for (const auto& callback : callbacks_)
+  //    success &= callback->execute(*nlp_, results_);
   return success;
 }
 
@@ -388,36 +383,30 @@ void TrustRegionSQPSolver::printStepInfo() const
 
   // Costs
   std::printf("| %s | INDIVIDUAL COSTS\n", std::string(75, '-').c_str());
-  // Loop over cost sets
-  Eigen::Index cost_number = 0;
-  std::vector<ifopt::Component::Ptr> costs = nlp_->GetCosts().GetComponents();
-  for (const auto& cost : costs)
+  // Loop over costs
+  const std::vector<std::string>& cost_names = qp_problem->getNLPCostNames();
+  for (Eigen::Index cost_number = 0; cost_number < static_cast<Eigen::Index>(cost_names.size()); ++cost_number)
   {
-    // Loop over each constraint in the set
-    for (Eigen::Index j = 0; j < cost->GetRows(); j++)
-    {
-      double approx_improve = results_.best_costs[j] - results_.new_approx_costs[j];
-      double exact_improve = results_.best_costs[j] - results_.new_costs[j];
-      if (fabs(approx_improve) > 1e-8)
-        std::printf("| %10s | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %-15s \n",
-                    "----------",
-                    results_.best_costs[j],
-                    results_.new_costs[j],
-                    approx_improve,
-                    exact_improve,
-                    exact_improve / approx_improve,
-                    (cost->GetName() + "_" + std::to_string(j)).c_str());
-      else
-        std::printf("| %10s | %10.3e | %10.3e | %10.3e | %10.3e | %10s | %-15s\n",
-                    "----------",
-                    results_.best_costs[j],
-                    results_.new_costs[j],
-                    approx_improve,
-                    exact_improve,
-                    "  ------  ",
-                    (cost->GetName() + "_" + std::to_string(j)).c_str());
-      cost_number++;
-    }
+    double approx_improve = results_.best_costs[cost_number] - results_.new_approx_costs[cost_number];
+    double exact_improve = results_.best_costs[cost_number] - results_.new_costs[cost_number];
+    if (fabs(approx_improve) > 1e-8)
+      std::printf("| %10s | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %-15s \n",
+                  "----------",
+                  results_.best_costs[cost_number],
+                  results_.new_costs[cost_number],
+                  approx_improve,
+                  exact_improve,
+                  exact_improve / approx_improve,
+                  cost_names[static_cast<std::size_t>(cost_number)].c_str());
+    else
+      std::printf("| %10s | %10.3e | %10.3e | %10.3e | %10.3e | %10s | %-15s\n",
+                  "----------",
+                  results_.best_costs[cost_number],
+                  results_.new_costs[cost_number],
+                  approx_improve,
+                  exact_improve,
+                  "  ------  ",
+                  cost_names[static_cast<std::size_t>(cost_number)].c_str());
   }
 
   // Constraints
@@ -425,38 +414,32 @@ void TrustRegionSQPSolver::printStepInfo() const
   if (results_.new_constraint_violations.size() != 0)
   {
     std::printf("| %s | CONSTRAINTS\n", std::string(75, '-').c_str());
-    std::vector<ifopt::Component::Ptr> constraints = nlp_->GetConstraints().GetComponents();
-    // Loop over constraint sets
-    Eigen::Index cnt_number = 0;
-    for (const auto& cnt : constraints)
+    const std::vector<std::string>& constraint_names = qp_problem->getNLPConstraintNames();
+    // Loop over constraints
+    for (Eigen::Index cnt_number = 0; cnt_number < static_cast<Eigen::Index>(constraint_names.size()); ++cnt_number)
     {
-      // Loop over each constraint in the set
-      for (Eigen::Index j = 0; j < cnt->GetRows(); j++)
-      {
-        double approx_improve =
-            results_.best_constraint_violations[cnt_number] - results_.new_approx_constraint_violations[cnt_number];
-        double exact_improve =
-            results_.best_constraint_violations[cnt_number] - results_.new_constraint_violations[cnt_number];
-        if (fabs(approx_improve) > 1e-8)
-          std::printf("| %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %-15s\n",
-                      results_.merit_error_coeffs[cnt_number],
-                      results_.merit_error_coeffs[cnt_number] * results_.best_constraint_violations[cnt_number],
-                      results_.merit_error_coeffs[cnt_number] * results_.new_constraint_violations[cnt_number],
-                      results_.merit_error_coeffs[cnt_number] * approx_improve,
-                      results_.merit_error_coeffs[cnt_number] * exact_improve,
-                      exact_improve / approx_improve,
-                      (cnt->GetName() + "_" + std::to_string(j)).c_str());
-        else
-          std::printf("| %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %10s | %-15s \n",
-                      results_.merit_error_coeffs[cnt_number],
-                      results_.merit_error_coeffs[cnt_number] * results_.best_constraint_violations[cnt_number],
-                      results_.merit_error_coeffs[cnt_number] * results_.new_constraint_violations[cnt_number],
-                      results_.merit_error_coeffs[cnt_number] * approx_improve,
-                      results_.merit_error_coeffs[cnt_number] * exact_improve,
-                      "  ------  ",
-                      (cnt->GetName() + "_" + std::to_string(j)).c_str());
-        cnt_number++;
-      }
+      double approx_improve =
+          results_.best_constraint_violations[cnt_number] - results_.new_approx_constraint_violations[cnt_number];
+      double exact_improve =
+          results_.best_constraint_violations[cnt_number] - results_.new_constraint_violations[cnt_number];
+      if (fabs(approx_improve) > 1e-8)
+        std::printf("| %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %-15s\n",
+                    results_.merit_error_coeffs[cnt_number],
+                    results_.merit_error_coeffs[cnt_number] * results_.best_constraint_violations[cnt_number],
+                    results_.merit_error_coeffs[cnt_number] * results_.new_constraint_violations[cnt_number],
+                    results_.merit_error_coeffs[cnt_number] * approx_improve,
+                    results_.merit_error_coeffs[cnt_number] * exact_improve,
+                    exact_improve / approx_improve,
+                    constraint_names[static_cast<std::size_t>(cnt_number)].c_str());
+      else
+        std::printf("| %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %10s | %-15s \n",
+                    results_.merit_error_coeffs[cnt_number],
+                    results_.merit_error_coeffs[cnt_number] * results_.best_constraint_violations[cnt_number],
+                    results_.merit_error_coeffs[cnt_number] * results_.new_constraint_violations[cnt_number],
+                    results_.merit_error_coeffs[cnt_number] * approx_improve,
+                    results_.merit_error_coeffs[cnt_number] * exact_improve,
+                    "  ------  ",
+                    constraint_names[static_cast<std::size_t>(cnt_number)].c_str());
     }
   }
 
