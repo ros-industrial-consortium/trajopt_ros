@@ -83,12 +83,17 @@ class CartPositionOptimization : public testing::TestWithParam<const char*>
 {
 public:
   // 1) Create the problem
-  ifopt::Problem nlp_;
+  ifopt::Problem nlp;
+  trajopt_sqp::IfoptQPProblem::Ptr ifopt_problem;
+  trajopt_sqp::TrajOptQPProblem::Ptr trajopt_problem;
 
-  Eigen::VectorXd joint_target_;
+  Eigen::VectorXd joint_target;
 
   void SetUp() override
   {
+    ifopt_problem = std::make_shared<trajopt_sqp::IfoptQPProblem>();
+    trajopt_problem = std::make_shared<trajopt_sqp::TrajOptQPProblem>();
+
     if (DEBUG)
       console_bridge::setLogLevel(console_bridge::LogLevel::CONSOLE_BRIDGE_LOG_DEBUG);
     else
@@ -116,8 +121,8 @@ public:
     if (DEBUG)
       std::cout << "Joint Limits:\n" << forward_kinematics->getLimits().joint_limits.transpose() << std::endl;
 
-    joint_target_ = start_pos;
-    Eigen::Isometry3d target_pose = forward_kinematics->calcFwdKin(joint_target_);
+    joint_target = start_pos;
+    Eigen::Isometry3d target_pose = forward_kinematics->calcFwdKin(joint_target);
     target_pose = world_to_base * target_pose;
 
     // 3) Add Variables
@@ -128,7 +133,8 @@ public:
       auto var = std::make_shared<trajopt_ifopt::JointPosition>(
           zero, forward_kinematics->getJointNames(), "Joint_Position_" + std::to_string(ind));
       vars.push_back(var);
-      nlp_.AddVariableSet(var);
+      nlp.AddVariableSet(var);
+      trajopt_problem->addVariableSet(var);
     }
 
     // 4) Add constraints
@@ -136,23 +142,18 @@ public:
     {
       trajopt_ifopt::CartPosInfo cart_info(kinematic_info, target_pose, forward_kinematics->getTipLinkName());
       auto cnt = std::make_shared<trajopt_ifopt::CartPosConstraint>(cart_info, var);
-      nlp_.AddConstraintSet(cnt);
+      nlp.AddConstraintSet(cnt);
+      trajopt_problem->addConstraintSet(cnt);
     }
 
-    if (DEBUG)
-    {
-      nlp_.PrintCurrent();
-      std::cout << "Constraint Jacobian: \n" << nlp_.GetJacobianOfConstraints() << std::endl;
-    }
+    ifopt_problem->init(nlp);
+    trajopt_problem->setup();
   }
 };
 
-/**
- * @brief Applies a cartesian position constraint and solves the problem with trajopt_sqp
- */
-TEST_F(CartPositionOptimization, cart_position_optimization_trajopt_sqp)  // NOLINT
+void runCartPositionOptimization(trajopt_sqp::QPProblem::Ptr qp_problem,
+                                 const Eigen::Ref<const Eigen::VectorXd>& joint_target)
 {
-  ifopt::Problem nlp_trajopt_sqp(nlp_);
   auto qp_solver = std::make_shared<trajopt_sqp::OSQPEigenSolver>();
   trajopt_sqp::TrustRegionSQPSolver solver(qp_solver);
   qp_solver->solver_.settings()->setVerbosity(DEBUG);
@@ -163,20 +164,29 @@ TEST_F(CartPositionOptimization, cart_position_optimization_trajopt_sqp)  // NOL
   qp_solver->solver_.settings()->setAbsoluteTolerance(1e-4);
   qp_solver->solver_.settings()->setRelativeTolerance(1e-6);
 
-  // Create problem
-  auto qp_problem = std::make_shared<trajopt_sqp::IfoptQPProblem>(nlp_);
-
   // solve
   solver.verbose = DEBUG;
   solver.solve(qp_problem);
-  Eigen::VectorXd x = nlp_trajopt_sqp.GetOptVariables()->GetValues();
+  Eigen::VectorXd x = qp_problem->getVariableValues();
 
-  for (Eigen::Index i = 0; i < joint_target_.size(); i++)
-    EXPECT_NEAR(x[i], joint_target_[i], 1.1e-3);
+  for (Eigen::Index i = 0; i < joint_target.size(); i++)
+    EXPECT_NEAR(x[i], joint_target[i], 1.1e-3);
 
   if (DEBUG)
   {
     std::cout << x.transpose() << std::endl;
-    nlp_trajopt_sqp.PrintCurrent();
+    qp_problem->print();
   }
+}
+
+/** @brief Applies a cartesian position constraint and solves the ifopt problem with trajopt_sqp */
+TEST_F(CartPositionOptimization, cart_position_optimization_trajopt_problem)  // NOLINT
+{
+  runCartPositionOptimization(trajopt_problem, joint_target);
+}
+
+/** @brief Applies a cartesian position constraint and solves the ifopt problem with trajopt_sqp */
+TEST_F(CartPositionOptimization, cart_position_optimization_ifopt_problem)  // NOLINT
+{
+  runCartPositionOptimization(ifopt_problem, joint_target);
 }

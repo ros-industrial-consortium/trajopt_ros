@@ -187,22 +187,41 @@ void TrajOptQPProblem::updateGradient()
   // so the chain rule is applied for the different types of penalty cost types
 
   // Process Squared Costs
-  ifopt::ConstraintSet::Jacobian squared_cnt_jac = squared_costs_.GetJacobian();
-  ifopt::ConstraintSet::VectorXd squared_cnt_vals = squared_costs_.GetValues();
+  Eigen::Index start_index{ 0 };
+  if (squared_costs_.GetRows() > 0)
+  {
+    ifopt::ConstraintSet::Jacobian squared_cnt_jac = squared_costs_.GetJacobian();
+    ifopt::ConstraintSet::VectorXd squared_cnt_vals = squared_costs_.GetValues();
 
-  Eigen::VectorXd squared_cost_error = trajopt_ifopt::calcBoundsErrors(squared_cnt_vals, squared_costs_.GetBounds());
-  squared_cost_error.cwiseAbs2();
-  ifopt::ConstraintSet::Jacobian squared_cost_jac = 2 * squared_cost_error.transpose().sparseView() * squared_cnt_jac;
+    Eigen::VectorXd squared_cost_error = trajopt_ifopt::calcBoundsErrors(squared_cnt_vals, squared_costs_.GetBounds());
+    squared_cost_error.cwiseAbs2();
+    ifopt::ConstraintSet::Jacobian squared_cost_jac = 2 * squared_cost_error.transpose().sparseView() * squared_cnt_jac;
+
+    // Fill squared costs
+    if (squared_cost_jac.nonZeros() > 0)
+      gradient_.topRows(squared_cnt_vals.rows()) = squared_cost_jac.toDense().transpose();
+
+    start_index += squared_cnt_vals.rows();
+  }
 
   // Process ABS Costs
-  ifopt::ConstraintSet::Jacobian abs_cnt_jac = abs_costs_.GetJacobian();
-  ifopt::ConstraintSet::VectorXd abs_cnt_vals = abs_costs_.GetValues();
+  if (abs_costs_.GetRows() > 0)
+  {
+    ifopt::ConstraintSet::Jacobian abs_cnt_jac = abs_costs_.GetJacobian();
+    ifopt::ConstraintSet::VectorXd abs_cnt_vals = abs_costs_.GetValues();
 
-  Eigen::VectorXd abs_cnt_error = trajopt_ifopt::calcBoundsErrors(abs_cnt_vals, abs_costs_.GetBounds());
-  Eigen::VectorXd abs_cost_error = abs_cnt_error;
-  abs_cost_error.cwiseAbs();
-  Eigen::VectorXd coeff = abs_cnt_error.array() / abs_cost_error.array();
-  ifopt::ConstraintSet::Jacobian abs_cost_jac = coeff.sparseView() * abs_cnt_jac;
+    Eigen::VectorXd abs_cnt_error = trajopt_ifopt::calcBoundsErrors(abs_cnt_vals, abs_costs_.GetBounds());
+    Eigen::VectorXd abs_cost_error = abs_cnt_error;
+    abs_cost_error.cwiseAbs();
+    Eigen::VectorXd coeff = abs_cnt_error.array() / abs_cost_error.array();
+    ifopt::ConstraintSet::Jacobian abs_cost_jac = coeff.sparseView() * abs_cnt_jac;
+
+    // Fill squared costs
+    if (abs_cost_jac.nonZeros() > 0)
+      gradient_.middleRows(start_index, abs_cost_error.rows()) = abs_cost_jac.toDense().transpose();
+
+    start_index += abs_cost_error.rows();
+  }
 
   /**
    * @note See CostFromFunc::convex in modeling_utils.cpp. Once Hessian has been implemented
@@ -246,14 +265,6 @@ void TrajOptQPProblem::updateGradient()
    *   }
    * }
    */
-
-  // Fill squared costs
-  if (squared_cost_jac.nonZeros() > 0)
-    gradient_.topRows(squared_cnt_vals.rows()) = squared_cost_jac.toDense().transpose();
-
-  // Fill squared costs
-  if (abs_cost_jac.nonZeros() > 0)
-    gradient_.middleRows(squared_cnt_vals.rows(), abs_cost_error.rows()) = abs_cost_jac.toDense().transpose();
 
   ////////////////////////////////////////////////////////
   // Set the gradient of the constraint slack variables
