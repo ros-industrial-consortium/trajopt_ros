@@ -215,7 +215,7 @@ TEST_F(VelocityConstraintOptimization, velocity_constraint_optimization_trajopt_
   std::vector<trajopt_ifopt::JointPosition::ConstPtr> start;
   start.push_back(vars.front());
   auto start_constraint = std::make_shared<trajopt_ifopt::JointPosConstraint>(start_pos, start, "StartPosition");
-  nlp_.AddConstraintSet(start_constraint);
+  qp_problem->addConstraintSet(start_constraint);
 
   Eigen::VectorXd end_pos = Eigen::VectorXd::Ones(7) * 10;
   std::vector<trajopt_ifopt::JointPosition::ConstPtr> end;

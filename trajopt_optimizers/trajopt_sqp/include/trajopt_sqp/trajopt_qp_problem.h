@@ -57,12 +57,13 @@ public:
   Eigen::VectorXd getVariableValues() const override;
 
   void convexify() override;
-  void updateHessian() override;
-  void updateGradient() override;
-  void linearizeConstraints() override;
-  void updateNLPConstraintBounds() override;
-  void updateNLPVariableBounds() override;
-  void updateSlackVariableBounds() override;
+
+  void convexifyCosts();
+
+  void linearizeConstraints();
+  void updateNLPConstraintBounds();
+  void updateNLPVariableBounds();
+  void updateSlackVariableBounds();
 
   double evaluateTotalConvexCost(const Eigen::Ref<const Eigen::VectorXd>& var_vals) override;
 
@@ -126,11 +127,14 @@ protected:
   Eigen::VectorXd box_size_;
   Eigen::VectorXd constraint_merit_coeff_;
 
-  Eigen::SparseMatrix<double> hessian_;
+  ifopt::ConstraintSet::Jacobian hessian_;
   Eigen::VectorXd gradient_;
+  ifopt::ConstraintSet::Jacobian hessian_nlp_;
+  std::vector<ifopt::ConstraintSet::Jacobian> hessian_nlp_vec_;
+  Eigen::SparseMatrix<double> gradient_nlp_;
   Eigen::VectorXd cost_constant_{ Eigen::VectorXd::Zero(1) };
 
-  Eigen::SparseMatrix<double> constraint_matrix_;
+  ifopt::ConstraintSet::Jacobian constraint_matrix_;
   Eigen::VectorXd bounds_lower_;
   Eigen::VectorXd bounds_upper_;
   // This should be the center of the bounds
@@ -138,9 +142,6 @@ protected:
 
   /** @brief This calculates the constant expression in the quadratic expression for the constraints */
   void updateConstraintsConstantExpression();
-
-  /** @brief This calculates the constant expression in the quadratic expression for the costs */
-  void updateCostsConstantExpression();
 };
 
 }  // namespace trajopt_sqp

@@ -278,6 +278,7 @@ void IfoptQPProblem::updateCostsConstantExpression()
   //       to calculate the merit of the solve.
 
   // The block excludes the slack variables
+  /** @todo I am not sure this is correct because the gradient_ is not each individual cost function gradient */
   Eigen::VectorXd result_quad = x_initial.transpose() * hessian_.block(0, 0, num_nlp_vars_, num_nlp_vars_) * x_initial;
   Eigen::VectorXd result_lin = x_initial.transpose() * gradient_.block(0, 0, num_nlp_vars_, num_nlp_costs_);
   cost_constant_ = cost_initial_value - result_quad - result_lin;
@@ -438,12 +439,17 @@ Eigen::VectorXd IfoptQPProblem::getExactConstraintViolations()
   return evaluateExactConstraintViolations(nlp_->GetOptVariables()->GetValues());
 }
 
-void IfoptQPProblem::scaleBoxSize(double& scale) { box_size_ = box_size_ * scale; }
+void IfoptQPProblem::scaleBoxSize(double& scale)
+{
+  box_size_ = box_size_ * scale;
+  updateNLPVariableBounds();
+}
 
 void IfoptQPProblem::setBoxSize(const Eigen::Ref<const Eigen::VectorXd>& box_size)
 {
   assert(box_size.size() == num_nlp_vars_);
   box_size_ = box_size;
+  updateNLPVariableBounds();
 }
 
 Eigen::VectorXd IfoptQPProblem::getBoxSize() const { return box_size_; }

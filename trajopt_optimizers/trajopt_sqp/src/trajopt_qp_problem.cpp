@@ -144,15 +144,11 @@ void TrajOptQPProblem::convexify()
   assert(initialized_);
 
   // This must be called prior to updateGradient
-  updateHessian();
-
-  updateGradient();
+  convexifyCosts();
 
   linearizeConstraints();
 
   // The three above must be called before rest to update internal data
-
-  updateCostsConstantExpression();
 
   updateConstraintsConstantExpression();
 
@@ -163,64 +159,213 @@ void TrajOptQPProblem::convexify()
   updateSlackVariableBounds();
 }
 
-void TrajOptQPProblem::updateHessian()
+void TrajOptQPProblem::convexifyCosts()
 {
   ////////////////////////////////////////////////////////
   // Set the Hessian (empty for now)
   ////////////////////////////////////////////////////////
   hessian_.resize(num_qp_vars_, num_qp_vars_);
+  hessian_nlp_.resize(getNumNLPVars(), getNumNLPVars());
+  hessian_nlp_vec_.resize(static_cast<std::size_t>(getNumNLPCosts()));
+
   /**
    * @note See CostFromFunc::convex in modeling_utils.cpp.
    * This should be multiplied by 0.5 when implemented
    * hessian_ = 0.5 * nlp_->GetHessianOfCosts();
    */
-}
 
-void TrajOptQPProblem::updateGradient()
-{
   ////////////////////////////////////////////////////////
   // Set the gradient of the NLP costs
   ////////////////////////////////////////////////////////
   gradient_ = Eigen::VectorXd::Zero(num_qp_vars_);
+  gradient_nlp_.resize(getNumNLPCosts(), getNumNLPVars());
 
-  // The squared_costs holds constraints which are to be converted to a squared cost here
-  // so the chain rule is applied for the different types of penalty cost types
+  Eigen::VectorXd x_initial = variables_->GetValues().head(getNumNLPVars());
+  Eigen::VectorXd cost_initial_value(getNumNLPCosts());
+
+  // Create triplet list of nonzero gradients
+  std::vector<Eigen::Triplet<double>> grad_triplet_list;
+  grad_triplet_list.reserve(static_cast<std::size_t>(getNumNLPVars() * getNumNLPCosts()) * 3);
+
+  // Create triplet list of nonzero hessian
+  std::vector<Eigen::Triplet<double>> hessian_triplet_list;
+  hessian_triplet_list.reserve(static_cast<std::size_t>(getNumNLPVars() * getNumNLPCosts() * getNumNLPCosts()) * 3);
 
   // Process Squared Costs
-  Eigen::Index start_index{ 0 };
+  Eigen::Index grad_start_index{ 0 };
   if (squared_costs_.GetRows() > 0)
   {
-    ifopt::ConstraintSet::Jacobian squared_cnt_jac = squared_costs_.GetJacobian();
-    ifopt::ConstraintSet::VectorXd squared_cnt_vals = squared_costs_.GetValues();
+    ifopt::ConstraintSet::Jacobian cnt_jac = squared_costs_.GetJacobian();
+    ifopt::ConstraintSet::VectorXd cnt_vals = squared_costs_.GetValues();
 
-    Eigen::VectorXd squared_cost_error = trajopt_ifopt::calcBoundsErrors(squared_cnt_vals, squared_costs_.GetBounds());
-    squared_cost_error.cwiseAbs2();
-    ifopt::ConstraintSet::Jacobian squared_cost_jac = 2 * squared_cost_error.transpose().sparseView() * squared_cnt_jac;
+    Eigen::VectorXd cost_error = trajopt_ifopt::calcBoundsErrors(cnt_vals, squared_costs_.GetBounds());
+    Eigen::VectorXd cost_affexpr_constant = cost_error - (cnt_jac * x_initial);
+    ifopt::ConstraintSet::Jacobian cost_affine_coeff = cnt_jac;
+
+    Eigen::VectorXd cost_quadexpr_constant = cost_affexpr_constant.array().square();
+
+    // store cost constant
+    cost_initial_value.topRows(squared_costs_.GetRows()) = cost_quadexpr_constant;
+
+    ifopt::ConstraintSet::Jacobian cost_quadexpr_affexpr_coeffs =
+        (2 * cost_affexpr_constant).asDiagonal() * cost_affine_coeff;
 
     // Fill squared costs
-    if (squared_cost_jac.nonZeros() > 0)
-      gradient_.topRows(squared_cnt_vals.rows()) = squared_cost_jac.toDense().transpose();
+    if (cost_quadexpr_affexpr_coeffs.nonZeros() > 0)
+    {
+      // Add jacobian to triplet list
+      for (int k = 0; k < cost_quadexpr_affexpr_coeffs.outerSize(); ++k)
+      {
+        for (ifopt::ConstraintSet::Jacobian::InnerIterator it(cost_quadexpr_affexpr_coeffs, k); it; ++it)
+        {
+          grad_triplet_list.emplace_back(grad_start_index + it.row(), it.col(), it.value());
 
-    start_index += squared_cnt_vals.rows();
+          // The row and column is flipped because gradient_ is a vector
+          gradient_(it.col()) += it.value();
+        }
+      }
+    }
+
+    for (Eigen::Index i = 0; i < cnt_vals.rows(); ++i)
+    {
+      auto eq_affexpr_coeffs = cost_affine_coeff.row(i);
+      ifopt::ConstraintSet::Jacobian eq_quadexpr_coeffs = eq_affexpr_coeffs.transpose() * eq_affexpr_coeffs;
+
+      // Fill squared costs
+      // Create triplet list of nonzero hessian
+      std::vector<Eigen::Triplet<double>> eq_hessian_triplet_list;
+      if (eq_quadexpr_coeffs.nonZeros() > 0)
+      {
+        eq_hessian_triplet_list.reserve(static_cast<std::size_t>(getNumNLPVars() * getNumNLPVars()) * 3);
+        // Add jacobian to triplet list
+        for (int k = 0; k < eq_quadexpr_coeffs.outerSize(); ++k)
+        {
+          for (ifopt::ConstraintSet::Jacobian::InnerIterator it(eq_quadexpr_coeffs, k); it; ++it)
+          {
+            eq_hessian_triplet_list.emplace_back(it.row(), it.col(), it.value());
+          }
+        }
+        auto& cost_quadexpr_hessian = hessian_nlp_vec_[static_cast<std::size_t>(i)];
+        cost_quadexpr_hessian.resize(getNumNLPVars(), getNumNLPVars());
+        cost_quadexpr_hessian.setFromTriplets(eq_hessian_triplet_list.begin(), eq_hessian_triplet_list.end());
+        hessian_nlp_ += cost_quadexpr_hessian;
+      }
+    }
+
+    grad_start_index += cnt_vals.rows();
   }
 
   // Process ABS Costs
   if (abs_costs_.GetRows() > 0)
   {
-    ifopt::ConstraintSet::Jacobian abs_cnt_jac = abs_costs_.GetJacobian();
-    ifopt::ConstraintSet::VectorXd abs_cnt_vals = abs_costs_.GetValues();
+    throw std::runtime_error("Absolute cost is not implemented!");
+    //    ifopt::ConstraintSet::Jacobian cnt_jac = abs_costs_.GetJacobian();
+    //    ifopt::ConstraintSet::VectorXd cnt_vals = abs_costs_.GetValues();
 
-    Eigen::VectorXd abs_cnt_error = trajopt_ifopt::calcBoundsErrors(abs_cnt_vals, abs_costs_.GetBounds());
-    Eigen::VectorXd abs_cost_error = abs_cnt_error;
-    abs_cost_error.cwiseAbs();
-    Eigen::VectorXd coeff = abs_cnt_error.array() / abs_cost_error.array();
-    ifopt::ConstraintSet::Jacobian abs_cost_jac = coeff.sparseView() * abs_cnt_jac;
+    //    Eigen::VectorXd abs_cnt_error = trajopt_ifopt::calcBoundsErrors(cnt_vals, abs_costs_.GetBounds());
+    //    Eigen::VectorXd abs_cost_error = abs_cnt_error;
+    //    abs_cost_error.cwiseAbs();
+    //    Eigen::VectorXd coeff = abs_cnt_error.array() / abs_cost_error.array();
 
-    // Fill squared costs
-    if (abs_cost_jac.nonZeros() > 0)
-      gradient_.middleRows(start_index, abs_cost_error.rows()) = abs_cost_jac.toDense().transpose();
+    //    // Fill abs costs
+    //    ifopt::ConstraintSet::Jacobian abs_nlp_jac = 2 * coeff.asDiagonal() * cnt_jac;
+    //    if (abs_nlp_jac.nonZeros() > 0)
+    //    {
+    //      // Add jacobian to triplet list
+    //      for (int k = 0; k < abs_nlp_jac.outerSize(); ++k)
+    //      {
+    //        for (ifopt::ConstraintSet::Jacobian::InnerIterator it(abs_nlp_jac, k); it; ++it)
+    //        {
+    //          tripletList.emplace_back(start_index+ it.row(), it.col(), it.value());
+    //        }
+    //      }
+    //    }
 
-    start_index += abs_cost_error.rows();
+    //    start_index += cnt_vals.rows();
+
+    //    // Fill abs costs
+    //    ifopt::ConstraintSet::Jacobian abs_cost_jac = coeff.sparseView() * cnt_jac;
+    //    if (abs_cost_jac.nonZeros() > 0)
+    //      gradient_.topRows(getNumNLPVars()) = gradient_.topRows(getNumNLPVars()) +
+    //      abs_cost_jac.toDense().transpose();
+  }
+
+  if (hing_costs_.GetRows() > 0)
+  {
+    throw std::runtime_error("Absolute cost is not implemented!");
+    //    ifopt::ConstraintSet::Jacobian cnt_jac = hing_costs_.GetJacobian();
+    //    ifopt::ConstraintSet::VectorXd cnt_vals = hing_costs_.GetValues();
+
+    //    Eigen::VectorXd cost_error = trajopt_ifopt::calcBoundsErrors(cnt_vals, hing_costs_.GetBounds());
+    //    Eigen::VectorXd cost_affexpr_constant = cost_error - (cnt_jac * x_initial);
+    //    ifopt::ConstraintSet::Jacobian cost_affine_coeff = cnt_jac;
+
+    //    Eigen::VectorXd cost_quadexpr_constant = cost_affexpr_constant;
+    //    cost_quadexpr_constant.array().pow(2);
+
+    //    ifopt::ConstraintSet::Jacobian cost_quadexpr_affexpr_coeffs = (2 * cost_affexpr_constant).asDiagonal() *
+    //    cost_affine_coeff;
+
+    //    // Fill squared costs
+    //    if (cost_quadexpr_affexpr_coeffs.nonZeros() > 0)
+    //    {
+    //      // Add jacobian to triplet list
+    //      for (int k = 0; k < cost_quadexpr_affexpr_coeffs.outerSize(); ++k)
+    //      {
+    //        for (ifopt::ConstraintSet::Jacobian::InnerIterator it(cost_quadexpr_affexpr_coeffs, k); it; ++it)
+    //        {
+    //          grad_triplet_list.emplace_back(grad_start_index + it.row(), it.col(), it.value());
+    //        }
+    //      }
+    //    }
+
+    //    for (Eigen::Index i = 0; i < cnt_vals.rows(); ++i)
+    //    {
+
+    //      auto eq_affexpr_coeffs = cost_quadexpr_affexpr_coeffs.row(i);
+    //      ifopt::ConstraintSet::Jacobian eq_quadexpr_coeffs = eq_affexpr_coeffs * eq_affexpr_coeffs.transpose();
+
+    //      // Fill squared costs
+    //      // Create triplet list of nonzero hessian
+    //      std::vector<Eigen::Triplet<double>> eq_hessian_triplet_list;
+    //      if (eq_quadexpr_coeffs.nonZeros() > 0)
+    //      {
+    //        eq_hessian_triplet_list.reserve(static_cast<std::size_t>(getNumNLPVars() * getNumNLPVars()) * 3);
+    //        // Add jacobian to triplet list
+    //        for (int k = 0; k < eq_quadexpr_coeffs.outerSize(); ++k)
+    //        {
+    //          for (ifopt::ConstraintSet::Jacobian::InnerIterator it(eq_quadexpr_coeffs, k); it; ++it)
+    //          {
+    //            eq_hessian_triplet_list.emplace_back(it.row(), it.col(), it.value());
+    //          }
+    //        }
+    //        hessian_nlp[i].setFromTriplets(eq_hessian_triplet_list.begin(), eq_hessian_triplet_list.end());
+    //        hessian_nlp_ += hessian_nlp[i];
+    //      }
+
+    //      hessian_start_index += getNumNLPVars();
+    //    }
+
+    //    grad_start_index += cnt_vals.rows();
+
+    //    // Fill squared costs
+    //    ifopt::ConstraintSet::Jacobian squared_cost_jac = 2 * squared_cost_error.transpose().sparseView() * cnt_jac;
+    //    if (squared_cost_jac.nonZeros() > 0)
+    //      gradient_.topRows(getNumNLPVars()) = gradient_.topRows(getNumNLPVars()) +
+    //      squared_cost_jac.toDense().transpose();
+  }
+
+  gradient_nlp_.setFromTriplets(grad_triplet_list.begin(), grad_triplet_list.end());
+  cost_constant_ = cost_initial_value;
+
+  if (hessian_nlp_.nonZeros() > 0)
+  {
+    hessian_.reserve(hessian_nlp_.nonZeros());
+    for (int k = 0; k < hessian_nlp_.outerSize(); ++k)
+    {
+      for (ifopt::ConstraintSet::Jacobian::InnerIterator it(hessian_nlp_, k); it; ++it)
+        hessian_.coeffRef(it.row(), it.col()) += it.value();
+    }
   }
 
   /**
@@ -333,47 +478,6 @@ void TrajOptQPProblem::linearizeConstraints()
   constraint_matrix_.resize(num_qp_cnts_, num_qp_vars_);
   constraint_matrix_.reserve(jac.nonZeros() + num_qp_vars_);
   constraint_matrix_.setFromTriplets(tripletList.begin(), tripletList.end());
-}
-
-void TrajOptQPProblem::updateCostsConstantExpression()
-{
-  if (getNumNLPCosts() == 0)
-    return;
-
-  // Get values about which we will linearize
-  Eigen::VectorXd x_initial = variables_->GetValues().head(getNumNLPVars());
-  Eigen::VectorXd cost_initial_value(getNumNLPCosts());
-  Eigen::Index start_index = 0;
-  if (squared_costs_.GetRows() > 0)
-  {
-    cost_initial_value.topRows(squared_costs_.GetRows()) = squared_costs_.GetValues().cwiseAbs2();
-    start_index = squared_costs_.GetRows();
-  }
-
-  if (abs_costs_.GetRows() > 0)
-  {
-    cost_initial_value.middleRows(start_index, abs_costs_.GetRows()) = abs_costs_.GetValues().cwiseAbs();
-    start_index = abs_costs_.GetRows();
-  }
-
-  // In the case of a QP problem the costs and constraints are represented as
-  // quadratic functions is f(x) = a + b * x + c * x^2.
-  // When convexifying the function it need to produce the same cost values at the values used to calculate
-  // the Jacobian and Hessian, so f(x_initial) = a + b * x + c * x^2 = cost_initial_value.
-  // Therefore a = cost_initial_value - b * x - c * x^2
-  //     where: b = gradient_
-  //            c = hessian_
-  //            x = x_initial
-  //            a = quadratic constant (cost_constant_)
-  //
-  // Note: This is not used by the QP solver directly but by the Trust Regions Solver
-  //       to calculate the merit of the solve.
-
-  // The block excludes the slack variables
-  Eigen::VectorXd result_quad =
-      x_initial.transpose() * hessian_.block(0, 0, getNumNLPVars(), getNumNLPVars()) * x_initial;
-  Eigen::VectorXd result_lin = x_initial.transpose() * gradient_.block(0, 0, getNumNLPVars(), getNumNLPCosts());
-  cost_constant_ = cost_initial_value - result_quad - result_lin;
 }
 
 void TrajOptQPProblem::updateConstraintsConstantExpression()
@@ -490,11 +594,20 @@ Eigen::VectorXd TrajOptQPProblem::evaluateConvexCosts(const Eigen::Ref<const Eig
   if (getNumNLPCosts() == 0)
     return Eigen::VectorXd();
 
-  auto var_block = var_vals.head(getNumNLPVars());
-  Eigen::VectorXd result_quad =
-      var_block.transpose() * hessian_.block(0, 0, getNumNLPVars(), getNumNLPVars()) * var_block;
-  Eigen::VectorXd result_lin = var_block.transpose() * gradient_.block(0, 0, getNumNLPVars(), getNumNLPCosts());
-  return cost_constant_ + result_lin + result_quad;
+  Eigen::VectorXd var_block = var_vals.head(getNumNLPVars());
+  //  Eigen::VectorXd result_quad =
+  //      var_block.transpose() * hessian_.block(0, 0, getNumNLPVars(), getNumNLPVars()) * var_block;
+  ////  Eigen::VectorXd result_lin = var_block.transpose() * gradient_.block(0, 0, getNumNLPVars(), getNumNLPCosts());
+
+  Eigen::VectorXd result_lin = cost_constant_ + (gradient_nlp_ * var_block);
+  Eigen::VectorXd result_quad = result_lin;
+  for (Eigen::Index i = 0; i < getNumNLPCosts(); ++i)
+  {
+    const auto& cost_quadexpr_hessian = hessian_nlp_vec_[static_cast<std::size_t>(i)];
+    if (cost_quadexpr_hessian.nonZeros() > 0)
+      result_quad(i) = result_lin(i) + (var_block.transpose() * cost_quadexpr_hessian * var_block);
+  }
+  return result_quad;
 }
 
 double TrajOptQPProblem::evaluateTotalExactCost(const Eigen::Ref<const Eigen::VectorXd>& var_vals)
@@ -566,12 +679,17 @@ Eigen::VectorXd TrajOptQPProblem::getExactConstraintViolations()
   return evaluateExactConstraintViolations(variables_->GetValues());
 }
 
-void TrajOptQPProblem::scaleBoxSize(double& scale) { box_size_ = box_size_ * scale; }
+void TrajOptQPProblem::scaleBoxSize(double& scale)
+{
+  box_size_ = box_size_ * scale;
+  updateNLPVariableBounds();
+}
 
 void TrajOptQPProblem::setBoxSize(const Eigen::Ref<const Eigen::VectorXd>& box_size)
 {
   assert(box_size.size() == getNumNLPVars());
   box_size_ = box_size;
+  updateNLPVariableBounds();
 }
 
 Eigen::VectorXd TrajOptQPProblem::getBoxSize() const { return box_size_; }

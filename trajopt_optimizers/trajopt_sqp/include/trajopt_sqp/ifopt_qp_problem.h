@@ -53,12 +53,12 @@ public:
   Eigen::VectorXd getVariableValues() const override;
 
   void convexify() override;
-  void updateHessian() override;
-  void updateGradient() override;
-  void linearizeConstraints() override;
-  void updateNLPConstraintBounds() override;
-  void updateNLPVariableBounds() override;
-  void updateSlackVariableBounds() override;
+  void updateHessian();
+  void updateGradient();
+  void linearizeConstraints();
+  void updateNLPConstraintBounds();
+  void updateNLPVariableBounds();
+  void updateSlackVariableBounds();
 
   double evaluateTotalConvexCost(const Eigen::Ref<const Eigen::VectorXd>& var_vals) override;
 

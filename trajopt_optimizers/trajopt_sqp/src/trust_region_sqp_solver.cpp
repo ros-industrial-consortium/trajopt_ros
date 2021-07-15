@@ -64,7 +64,6 @@ void TrustRegionSQPSolver::setBoxSize(double box_size)
 {
   results_.box_size = Eigen::VectorXd::Constant(qp_problem->getNumNLPVars(), box_size);
   qp_problem->setBoxSize(results_.box_size);
-  qp_problem->updateNLPVariableBounds(); /** @todo should setBoxSize do this? */
 }
 
 void TrustRegionSQPSolver::registerCallback(const SQPCallback::Ptr& callback) { callbacks_.push_back(callback); }
@@ -241,8 +240,6 @@ void TrustRegionSQPSolver::runTrustRegionLoop()
     if (results_.exact_merit_improve < 0 || results_.merit_improve_ratio < params.improve_ratio_threshold)
     {
       qp_problem->scaleBoxSize(params.trust_shrink_ratio);
-
-      qp_problem->updateNLPVariableBounds();
       qp_solver->updateBounds(qp_problem->getBoundsLower(), qp_problem->getBoundsUpper());
       results_.box_size = qp_problem->getBoxSize();
 
@@ -266,7 +263,6 @@ void TrustRegionSQPSolver::runTrustRegionLoop()
       qp_problem->setVariables(results_.best_var_vals.data());
 
       qp_problem->scaleBoxSize(params.trust_expand_ratio);
-      qp_problem->updateNLPVariableBounds();
       results_.box_size = qp_problem->getBoxSize();
       CONSOLE_BRIDGE_logInform("Expanded trust region. new box size: %.4f", results_.box_size[0]);
       return;
