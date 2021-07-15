@@ -105,16 +105,15 @@ void JointVelConstraint::FillJacobianBlock(std::string var_set, Jacobian& jac_bl
     // Reserve enough room in the sparse matrix
     jac_block.reserve(n_dof_ * 2);
 
-      // jac block will be (n_vars-1)*n_dof x n_dof
-      for (int j = 0; j < n_dof_; j++)
-      {
-        // The first and last variable are special and only effect the first and last constraint. Everything else
-        // effects 2
-        if (i < n_vars_ - 1)
-          jac_block.coeffRef(i * n_dof_ + j, j) = -1.0;
-        if (i > 0)
-          jac_block.coeffRef((i - 1) * n_dof_ + j, j) = 1.0;
-      }
+    // jac block will be (n_vars-1)*n_dof x n_dof
+    for (int j = 0; j < n_dof_; j++)
+    {
+      // The first and last variable are special and only effect the first and last constraint. Everything else
+      // effects 2
+      if (i < n_vars_ - 1)
+        jac_block.coeffRef(i * n_dof_ + j, j) = -1.0;
+      if (i > 0)
+        jac_block.coeffRef((i - 1) * n_dof_ + j, j) = 1.0;
     }
   }
 }
