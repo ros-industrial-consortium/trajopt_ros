@@ -144,10 +144,10 @@ public:
   const Eigen::Ref<const Eigen::VectorXd> getBoxSize() override { return box_size_; }
   const Eigen::Ref<const Eigen::VectorXd> getConstraintMeritCoeff() override { return constraint_merit_coeff_; }
 
-  const Eigen::Ref<const Eigen::SparseMatrix<double>> getHessian() override { return hessian_; }
+  const Eigen::Ref<const SparseMatrix> getHessian() override { return hessian_; }
   const Eigen::Ref<const Eigen::VectorXd> getGradient() override { return gradient_; }
 
-  const Eigen::Ref<const Eigen::SparseMatrix<double>> getConstraintMatrix() override { return constraint_matrix_; }
+  const Eigen::Ref<const SparseMatrix> getConstraintMatrix() override { return constraint_matrix_; }
   const Eigen::Ref<const Eigen::VectorXd> getBoundsLower() override { return bounds_lower_; }
   const Eigen::Ref<const Eigen::VectorXd> getBoundsUpper() override { return bounds_upper_; }
 
@@ -168,11 +168,11 @@ protected:
   Eigen::VectorXd box_size_;
   Eigen::VectorXd constraint_merit_coeff_;
 
-  Eigen::SparseMatrix<double> hessian_;
+  SparseMatrix hessian_;
   Eigen::VectorXd gradient_;
   Eigen::VectorXd cost_constant_;
 
-  Eigen::SparseMatrix<double> constraint_matrix_;
+  SparseMatrix constraint_matrix_;
   Eigen::VectorXd bounds_lower_;
   Eigen::VectorXd bounds_upper_;
   // This should be the center of the bounds

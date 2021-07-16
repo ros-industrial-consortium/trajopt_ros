@@ -31,8 +31,7 @@
 
 namespace trajopt_sqp
 {
-using Jacobian = Eigen::SparseMatrix<double, Eigen::RowMajor>;
-using Hessian = Eigen::SparseMatrix<double, Eigen::RowMajor>;
+using SparseMatrix = Eigen::SparseMatrix<double, Eigen::RowMajor>;
 
 enum class ConstraintType
 {

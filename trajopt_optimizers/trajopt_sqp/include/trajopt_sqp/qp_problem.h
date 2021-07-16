@@ -174,10 +174,10 @@ public:
   virtual const Eigen::Ref<const Eigen::VectorXd> getBoxSize() = 0;
   virtual const Eigen::Ref<const Eigen::VectorXd> getConstraintMeritCoeff() = 0;
 
-  virtual const Eigen::Ref<const Eigen::SparseMatrix<double>> getHessian() = 0;
+  virtual const Eigen::Ref<const SparseMatrix> getHessian() = 0;
   virtual const Eigen::Ref<const Eigen::VectorXd> getGradient() = 0;
 
-  virtual const Eigen::Ref<const Eigen::SparseMatrix<double>> getConstraintMatrix() = 0;
+  virtual const Eigen::Ref<const SparseMatrix> getConstraintMatrix() = 0;
   virtual const Eigen::Ref<const Eigen::VectorXd> getBoundsLower() = 0;
   virtual const Eigen::Ref<const Eigen::VectorXd> getBoundsUpper() = 0;
 };

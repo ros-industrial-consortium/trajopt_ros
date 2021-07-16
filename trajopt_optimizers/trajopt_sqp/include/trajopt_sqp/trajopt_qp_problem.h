@@ -2,6 +2,7 @@
 #define TRAJOPT_SQP_TRAJOPT_QP_PROBLEM_H
 
 #include <trajopt_sqp/qp_problem.h>
+#include <trajopt_sqp/utils.h>
 #include <ifopt/variable_set.h>
 #include <ifopt/constraint_set.h>
 
@@ -101,10 +102,10 @@ public:
   const Eigen::Ref<const Eigen::VectorXd> getBoxSize() override;
   const Eigen::Ref<const Eigen::VectorXd> getConstraintMeritCoeff() override;
 
-  const Eigen::Ref<const Eigen::SparseMatrix<double>> getHessian() override;
+  const Eigen::Ref<const SparseMatrix> getHessian() override;
   const Eigen::Ref<const Eigen::VectorXd> getGradient() override;
 
-  const Eigen::Ref<const Eigen::SparseMatrix<double>> getConstraintMatrix() override;
+  const Eigen::Ref<const SparseMatrix> getConstraintMatrix() override;
   const Eigen::Ref<const Eigen::VectorXd> getBoundsLower() override;
   const Eigen::Ref<const Eigen::VectorXd> getBoundsUpper() override;
 
@@ -127,14 +128,11 @@ protected:
   Eigen::VectorXd box_size_;
   Eigen::VectorXd constraint_merit_coeff_;
 
-  ifopt::ConstraintSet::Jacobian hessian_;
+  SparseMatrix hessian_;
   Eigen::VectorXd gradient_;
-  ifopt::ConstraintSet::Jacobian hessian_nlp_;
-  std::vector<ifopt::ConstraintSet::Jacobian> hessian_nlp_vec_;
-  Eigen::SparseMatrix<double> gradient_nlp_;
-  Eigen::VectorXd cost_constant_{ Eigen::VectorXd::Zero(1) };
+  QuadExprs objective_nlp_;
 
-  ifopt::ConstraintSet::Jacobian constraint_matrix_;
+  SparseMatrix constraint_matrix_;
   Eigen::VectorXd bounds_lower_;
   Eigen::VectorXd bounds_upper_;
   // This should be the center of the bounds

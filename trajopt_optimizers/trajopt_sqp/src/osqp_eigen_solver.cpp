@@ -122,10 +122,10 @@ Eigen::VectorXd OSQPEigenSolver::getSolution()
   return solution;
 }
 
-bool OSQPEigenSolver::updateHessianMatrix(const Hessian& hessian)
+bool OSQPEigenSolver::updateHessianMatrix(const SparseMatrix& hessian)
 {
   // Clean up values close to 0
-  Hessian cleaned = hessian.pruned(1e-7);
+  SparseMatrix cleaned = hessian.pruned(1e-7);
 
   if (solver_.isInitialized())
     return solver_.updateHessianMatrix(hessian);
@@ -170,13 +170,13 @@ bool OSQPEigenSolver::updateBounds(const Eigen::Ref<const Eigen::VectorXd>& lowe
   return success;
 }
 
-bool OSQPEigenSolver::updateLinearConstraintsMatrix(const Jacobian& linearConstraintsMatrix)
+bool OSQPEigenSolver::updateLinearConstraintsMatrix(const SparseMatrix& linearConstraintsMatrix)
 {
   assert(num_cnts_ == linearConstraintsMatrix.rows());
   assert(num_vars_ == linearConstraintsMatrix.cols());
 
   solver_.data()->clearLinearConstraintsMatrix();
-  Jacobian cleaned = linearConstraintsMatrix.pruned(1e-7);
+  SparseMatrix cleaned = linearConstraintsMatrix.pruned(1e-7);
 
   if (solver_.isInitialized())
     return solver_.updateLinearConstraintsMatrix(linearConstraintsMatrix);
