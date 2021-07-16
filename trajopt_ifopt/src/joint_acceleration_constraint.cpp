@@ -56,11 +56,13 @@ JointAccelConstraint::JointAccelConstraint(const Eigen::VectorXd& targets,
   // All of the positions should be exactly at their targets
   for (long j = 0; j < n_vars_ - 2; j++)
   {
+    index_map_[position_vars[static_cast<std::size_t>(j)]->GetName()] = j;
     for (long i = 0; i < n_dof_; i++)
     {
       bounds[static_cast<size_t>(i + j * n_dof_)] = ifopt::Bounds(targets[i], targets[i]);
     }
   }
+  index_map_[position_vars.back()->GetName()] = static_cast<Eigen::Index>(position_vars.size()) - 1;
   bounds_ = bounds;
 }
 
@@ -91,13 +93,13 @@ void JointAccelConstraint::FillJacobianBlock(std::string var_set, Jacobian& jac_
     if (var_set == position_vars_[static_cast<size_t>(i)]->GetName())
     {
       // Reserve enough room in the sparse matrix
-      jac_block.reserve(n_dof_ * 3);
+      jac_block.reserve(n_dof_ * 2);
 
       // jac block will be (n_vars-1)*n_dof x n_dof
       for (int j = 0; j < n_dof_; j++)
       {
-        // The last two variable are special and only effect the last two constraints. Everything else
-        // effects 3
+        // The first and last variable are special and only effect the first and last constraint. Everything else
+        // effects 2
         if (i < n_vars_ - 2)
           jac_block.coeffRef(i * n_dof_ + j, j) = 1.0;
         if (i > 0 && i < n_vars_ - 1)

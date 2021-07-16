@@ -101,6 +101,7 @@ private:
    *
    * Do not access them directly. Instead use this->GetVariables()->GetComponent(position_var->GetName())->GetValues()*/
   std::vector<JointPosition::ConstPtr> position_vars_;
+  std::unordered_map<std::string, Eigen::Index> index_map_;
 };
 };  // namespace trajopt
 #endif
