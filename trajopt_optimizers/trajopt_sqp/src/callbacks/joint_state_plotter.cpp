@@ -36,18 +36,19 @@ JointStatePlottingCallback::JointStatePlottingCallback(tesseract_visualization::
 
 void JointStatePlottingCallback::plot(const ifopt::Problem& /*nlp*/)
 {
-  tesseract_common::JointTrajectory trajectory = trajopt::toJointTrajectory(joint_positions_);
+  tesseract_common::JointTrajectory trajectory = trajopt_ifopt::toJointTrajectory(joint_positions_);
 
   if (plotter_)
     plotter_->plotTrajectory(trajectory, state_solver_);
 }
 
-void JointStatePlottingCallback::addVariableSet(const trajopt::JointPosition::ConstPtr& joint_position)
+void JointStatePlottingCallback::addVariableSet(const trajopt_ifopt::JointPosition::ConstPtr& joint_position)
 {
   joint_positions_.push_back(joint_position);
 };
 
-void JointStatePlottingCallback::addVariableSet(const std::vector<trajopt::JointPosition::ConstPtr>& joint_positions)
+void JointStatePlottingCallback::addVariableSet(
+    const std::vector<trajopt_ifopt::JointPosition::ConstPtr>& joint_positions)
 {
   for (const auto& cnt : joint_positions)
     joint_positions_.push_back(cnt);

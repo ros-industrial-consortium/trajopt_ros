@@ -1,0 +1,21 @@
+{
+  "basic_info" : {
+    "n_steps" : 1,
+    "manip" : "manipulator"
+  },
+  "constraints" : [
+  {
+    "type" : "collision",
+    "params" : {
+      "coeffs" : [10],
+      "dist_pen" : [0.2],
+      "evaluator_type" : 0,
+      "longest_valid_segment_length" : 0.05
+    }
+  }
+  ],
+  "init_info" : {
+    "type" : "given_traj",
+    "data" : [[-0.75, 0.75]]
+  }
+}

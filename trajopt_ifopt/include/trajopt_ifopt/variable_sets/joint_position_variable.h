@@ -30,16 +30,16 @@
 TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <ifopt/variable_set.h>
 #include <ifopt/bounds.h>
+#include <tesseract_common/types.h>
 #include <Eigen/Eigen>
+#include <console_bridge/console.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
 #include <trajopt_ifopt/utils/ifopt_utils.h>
 
-namespace trajopt
+namespace trajopt_ifopt
 {
-/**
- * @brief Represents a single joint position in the optimization. Values are of dimension 1 x n_dof
- */
+/** @brief Represents a single joint position in the optimization. Values are of dimension 1 x n_dof */
 class JointPosition : public ifopt::VariableSet
 {
 public:
@@ -51,10 +51,45 @@ public:
                 const std::string& name = "Joint_Position")
     : ifopt::VariableSet(static_cast<int>(init_value.size()), name), joint_names_(std::move(joint_names))
   {
-    // This needs to be set somehow
-    ifopt::Bounds bounds(-M_PI, M_PI);
-    bounds_ = std::vector<ifopt::Bounds>(static_cast<size_t>(init_value.size()), bounds);
+    bounds_ = std::vector<ifopt::Bounds>(static_cast<size_t>(init_value.size()), ifopt::NoBound);
     values_ = init_value;
+  }
+
+  JointPosition(const Eigen::Ref<const Eigen::VectorXd>& init_value,
+                std::vector<std::string> joint_names,
+                const ifopt::Bounds& bounds,
+                const std::string& name = "Joint_Position")
+    : ifopt::VariableSet(static_cast<int>(init_value.size()), name), joint_names_(std::move(joint_names))
+  {
+    /** @todo Print warning if init value is not within bounds */
+    bounds_ = std::vector<ifopt::Bounds>(static_cast<size_t>(init_value.size()), bounds);
+    values_ = trajopt_ifopt::getClosestValidPoint(init_value, bounds_);
+
+    if (!values_.isApprox(init_value, 1e-10))
+    {
+      CONSOLE_BRIDGE_logWarn("The initial values are not within the provided bounds. Adjusting to be within the "
+                             "bounds.");
+    }
+  }
+
+  JointPosition(const Eigen::Ref<const Eigen::VectorXd>& init_value,
+                std::vector<std::string> joint_names,
+                const tesseract_common::KinematicLimits& bounds,
+                const std::string& name = "Joint_Position")
+    : ifopt::VariableSet(static_cast<int>(init_value.size()), name), joint_names_(std::move(joint_names))
+  {
+    /** @todo Print warning if init value is not within bounds */
+    bounds_ = std::vector<ifopt::Bounds>(static_cast<size_t>(init_value.size()), ifopt::NoBound);
+    for (Eigen::Index i = 0; i < init_value.size(); ++i)
+      bounds_[static_cast<std::size_t>(i)] = ifopt::Bounds(bounds.joint_limits(i, 0), bounds.joint_limits(i, 1));
+
+    values_ = trajopt_ifopt::getClosestValidPoint(init_value, bounds_);
+
+    if (!values_.isApprox(init_value, 1e-10))
+    {
+      CONSOLE_BRIDGE_logWarn("The initial values are not within the provided bounds. Adjusting to be within the "
+                             "bounds.");
+    }
   }
 
   /**
@@ -100,6 +135,6 @@ private:
   std::vector<std::string> joint_names_;
 };
 
-}  // namespace trajopt
+}  // namespace trajopt_ifopt
 
 #endif

@@ -38,7 +38,7 @@ OSQPEigenSolver::OSQPEigenSolver()
   solver_.settings()->setWarmStart(true);
   solver_.settings()->setPolish(true);
   solver_.settings()->setAdaptiveRho(false);
-  solver_.settings()->setMaxIteraction(8192);
+  solver_.settings()->setMaxIteration(8192);
   solver_.settings()->setAbsoluteTolerance(1e-4);
   solver_.settings()->setRelativeTolerance(1e-6);
 }
@@ -68,7 +68,8 @@ bool OSQPEigenSolver::clear()
 bool OSQPEigenSolver::solve()
 {
   // In order to call initSolver, everything must have already been set, so we call it right before solving
-  solver_.initSolver();
+  if (!solver_.isInitialized())
+    solver_.initSolver();
   if (solver_.solve())
     return true;
 

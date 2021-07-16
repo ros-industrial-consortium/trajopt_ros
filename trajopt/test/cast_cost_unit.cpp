@@ -98,6 +98,8 @@ TEST_F(CastTest, boxes)  // NOLINT
     plotter_->clear();
 
   collisions.clear();
+  std::cout << getTraj(opt.x(), prob->GetVars()) << std::endl;
+
   found = checkTrajectory(
       collisions, *manager, *state_solver, prob->GetKin()->getJointNames(), getTraj(opt.x(), prob->GetVars()), config);
 

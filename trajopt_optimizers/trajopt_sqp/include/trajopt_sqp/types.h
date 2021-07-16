@@ -34,6 +34,19 @@ namespace trajopt_sqp
 using Jacobian = Eigen::SparseMatrix<double, Eigen::RowMajor>;
 using Hessian = Eigen::SparseMatrix<double, Eigen::RowMajor>;
 
+enum class ConstraintType
+{
+  EQ,
+  INEQ
+};
+
+enum class CostPenaltyType
+{
+  SQUARED,
+  ABSOLUTE,
+  HING
+};
+
 /**
  * @brief This struct defines parameters for the SQP optimization. The optimization should not change this struct
  */
@@ -79,14 +92,22 @@ struct SQPResults
 {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  SQPResults(Eigen::Index num_vars, Eigen::Index num_cnts)
+  SQPResults(Eigen::Index num_vars, Eigen::Index num_cnts, Eigen::Index num_costs)
   {
     best_constraint_violations = Eigen::VectorXd::Zero(num_cnts);
     new_constraint_violations = Eigen::VectorXd::Zero(num_cnts);
+    best_approx_constraint_violations = Eigen::VectorXd::Zero(num_cnts);
+    new_approx_constraint_violations = Eigen::VectorXd::Zero(num_cnts);
+
+    best_costs = Eigen::VectorXd::Zero(num_costs);
+    new_costs = Eigen::VectorXd::Zero(num_costs);
+    best_approx_costs = Eigen::VectorXd::Zero(num_costs);
+    new_approx_costs = Eigen::VectorXd::Zero(num_costs);
+
     best_var_vals = Eigen::VectorXd::Zero(num_vars);
     new_var_vals = Eigen::VectorXd::Zero(num_vars);
     box_size = Eigen::VectorXd::Ones(num_vars);
-    merit_error_coeffs = Eigen::VectorXd::Ones(num_cnts) * 10;
+    merit_error_coeffs = Eigen::VectorXd::Constant(num_cnts, 10);
   }
   SQPResults() = default;
   /** @brief The lowest cost ever achieved */
@@ -104,20 +125,41 @@ struct SQPResults
   Eigen::VectorXd new_var_vals;
 
   /** @brief Amount the convexified cost improved over the best this iteration */
-  double approx_merit_improve;
+  double approx_merit_improve{ 0 };
   /** @brief Amount the exact cost improved over the best this iteration */
-  double exact_merit_improve;
+  double exact_merit_improve{ 0 };
   /** @brief The amount the cost improved as a ratio of the total cost */
-  double merit_improve_ratio;
+  double merit_improve_ratio{ 0 };
 
   /** @brief Vector defing the box size. The box is var_vals +/- box_size */
   Eigen::VectorXd box_size;
   /** @brief Coefficients used to weight the constraint violations */
   Eigen::VectorXd merit_error_coeffs;
+
   /** @brief Vector of the constraint violations. Positive is a violation */
   Eigen::VectorXd best_constraint_violations;
   /** @brief Vector of the constraint violations. Positive is a violation */
   Eigen::VectorXd new_constraint_violations;
+
+  /** @brief Vector of the convexified constraint violations. Positive is a violation */
+  Eigen::VectorXd best_approx_constraint_violations;
+  /** @brief Vector of the convexified constraint violations. Positive is a violation */
+  Eigen::VectorXd new_approx_constraint_violations;
+
+  /** @brief Vector of the constraint violations. Positive is a violation */
+  Eigen::VectorXd best_costs;
+  /** @brief Vector of the constraint violations. Positive is a violation */
+  Eigen::VectorXd new_costs;
+
+  /** @brief Vector of the convexified costs.*/
+  Eigen::VectorXd best_approx_costs;
+  /** @brief Vector of the convexified costs.*/
+  Eigen::VectorXd new_approx_costs;
+
+  /** @brief The names associated to constraint violations */
+  std::vector<std::string> constraint_names;
+  /** @brief The names associated to costs */
+  std::vector<std::string> cost_names;
 
   int penalty_iteration{ 0 };
   int convexify_iteration{ 0 };
@@ -126,29 +168,40 @@ struct SQPResults
 
   void print() const
   {
+    Eigen::IOFormat format(3);
     std::cout << "-------------- SQPResults::print() --------------" << std::endl;
     std::cout << "best_exact_merit: " << best_exact_merit << std::endl;
     std::cout << "new_exact_merit: " << new_exact_merit << std::endl;
     std::cout << "best_approx_merit: " << best_approx_merit << std::endl;
     std::cout << "new_approx_merit: " << new_approx_merit << std::endl;
 
-    std::cout << "best_var_vals: " << best_var_vals.transpose() << std::endl;
-    std::cout << "new_var_vals: " << new_var_vals.transpose() << std::endl;
+    std::cout << "best_var_vals: " << best_var_vals.transpose().format(format) << std::endl;
+    std::cout << "new_var_vals: " << new_var_vals.transpose().format(format) << std::endl;
 
     std::cout << "approx_merit_improve: " << approx_merit_improve << std::endl;
     std::cout << "exact_merit_improve: " << exact_merit_improve << std::endl;
     std::cout << "merit_improve_ratio: " << merit_improve_ratio << std::endl;
 
-    std::cout << "box_size: " << box_size.transpose() << std::endl;
-    std::cout << "merit_error_coeffs: " << merit_error_coeffs.transpose() << std::endl;
-    std::cout << "best_constraint_violations: " << best_constraint_violations.transpose() << std::endl;
-    std::cout << "new_constraint_violations: " << new_constraint_violations.transpose() << std::endl;
+    std::cout << "box_size: " << box_size.transpose().format(format) << std::endl;
+    std::cout << "merit_error_coeffs: " << merit_error_coeffs.transpose().format(format) << std::endl;
+
+    std::cout << "best_constraint_violations: " << best_constraint_violations.transpose().format(format) << std::endl;
+    std::cout << "new_constraint_violations: " << new_constraint_violations.transpose().format(format) << std::endl;
+    std::cout << "best_approx_constraint_violations: " << best_approx_constraint_violations.transpose().format(format)
+              << std::endl;
+    std::cout << "new_approx_constraint_violations: " << new_approx_constraint_violations.transpose().format(format)
+              << std::endl;
+
+    std::cout << "best_costs: " << best_costs.transpose().format(format) << std::endl;
+    std::cout << "new_costs: " << new_costs.transpose().format(format) << std::endl;
+    std::cout << "best_approx_costs: " << best_approx_costs.transpose().format(format) << std::endl;
+    std::cout << "new_approx_costs: " << new_approx_costs.transpose().format(format) << std::endl;
 
     std::cout << "penalty_iteration: " << penalty_iteration << std::endl;
     std::cout << "convexify_iteration: " << convexify_iteration << std::endl;
     std::cout << "trust_region_iteration: " << trust_region_iteration << std::endl;
     std::cout << "overall_iteration: " << overall_iteration << std::endl;
-  };
+  }
 };
 
 /**
@@ -162,6 +215,42 @@ enum class SQPStatus
   QP_SOLVER_ERROR, /**< QP Solver failed */
   CALLBACK_STOPPED /**< Optimization stopped because callback returned false */
 };
+
+///**
+// * @brief An affine expression
+// */
+// struct AffExpr
+//{
+
+//  double constant{ 0 };
+//  Eigen::VectorXd coeffs;
+
+//  AffExpr() = default;
+//  ~AffExpr() = default;
+//  AffExpr(const AffExpr& other) = default;
+//  AffExpr& operator=(const AffExpr&) = default;
+//  AffExpr(AffExpr&&) = default;
+//  AffExpr& operator=(AffExpr&&) = default;
+
+//  /**
+//   * @brief Create aff expression from value and gradient of function
+//   * @param y The value of the function
+//   * @param dydx The gradient of the function
+//   * @param x The current values at which the y and dydx were calculated
+//   */
+//  explicit AffExpr(double y, const Eigen::Ref<const Eigen::VectorXd>& dydx, const Eigen::Ref<const Eigen::VectorXd>&
+//  x)
+//    : coeffs(dydx)
+//  {
+//    constant = y - coeffs.dot(x);
+//  }
+
+//  Eigen::Index size() const { return coeffs.size(); }
+//  double value(const Eigen::Ref<const Eigen::VectorXd>& x) const
+//  {
+//    return (constant + coeffs.dot(x));
+//  }
+//};
 
 }  // namespace trajopt_sqp
 
