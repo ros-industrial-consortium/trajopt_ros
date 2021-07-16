@@ -27,6 +27,7 @@
 #define TRAJOPT_SQP_INCLUDE_SQP_CALLBACK_H_
 
 #include <trajopt_sqp/types.h>
+#include <ifopt/problem.h>
 
 namespace trajopt_sqp
 {

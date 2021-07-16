@@ -37,6 +37,7 @@
 #include <trajopt_ifopt/constraints/joint_velocity_constraint.h>
 
 #include <trajopt_ifopt/costs/squared_cost.h>
+#include <trajopt_ifopt/costs/absolute_cost.h>
 
 #include <trajopt_ifopt/utils/ifopt_utils.h>
 #include <trajopt_ifopt/utils/numeric_differentiation.h>

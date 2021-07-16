@@ -45,7 +45,7 @@ TRAJOPT_IGNORE_WARNINGS_POP
 #include <trajopt_ifopt/constraints/joint_position_constraint.h>
 #include <trajopt_ifopt/costs/squared_cost.h>
 
-using namespace trajopt;
+using namespace trajopt_ifopt;
 using namespace tesseract_environment;
 using namespace tesseract_kinematics;
 using namespace tesseract_collision;
@@ -125,13 +125,14 @@ TEST_F(SimpleCollisionTest, spheres)  // NOLINT
   ifopt::Problem nlp;
 
   // 3) Add Variables
-  std::vector<trajopt::JointPosition::ConstPtr> vars;
+  std::vector<trajopt_ifopt::JointPosition::ConstPtr> vars;
   std::vector<Eigen::VectorXd> positions;
   {
     Eigen::VectorXd pos(2);
     pos << -0.75, 0.75;
     positions.push_back(pos);
-    auto var = std::make_shared<trajopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
+    auto var =
+        std::make_shared<trajopt_ifopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
     vars.push_back(var);
     nlp.AddVariableSet(var);
   }
@@ -143,15 +144,15 @@ TEST_F(SimpleCollisionTest, spheres)  // NOLINT
 
   double margin_coeff = 10;
   double margin = 0.2;
-  auto trajopt_collision_config = std::make_shared<trajopt::TrajOptCollisionConfig>(margin, margin_coeff);
+  auto trajopt_collision_config = std::make_shared<trajopt_ifopt::TrajOptCollisionConfig>(margin, margin_coeff);
   trajopt_collision_config->collision_margin_buffer = 0.05;
 
-  auto collision_cache = std::make_shared<trajopt::CollisionCache>(100);
-  trajopt::DiscreteCollisionEvaluator::Ptr collision_evaluator =
-      std::make_shared<trajopt::SingleTimestepCollisionEvaluator>(
+  auto collision_cache = std::make_shared<trajopt_ifopt::CollisionCache>(100);
+  trajopt_ifopt::DiscreteCollisionEvaluator::Ptr collision_evaluator =
+      std::make_shared<trajopt_ifopt::SingleTimestepCollisionEvaluator>(
           collision_cache, kin, env, adj_map, Eigen::Isometry3d::Identity(), trajopt_collision_config);
 
-  auto cnt = std::make_shared<trajopt::DiscreteCollisionConstraintIfopt>(
+  auto cnt = std::make_shared<trajopt_ifopt::DiscreteCollisionConstraintIfopt>(
       collision_evaluator, DiscreteCombineCollisionData(CombineCollisionDataMethod::WEIGHTED_AVERAGE), vars[0]);
   nlp.AddConstraintSet(cnt);
 
@@ -159,7 +160,7 @@ TEST_F(SimpleCollisionTest, spheres)  // NOLINT
   std::cout << "Jacobian: \n" << nlp.GetJacobianOfConstraints() << std::endl;
 
   auto error_calculator = [&](const Eigen::Ref<const Eigen::VectorXd>& x) { return cnt->CalcValues(x); };
-  trajopt::Jacobian num_jac_block = trajopt::calcForwardNumJac(error_calculator, positions[0], 1e-4);
+  trajopt_ifopt::Jacobian num_jac_block = trajopt_ifopt::calcForwardNumJac(error_calculator, positions[0], 1e-4);
   std::cout << "Numerical Jacobian: \n" << num_jac_block << std::endl;
 
   // 5) choose solver and options

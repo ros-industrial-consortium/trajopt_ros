@@ -37,7 +37,7 @@ TRAJOPT_IGNORE_WARNINGS_POP
 #include <trajopt_ifopt/constraints/discrete_combine_collision_data.h>
 #include <trajopt_ifopt/variable_sets/joint_position_variable.h>
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 class DiscreteCollisionConstraintIfopt : public ifopt::ConstraintSet
 {
@@ -113,5 +113,5 @@ private:
   DiscreteCollisionEvaluator::Ptr collision_evaluator_;
   DiscreteCombineCollisionData combine_methods_;
 };
-};  // namespace trajopt
+};  // namespace trajopt_ifopt
 #endif

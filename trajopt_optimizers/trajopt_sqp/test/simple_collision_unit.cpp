@@ -45,11 +45,14 @@ TRAJOPT_IGNORE_WARNINGS_POP
 #include <trajopt_ifopt/constraints/joint_position_constraint.h>
 #include <trajopt_ifopt/costs/squared_cost.h>
 #include <trajopt_ifopt/variable_sets/joint_position_variable.h>
+
+#include <trajopt_sqp/ifopt_qp_problem.h>
+#include <trajopt_sqp/trajopt_qp_problem.h>
 #include <trajopt_sqp/trust_region_sqp_solver.h>
 #include <trajopt_sqp/osqp_eigen_solver.h>
 #include "test_suite_utils.hpp"
 
-using namespace trajopt;
+using namespace trajopt_ifopt;
 using namespace tesseract_environment;
 using namespace tesseract_kinematics;
 using namespace tesseract_collision;
@@ -136,11 +139,11 @@ public:
 
     // Get gradients for all contacts
     /** @todo Use the cdata gradient results */
-    std::vector<trajopt::GradientResults> grad_results;
+    std::vector<trajopt_ifopt::GradientResults> grad_results;
     grad_results.reserve(cdata->contact_results_vector.size());
     for (const tesseract_collision::ContactResult& dist_result : cdata->contact_results_vector)
     {
-      trajopt::GradientResults result = collision_evaluator_->GetGradient(joint_vals, dist_result);
+      trajopt_ifopt::GradientResults result = collision_evaluator_->GetGradient(joint_vals, dist_result);
       grad_results.push_back(result);
     }
 
@@ -205,9 +208,9 @@ public:
   }
 };
 
-TEST_F(SimpleCollisionTest, spheres)  // NOLINT
+TEST_F(SimpleCollisionTest, spheres_ifopt_problem)  // NOLINT
 {
-  CONSOLE_BRIDGE_logDebug("SimpleCollisionTest, spheres");
+  CONSOLE_BRIDGE_logDebug("SimpleCollisionTest, spheres_ifopt_problem");
 
   std::unordered_map<std::string, double> ipos;
   ipos["spherebot_x_joint"] = -0.75;
@@ -232,13 +235,14 @@ TEST_F(SimpleCollisionTest, spheres)  // NOLINT
   ifopt::Problem nlp;
 
   // 3) Add Variables
-  std::vector<trajopt::JointPosition::ConstPtr> vars;
+  std::vector<trajopt_ifopt::JointPosition::ConstPtr> vars;
   std::vector<Eigen::VectorXd> positions;
   {
     Eigen::VectorXd pos(2);
     pos << -0.75, 0.75;
     positions.push_back(pos);
-    auto var = std::make_shared<trajopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
+    auto var =
+        std::make_shared<trajopt_ifopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
     vars.push_back(var);
     nlp.AddVariableSet(var);
   }
@@ -250,22 +254,22 @@ TEST_F(SimpleCollisionTest, spheres)  // NOLINT
 
   double margin_coeff = 10;
   double margin = 0.2;
-  auto trajopt_collision_config = std::make_shared<trajopt::TrajOptCollisionConfig>(margin, margin_coeff);
+  auto trajopt_collision_config = std::make_shared<trajopt_ifopt::TrajOptCollisionConfig>(margin, margin_coeff);
   trajopt_collision_config->collision_margin_buffer = 0.05;
 
-  auto collision_cache = std::make_shared<trajopt::CollisionCache>(100);
-  trajopt::DiscreteCollisionEvaluator::Ptr collision_evaluator =
-      std::make_shared<trajopt::SingleTimestepCollisionEvaluator>(
+  auto collision_cache = std::make_shared<trajopt_ifopt::CollisionCache>(100);
+  trajopt_ifopt::DiscreteCollisionEvaluator::Ptr collision_evaluator =
+      std::make_shared<trajopt_ifopt::SingleTimestepCollisionEvaluator>(
           collision_cache, kin, env, adj_map, Eigen::Isometry3d::Identity(), trajopt_collision_config);
 
   auto cnt = std::make_shared<SimpleCollisionConstraintIfopt>(collision_evaluator, vars[0]);
   nlp.AddConstraintSet(cnt);
 
-  nlp.PrintCurrent();
-  std::cout << "Jacobian: \n" << nlp.GetJacobianOfConstraints() << std::endl;
+  auto qp_problem = std::make_shared<trajopt_sqp::IfoptQPProblem>(nlp);
+  qp_problem->print();
 
   auto error_calculator = [&](const Eigen::Ref<const Eigen::VectorXd>& x) { return cnt->CalcValues(x); };
-  trajopt::Jacobian num_jac_block = trajopt::calcForwardNumJac(error_calculator, positions[0], 1e-4);
+  trajopt_ifopt::Jacobian num_jac_block = trajopt_ifopt::calcForwardNumJac(error_calculator, positions[0], 1e-4);
   std::cout << "Numerical Jacobian: \n" << num_jac_block << std::endl;
 
   // 5) choose solver and options
@@ -281,8 +285,108 @@ TEST_F(SimpleCollisionTest, spheres)  // NOLINT
 
   // 6) solve
   solver.verbose = true;
-  solver.Solve(nlp);
-  Eigen::VectorXd x = nlp.GetOptVariables()->GetValues();
+  solver.solve(qp_problem);
+  Eigen::VectorXd x = qp_problem->getVariableValues();
+
+  std::cout << x.transpose() << std::endl;
+
+  tesseract_common::TrajArray inputs(1, 2);
+  inputs << -0.75, 0.75;
+  Eigen::Map<tesseract_common::TrajArray> results(x.data(), 1, 2);
+
+  bool found = checkTrajectory(
+      collisions, *manager, *state_solver, forward_kinematics->getJointNames(), inputs, *trajopt_collision_config);
+
+  EXPECT_TRUE(found);
+  CONSOLE_BRIDGE_logWarn((found) ? ("Initial trajectory is in collision") : ("Initial trajectory is collision free"));
+
+  collisions.clear();
+  found = checkTrajectory(
+      collisions, *manager, *state_solver, forward_kinematics->getJointNames(), results, *trajopt_collision_config);
+
+  EXPECT_FALSE(found);
+  CONSOLE_BRIDGE_logWarn((found) ? ("Final trajectory is in collision") : ("Final trajectory is collision free"));
+}
+
+TEST_F(SimpleCollisionTest, spheres_trajopt_problem)  // NOLINT
+{
+  CONSOLE_BRIDGE_logDebug("SimpleCollisionTest, spheres_trajopt_problem");
+
+  std::unordered_map<std::string, double> ipos;
+  ipos["spherebot_x_joint"] = -0.75;
+  ipos["spherebot_y_joint"] = 0.75;
+  env->setState(ipos);
+
+  //  plotter_->plotScene();
+
+  std::vector<ContactResultMap> collisions;
+  tesseract_environment::StateSolver::Ptr state_solver = env->getStateSolver();
+  DiscreteContactManager::Ptr manager = env->getDiscreteContactManager();
+  auto forward_kinematics = env->getManipulatorManager()->getFwdKinematicSolver("manipulator");
+  AdjacencyMap::Ptr adjacency_map = std::make_shared<AdjacencyMap>(
+      env->getSceneGraph(), forward_kinematics->getActiveLinkNames(), env->getCurrentState()->link_transforms);
+
+  manager->setActiveCollisionObjects(adjacency_map->getActiveLinkNames());
+  manager->setDefaultCollisionMarginData(0);
+
+  collisions.clear();
+
+  // Create problem
+  auto qp_problem = std::make_shared<trajopt_sqp::TrajOptQPProblem>();
+
+  // 3) Add Variables
+  std::vector<trajopt_ifopt::JointPosition::ConstPtr> vars;
+  std::vector<Eigen::VectorXd> positions;
+  {
+    Eigen::VectorXd pos(2);
+    pos << -0.75, 0.75;
+    positions.push_back(pos);
+    auto var =
+        std::make_shared<trajopt_ifopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
+    vars.push_back(var);
+    qp_problem->addVariableSet(var);
+  }
+
+  // Step 3: Setup collision
+  auto kin = env->getManipulatorManager()->getFwdKinematicSolver("manipulator");
+  auto adj_map = std::make_shared<tesseract_environment::AdjacencyMap>(
+      env->getSceneGraph(), kin->getActiveLinkNames(), env->getCurrentState()->link_transforms);
+
+  double margin_coeff = 10;
+  double margin = 0.2;
+  auto trajopt_collision_config = std::make_shared<trajopt_ifopt::TrajOptCollisionConfig>(margin, margin_coeff);
+  trajopt_collision_config->collision_margin_buffer = 0.05;
+
+  auto collision_cache = std::make_shared<trajopt_ifopt::CollisionCache>(100);
+  trajopt_ifopt::DiscreteCollisionEvaluator::Ptr collision_evaluator =
+      std::make_shared<trajopt_ifopt::SingleTimestepCollisionEvaluator>(
+          collision_cache, kin, env, adj_map, Eigen::Isometry3d::Identity(), trajopt_collision_config);
+
+  auto cnt = std::make_shared<SimpleCollisionConstraintIfopt>(collision_evaluator, vars[0]);
+  qp_problem->addConstraintSet(cnt);
+
+  qp_problem->setup();
+  qp_problem->print();
+
+  auto error_calculator = [&](const Eigen::Ref<const Eigen::VectorXd>& x) { return cnt->CalcValues(x); };
+  trajopt_ifopt::Jacobian num_jac_block = trajopt_ifopt::calcForwardNumJac(error_calculator, positions[0], 1e-4);
+  std::cout << "Numerical Jacobian: \n" << num_jac_block << std::endl;
+
+  // 5) choose solver and options
+  auto qp_solver = std::make_shared<trajopt_sqp::OSQPEigenSolver>();
+  trajopt_sqp::TrustRegionSQPSolver solver(qp_solver);
+  qp_solver->solver_.settings()->setVerbosity(true);
+  qp_solver->solver_.settings()->setWarmStart(true);
+  qp_solver->solver_.settings()->setPolish(true);
+  qp_solver->solver_.settings()->setAdaptiveRho(false);
+  qp_solver->solver_.settings()->setMaxIteration(8192);
+  qp_solver->solver_.settings()->setAbsoluteTolerance(1e-4);
+  qp_solver->solver_.settings()->setRelativeTolerance(1e-6);
+
+  // 6) solve
+  solver.verbose = true;
+  solver.solve(qp_problem);
+  Eigen::VectorXd x = qp_problem->getVariableValues();
 
   std::cout << x.transpose() << std::endl;
 

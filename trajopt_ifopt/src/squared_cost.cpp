@@ -30,7 +30,7 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <console_bridge/console.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 SquaredCost::SquaredCost(ifopt::ConstraintSet::Ptr constraint)
   : SquaredCost(std::move(constraint), Eigen::VectorXd::Ones(constraint->GetRows()))
@@ -73,4 +73,4 @@ void SquaredCost::FillJacobianBlock(std::string var_set, Jacobian& jac_block) co
   jac_block = 2 * error.transpose().sparseView() * weights_.asDiagonal() * cnt_jac_block;
 }
 
-}  // namespace trajopt
+}  // namespace trajopt_ifopt

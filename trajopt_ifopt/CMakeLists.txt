@@ -33,6 +33,7 @@ trajopt_variables()
 ###########
 
 set(TRAJOPT_IFOPT_SOURCE_FILES
+    src/absolute_cost.cpp
     src/cartesian_position_constraint.cpp
     src/collision_types.cpp
     src/collision_utils.cpp
@@ -47,7 +48,6 @@ set(TRAJOPT_IFOPT_SOURCE_FILES
     src/joint_velocity_constraint.cpp
     src/joint_acceleration_constraint.cpp
     src/squared_cost.cpp
-    src/absolute_cost.cpp
 )
 
 add_library(${PROJECT_NAME} ${TRAJOPT_IFOPT_SOURCE_FILES})

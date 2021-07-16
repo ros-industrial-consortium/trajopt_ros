@@ -26,7 +26,7 @@
 #include <trajopt_ifopt/constraints/discrete_collision_evaluators.h>
 #include <trajopt_ifopt/constraints/collision_utils.h>
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 SingleTimestepCollisionEvaluator::SingleTimestepCollisionEvaluator(
     std::shared_ptr<CollisionCache> collision_cache,
@@ -139,4 +139,4 @@ const TrajOptCollisionConfig& SingleTimestepCollisionEvaluator::GetCollisionConf
   return *collision_config_;
 }
 
-}  // namespace trajopt
+}  // namespace trajopt_ifopt

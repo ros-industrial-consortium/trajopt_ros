@@ -28,11 +28,11 @@
 
 #include <trajopt_ifopt/constraints/collision_types.h>
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 /**
  * @brief The DiscreteCombineCollisionData struct
- * @warning Make sure that the values returns are not just the violation but the constraint values.
+ * @warning Make sure that the values returned are not just the violation but the constraint values.
  * Remember the values are the constant in the quadratic function, so if you only return the
  * violation then if it is not violating the constraint this would be zero which means it
  * will always appear to be on the constraint boundary which will cause issue when solving.
@@ -49,5 +49,5 @@ struct DiscreteCombineCollisionData
   DiscreteCombineCollisionData() = default;
   DiscreteCombineCollisionData(CombineCollisionDataMethod method);
 };
-}  // namespace trajopt
+}  // namespace trajopt_ifopt
 #endif  // TRAJOPT_IFOPT_DISCRETE_COMBINE_COLLISION_DATA_H

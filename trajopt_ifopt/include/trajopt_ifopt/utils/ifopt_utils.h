@@ -33,7 +33,7 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <ifopt/problem.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 /**
  * @brief Converts a MatrixX2d (e.g. from forward_kinematics->getLimits()) to a vector of ifopt Bounds
@@ -218,5 +218,5 @@ inline ifopt::Problem::Jacobian calcNumericalConstraintGradient(const double* x,
   return jac;
 }
 
-}  // namespace trajopt
+}  // namespace trajopt_ifopt
 #endif

@@ -30,7 +30,7 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <console_bridge/console.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 InverseKinematicsConstraint::InverseKinematicsConstraint(const Eigen::Isometry3d& target_pose,
                                                          InverseKinematicsInfo::ConstPtr kinematic_info,
@@ -114,4 +114,4 @@ void InverseKinematicsConstraint::FillJacobianBlock(std::string var_set, Jacobia
 }
 
 void InverseKinematicsConstraint::SetTargetPose(const Eigen::Isometry3d& target_pose) { target_pose_ = target_pose; }
-}  // namespace trajopt
+}  // namespace trajopt_ifopt

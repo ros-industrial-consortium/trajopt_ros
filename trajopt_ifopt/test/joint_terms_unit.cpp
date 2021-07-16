@@ -32,7 +32,7 @@ TRAJOPT_IGNORE_WARNINGS_POP
 #include <trajopt_ifopt/constraints/joint_position_constraint.h>
 #include <console_bridge/console.h>
 
-using namespace trajopt;
+using namespace trajopt_ifopt;
 using namespace std;
 
 /** @brief Tests the Joint Position Constraint */

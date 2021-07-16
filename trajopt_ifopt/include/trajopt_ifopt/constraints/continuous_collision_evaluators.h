@@ -40,7 +40,7 @@ TRAJOPT_IGNORE_WARNINGS_POP
 #include <trajopt_ifopt/variable_sets/joint_position_variable.h>
 #include <trajopt/cache.hxx>
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 /**
  * @brief This collision evaluator operates on two states and checks for collision between the two states using a
@@ -188,5 +188,5 @@ private:
                             const Eigen::Ref<const Eigen::VectorXd>& dof_vals1,
                             tesseract_collision::ContactResultMap& dist_results);
 };
-}  // namespace trajopt
+}  // namespace trajopt_ifopt
 #endif  // TRAJOPT_IFOPT_CONTINUOUS_COLLISION_EVALUATOR_H

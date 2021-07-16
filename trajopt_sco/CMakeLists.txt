@@ -121,20 +121,20 @@ if (TRAJOPT_ENABLE_TESTING)
   enable_testing()
   add_run_tests_target(ENABLE ${TRAJOPT_ENABLE_RUN_TESTING})
 
-  if (HAVE_BPMPD)
-    # BPMPD Expects the caller to be in the install location so for
-    # testing it must manually be copied so tests will run.
-    add_custom_target(test_depend ALL
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/bpmpd.par
-            ${CMAKE_INSTALL_PREFIX}/bin/bpmpd.par
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_BINARY_DIR}/bpmpd_caller
-            ${CMAKE_INSTALL_PREFIX}/bin/bpmpd_caller)
-    add_dependencies(test_depend ${PROJECT_NAME})
+#  if (HAVE_BPMPD)
+#    # BPMPD Expects the caller to be in the install location so for
+#    # testing it must manually be copied so tests will run.
+#    add_custom_target(test_depend ALL
+#        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+#            ${CMAKE_CURRENT_SOURCE_DIR}/src/bpmpd.par
+#            ${CMAKE_INSTALL_PREFIX}/bin/bpmpd.par
+#        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+#            ${CMAKE_CURRENT_BINARY_DIR}/bpmpd_caller
+#            ${CMAKE_INSTALL_PREFIX}/bin/bpmpd_caller)
+#    add_dependencies(test_depend ${PROJECT_NAME})
 
-    add_dependencies(run_tests test_depend)
-  endif()
+#    add_dependencies(run_tests test_depend)
+#  endif()
 
   add_subdirectory(test)
 endif()

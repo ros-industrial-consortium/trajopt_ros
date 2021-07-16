@@ -25,7 +25,7 @@
 
 #include <trajopt_ifopt/constraints/collision_types.h>
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 CollisionCoeffData::CollisionCoeffData(const double& default_collision_coeff)
   : default_collision_coeff_(default_collision_coeff)
@@ -59,4 +59,4 @@ TrajOptCollisionConfig::TrajOptCollisionConfig(double margin, double coeff)
 
 GradientResults::GradientResults(const Eigen::Vector3d& data) : data(data) {}
 
-}  // namespace trajopt
+}  // namespace trajopt_ifopt
