@@ -1,6 +1,6 @@
 
 #include <trajopt_sqp/trajopt_qp_problem.h>
-#include <trajopt_sqp/utils.h>
+#include <trajopt_sqp/expressions.h>
 #include <trajopt_ifopt/utils/ifopt_utils.h>
 #include <iostream>
 

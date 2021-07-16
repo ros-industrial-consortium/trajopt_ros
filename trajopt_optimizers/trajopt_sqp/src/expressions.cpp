@@ -1,81 +1,30 @@
-#ifndef TRAJOPT_SQP_UTILS_H
-#define TRAJOPT_SQP_UTILS_H
-
-#include <Eigen/Geometry>
-#include <trajopt_sqp/types.h>
+#include <trajopt_sqp/expressions.h>
 
 namespace trajopt_sqp
 {
-struct Exprs
+Eigen::VectorXd AffExprs::values(const Eigen::Ref<Eigen::VectorXd>& x) const { return constants + (linear_coeffs * x); }
+
+QuadExprs::QuadExprs(Eigen::Index num_cost, Eigen::Index num_vars)
+  : constants(Eigen::VectorXd::Zero(num_cost))
+  , linear_coeffs(num_cost, num_vars)
+  , objective_linear_coeffs(Eigen::VectorXd::Zero(num_vars))
+  , objective_quadratic_coeffs(num_vars, num_vars)
 {
-  virtual Eigen::VectorXd values(const Eigen::Ref<Eigen::VectorXd>& x) const = 0;
-};
+  quadratic_coeffs.reserve(static_cast<std::size_t>(num_cost));
+}
 
-struct AffExprs : Exprs
+Eigen::VectorXd QuadExprs::values(const Eigen::Ref<Eigen::VectorXd>& x) const
 {
-  Eigen::VectorXd constants;
-  SparseMatrix linear_coeffs;
-  Eigen::VectorXd values(const Eigen::Ref<Eigen::VectorXd>& x) const override
+  Eigen::VectorXd result_lin = constants + (linear_coeffs * x);
+  Eigen::VectorXd result_quad = result_lin;
+  for (std::size_t i = 0; i < quadratic_coeffs.size(); ++i)
   {
-    return constants + (linear_coeffs * x);
+    const auto& eq_quad_coeffs = quadratic_coeffs[i];
+    if (eq_quad_coeffs.nonZeros() > 0)
+      result_quad(static_cast<Eigen::Index>(i)) += (x.transpose() * eq_quad_coeffs * x);
   }
-};
-
-struct QuadExprs : Exprs
-{
-  QuadExprs() = default;
-  QuadExprs(Eigen::Index num_cost, Eigen::Index num_vars)
-    : constants(Eigen::VectorXd::Zero(num_cost))
-    , linear_coeffs(num_cost, num_vars)
-    , objective_linear_coeffs(Eigen::VectorXd::Zero(num_vars))
-    , objective_quadratic_coeffs(num_vars, num_vars)
-  {
-    quadratic_coeffs.reserve(static_cast<std::size_t>(num_cost));
-  }
-
-  /**
-   * @brief The constant for the equations
-   * @details Each row represents a different equations constant
-   */
-  Eigen::VectorXd constants;
-
-  /**
-   * @brief The linear coefficients for the equations
-   * @details Each row represents a different equation linear coefficients
-   */
-  SparseMatrix linear_coeffs;
-
-  /**
-   * @brief The quadratic coefficients for each equation (aka. row)
-   * @details Each entry represents a different equation quadratic coefficients
-   */
-  std::vector<SparseMatrix> quadratic_coeffs;
-
-  /**
-   * @brief The objective linear coefficients
-   * @details This is the sum of the equation gradient coefficients (linear_coeffs)
-   */
-  Eigen::VectorXd objective_linear_coeffs;
-
-  /**
-   * @brief The objective quadratic coefficients
-   * @details This is the sum of the equation quadratic coefficients (quadratic_coeffs)
-   */
-  SparseMatrix objective_quadratic_coeffs;
-
-  Eigen::VectorXd values(const Eigen::Ref<Eigen::VectorXd>& x) const override
-  {
-    Eigen::VectorXd result_lin = constants + (linear_coeffs * x);
-    Eigen::VectorXd result_quad = result_lin;
-    for (std::size_t i = 0; i < quadratic_coeffs.size(); ++i)
-    {
-      const auto& eq_quad_coeffs = quadratic_coeffs[i];
-      if (eq_quad_coeffs.nonZeros() > 0)
-        result_quad(static_cast<Eigen::Index>(i)) += (x.transpose() * eq_quad_coeffs * x);
-    }
-    return result_quad;
-  }
-};
+  return result_quad;
+}
 
 AffExprs createAffExprs(const Eigen::Ref<Eigen::VectorXd>& func_error,
                         const Eigen::Ref<const SparseMatrix>& func_gradient,
@@ -89,14 +38,6 @@ AffExprs createAffExprs(const Eigen::Ref<Eigen::VectorXd>& func_error,
   return aff_expr;
 }
 
-/**
- * @brief This code was taken for trajopt CostFromFunc::convex
- * @param func_errors
- * @param func_gradients
- * @param func_hessians
- * @param x
- * @return
- */
 QuadExprs createQuadExprs(const Eigen::Ref<Eigen::VectorXd>& /*func_errors*/,
                           const Eigen::Ref<const SparseMatrix>& /*func_gradients*/,
                           const std::vector<SparseMatrix>& /*func_hessians*/,
@@ -197,7 +138,4 @@ QuadExprs squareAffExprs(const AffExprs& aff_expr)
 
   return quad_expr;
 }
-
 }  // namespace trajopt_sqp
-
-#endif  // TRAJOPT_SQP_UTILS_H

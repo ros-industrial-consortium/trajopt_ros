@@ -3,6 +3,8 @@
 
 #include <memory>
 #include <trajopt_sqp/types.h>
+#include <ifopt/variable_set.h>
+#include <ifopt/constraint_set.h>
 
 namespace trajopt_sqp
 {
@@ -13,6 +15,44 @@ public:
   using Ptr = std::shared_ptr<QPProblem>;
   using ConstPtr = std::shared_ptr<const QPProblem>;
 
+  virtual ~QPProblem() = default;
+  /**
+   * @brief Add one individual set of variables to the optimization problem.
+   * @param variable_set  The selection of optimization variables.
+   *
+   * This function can be called multiple times, with multiple sets, e.g.
+   * one set that parameterizes a body trajectory, the other that resembles
+   * the optimal timing values. This function correctly appends the
+   * individual variables sets and ensures correct order of Jacobian columns.
+   */
+  virtual void addVariableSet(ifopt::VariableSet::Ptr variable_set) = 0;
+
+  /**
+   * @brief Add a set of multiple constraints to the optimization problem.
+   * @param constraint_set  This can be 1 to infinity number of constraints.
+   *
+   * This function can be called multiple times for different sets of
+   * constraints. It makes sure the overall constraint and Jacobian correctly
+   * considers all individual constraint sets.
+   */
+  virtual void addConstraintSet(ifopt::ConstraintSet::Ptr constraint_set) = 0;
+
+  /**
+   * @brief Add a squared cost term to the problem.
+   * @param constraint_set The constraint set to be evaluated as a squared cost.
+   *
+   * This function can be called multiple times if the constraint function is
+   * composed of different cost terms. It makes sure the overall value and
+   * gradient is considering each individual cost.
+   */
+  virtual void addCostSet(ifopt::ConstraintSet::Ptr constraint_set, CostPenaltyType penalty_type) = 0;
+
+  /**
+   * @brief This setups the QP problems based on the constraints and cost sets added to the problem.
+   * @details This must be called after all constraints and costs have been added to the problem
+   */
+  virtual void setup() = 0;
+
   /** @brief Set the current Optimization variables */
   virtual void setVariables(const double* x) = 0;
 
@@ -21,70 +61,6 @@ public:
 
   /** @brief Run the full convexification routine */
   virtual void convexify() = 0;
-
-  //  /**
-  //   * @brief Helper that updates the cost QP hessian
-  //   * @details Called by convexify()
-  //   */
-  //  virtual void updateHessian() = 0;
-
-  //  /**
-  //   * @brief Helper that updates the cost gradient including slack variables
-  //   * @details Called by convexify()
-  //   */
-  //  virtual void updateGradient() = 0;
-
-  //  /**
-  //   * @brief Helper that linearizes the constraints about the current point, storing the
-  //   * jacobian as the constraint matrix and adding slack variables.
-  //   * @details Called by convexify()
-  //   */
-  //  virtual void linearizeConstraints() = 0;
-
-  //  /**
-  //   * @brief Helper that updates the NLP constraint bounds (top section)
-  //   * @details Called by convexify()
-  //   */
-  //  virtual void updateNLPConstraintBounds() = 0;
-
-  //  /**
-  //   * @brief Helper that updates the NLP variable bounds (middle section)
-  //   * @details Called by convexify()
-  //   */
-  //  virtual void updateNLPVariableBounds() = 0;
-
-  //  /**
-  //   * @brief Called by convexify() - helper that updates the slack variable bounds (bottom section)
-  //   * @details A slack variable is referred to as an additional variable that has been introduced
-  //   * to the optimization problem to turn a inequality constraint into an equality constraint.
-  //   * Information taken from: https://en.wikipedia.org/wiki/Slack_variable
-  //   *
-  //   * As with the other variables in the augmented constraints, the slack variable cannot take on
-  //   * negative values, as the simplex algorithm requires them to be positive or zero.
-  //   *
-  //   *   - If a slack variable associated with a constraint is zero at a particular candidate solution,
-  //   *     the constraint is binding there, as the constraint restricts the possible changes from that point.
-  //   *   - If a slack variable is positive at a particular candidate solution, the constraint is non-binding
-  //   *     there, as the constraint does not restrict the possible changes from that point.
-  //   *   - If a slack variable is negative at some point, the point is infeasible (not allowed), as it does
-  //   *     not satisfy the constraint.
-  //   *
-  //   * Terminology
-  //   *
-  //   *   - If an inequality constraint holds with equality at the optimal point, the constraint is said to
-  //   *     be binding, as the point cannot be varied in the direction of the constraint even though doing
-  //   *     so would improve the value of the objective function.
-  //   *   - If an inequality constraint holds as a strict inequality at the optimal point (that is, does
-  //   *     not hold with equality), the constraint is said to be non-binding, as the point could be varied
-  //   *     in the direction of the constraint, although it would not be optimal to do so. Under certain
-  //   *     conditions, as for example in convex optimization, if a constraint is non-binding, the optimization
-  //   *     problem would have the same solution even in the absence of that constraint.
-  //   *   - If a constraint is not satisfied at a given point, the point is said to be infeasible.
-  //   *
-  //   * @example By introducing the slack variable y >= 0, the inequality Ax <= b can be converted
-  //   * to the equation Ax + y = b.
-  //   */
-  //  virtual void updateSlackVariableBounds() = 0;
 
   /**
    * @brief Evaluates the cost of the convexified function (ie using the stored gradient and hessian) at var_vals

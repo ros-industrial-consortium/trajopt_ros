@@ -49,131 +49,16 @@ const bool DEBUG = false;
 class VelocityConstraintOptimization : public testing::TestWithParam<const char*>
 {
 public:
-  // 1) Create the problem
-  ifopt::Problem nlp_;
-
   void SetUp() override
   {
     if (DEBUG)
       console_bridge::setLogLevel(console_bridge::LogLevel::CONSOLE_BRIDGE_LOG_DEBUG);
     else
       console_bridge::setLogLevel(console_bridge::LogLevel::CONSOLE_BRIDGE_LOG_NONE);
-
-    // 2) Add Variables
-    std::vector<trajopt_ifopt::JointPosition::ConstPtr> vars;
-    std::vector<std::string> joint_names(7, "name");
-    {
-      auto pos = Eigen::VectorXd::Zero(7);
-      auto var = std::make_shared<trajopt_ifopt::JointPosition>(pos, joint_names, "Joint_Position_0");
-      auto bounds = std::vector<ifopt::Bounds>(7, ifopt::NoBound);
-      var->SetBounds(bounds);
-      vars.push_back(var);
-      nlp_.AddVariableSet(var);
-    }
-    for (int ind = 1; ind < 3; ind++)
-    {
-      auto pos = Eigen::VectorXd::Ones(7) * 10;
-      auto var =
-          std::make_shared<trajopt_ifopt::JointPosition>(pos, joint_names, "Joint_Position_" + std::to_string(ind));
-      auto bounds = std::vector<ifopt::Bounds>(7, ifopt::NoBound);
-      var->SetBounds(bounds);
-      vars.push_back(var);
-      nlp_.AddVariableSet(var);
-    }
-
-    // 3) Add constraints
-    Eigen::VectorXd start_pos = Eigen::VectorXd::Zero(7);
-    std::vector<trajopt_ifopt::JointPosition::ConstPtr> start;
-    start.push_back(vars.front());
-    auto start_constraint = std::make_shared<trajopt_ifopt::JointPosConstraint>(start_pos, start, "StartPosition");
-    nlp_.AddConstraintSet(start_constraint);
-
-    Eigen::VectorXd end_pos = Eigen::VectorXd::Ones(7) * 10;
-    std::vector<trajopt_ifopt::JointPosition::ConstPtr> end;
-    end.push_back(vars.back());
-    auto end_constraint = std::make_shared<trajopt_ifopt::JointPosConstraint>(end_pos, end, "EndPosition");
-    nlp_.AddConstraintSet(end_constraint);
-
-    // 4) Add costs
-    Eigen::VectorXd vel_target = Eigen::VectorXd::Zero(7);
-    auto vel_constraint = std::make_shared<trajopt_ifopt::JointVelConstraint>(vel_target, vars, "jv");
-
-    // Must link the variables to the constraint since that happens in AddConstraintSet
-    vel_constraint->LinkWithVariables(nlp_.GetOptVariables());
-    Eigen::VectorXd weights = Eigen::VectorXd::Constant(vel_constraint->GetRows(), 0.01);
-    auto vel_cost = std::make_shared<trajopt_ifopt::SquaredCost>(vel_constraint, weights);
-    nlp_.AddCostSet(vel_cost);
-
-    if (DEBUG)
-    {
-      nlp_.PrintCurrent();
-      std::cout << "Constraint Jacobian: \n" << nlp_.GetJacobianOfConstraints().toDense() << std::endl;
-      std::cout << "Cost Jacobian: \n" << nlp_.GetJacobianOfCosts() << std::endl;
-    }
   }
 };
 
-/** @brief Joint position constraints with a squared velocity cost in between. Optimized using ipopt */
-TEST_F(VelocityConstraintOptimization, velocity_constraint_optimization_ipopt)  // NOLINT
-{
-  ifopt::Problem nlp_ipopt(nlp_);
-  ifopt::IpoptSolver solver;
-  solver.SetOption("derivative_test", "first-order");
-  solver.SetOption("linear_solver", "mumps");
-  //  ipopt.SetOption("jacobian_approximation", "finite-difference-values");
-  solver.SetOption("jacobian_approximation", "exact");
-  solver.SetOption("print_level", 5);
-
-  // solve
-  solver.Solve(nlp_ipopt);
-  Eigen::VectorXd x = nlp_ipopt.GetOptVariables()->GetValues();
-
-  for (Eigen::Index i = 0; i < 7; i++)
-    EXPECT_NEAR(x[i], 0.0, 1e-5);
-  for (Eigen::Index i = 7; i < 14; i++)
-    EXPECT_NEAR(x[i], 5.0, 1e-1);
-  for (Eigen::Index i = 14; i < 21; i++)
-    EXPECT_NEAR(x[i], 10.0, 1e-5);
-  if (DEBUG)
-  {
-    std::cout << x.transpose() << std::endl;
-    nlp_ipopt.PrintCurrent();
-  }
-}
-
-/** @brief Joint position constraints with a squared velocity cost in between. Optimized using trajopt_sqp */
-TEST_F(VelocityConstraintOptimization, velocity_constraint_optimization_ifopt_problem)  // NOLINT
-{
-  ifopt::Problem nlp_trajopt_sqp(nlp_);
-  auto qp_solver = std::make_shared<trajopt_sqp::OSQPEigenSolver>();
-  trajopt_sqp::TrustRegionSQPSolver solver(qp_solver);
-  qp_solver->solver_.settings()->setVerbosity(DEBUG);
-  qp_solver->solver_.settings()->setWarmStart(true);
-  qp_solver->solver_.settings()->setAbsoluteTolerance(1e-4);
-  qp_solver->solver_.settings()->setRelativeTolerance(1e-6);
-  qp_solver->solver_.settings()->setMaxIteration(8192);
-  qp_solver->solver_.settings()->setPolish(true);
-  qp_solver->solver_.settings()->setAdaptiveRho(false);
-
-  // Create problem
-  auto qp_problem = std::make_shared<trajopt_sqp::IfoptQPProblem>(nlp_);
-
-  // 6) solve
-  solver.verbose = DEBUG;
-  solver.solve(qp_problem);
-  Eigen::VectorXd x = qp_problem->getVariableValues();
-
-  for (Eigen::Index i = 0; i < 7; i++)
-    EXPECT_NEAR(x[i], 0.0, 1e-3);
-  for (Eigen::Index i = 7; i < 14; i++)
-    EXPECT_NEAR(x[i], 5.0, 1e-1);
-  for (Eigen::Index i = 14; i < 21; i++)
-    EXPECT_NEAR(x[i], 10.0, 1e-3);
-  if (DEBUG)
-    qp_problem->print();
-}
-
-TEST_F(VelocityConstraintOptimization, velocity_constraint_optimization_trajopt_problem)  // NOLINT
+void runVelocityConstraintOptimizationTest(trajopt_sqp::QPProblem::Ptr qp_problem)
 {
   auto qp_solver = std::make_shared<trajopt_sqp::OSQPEigenSolver>();
   trajopt_sqp::TrustRegionSQPSolver solver(qp_solver);
@@ -184,9 +69,6 @@ TEST_F(VelocityConstraintOptimization, velocity_constraint_optimization_trajopt_
   qp_solver->solver_.settings()->setMaxIteration(8192);
   qp_solver->solver_.settings()->setPolish(true);
   qp_solver->solver_.settings()->setAdaptiveRho(false);
-
-  // Create problem
-  auto qp_problem = std::make_shared<trajopt_sqp::TrajOptQPProblem>();
 
   // 2) Add Variables
   std::vector<trajopt_ifopt::JointPosition::ConstPtr> vars;
@@ -249,6 +131,103 @@ TEST_F(VelocityConstraintOptimization, velocity_constraint_optimization_trajopt_
 
   if (DEBUG)
     qp_problem->print();
+}
+
+/** @brief Joint position constraints with a squared velocity cost in between. Optimized using ipopt */
+TEST_F(VelocityConstraintOptimization, velocity_constraint_optimization_ipopt)  // NOLINT
+{
+  // 2) Create Problem
+  ifopt::Problem nlp_ipopt;
+
+  // 2) Add Variables
+  std::vector<trajopt_ifopt::JointPosition::ConstPtr> vars;
+  std::vector<std::string> joint_names(7, "name");
+  {
+    auto pos = Eigen::VectorXd::Zero(7);
+    auto var = std::make_shared<trajopt_ifopt::JointPosition>(pos, joint_names, "Joint_Position_0");
+    auto bounds = std::vector<ifopt::Bounds>(7, ifopt::NoBound);
+    var->SetBounds(bounds);
+    vars.push_back(var);
+    nlp_ipopt.AddVariableSet(var);
+  }
+  for (int ind = 1; ind < 3; ind++)
+  {
+    auto pos = Eigen::VectorXd::Ones(7) * 10;
+    auto var =
+        std::make_shared<trajopt_ifopt::JointPosition>(pos, joint_names, "Joint_Position_" + std::to_string(ind));
+    auto bounds = std::vector<ifopt::Bounds>(7, ifopt::NoBound);
+    var->SetBounds(bounds);
+    vars.push_back(var);
+    nlp_ipopt.AddVariableSet(var);
+  }
+
+  // 3) Add constraints
+  Eigen::VectorXd start_pos = Eigen::VectorXd::Zero(7);
+  std::vector<trajopt_ifopt::JointPosition::ConstPtr> start;
+  start.push_back(vars.front());
+  auto start_constraint = std::make_shared<trajopt_ifopt::JointPosConstraint>(start_pos, start, "StartPosition");
+  nlp_ipopt.AddConstraintSet(start_constraint);
+
+  Eigen::VectorXd end_pos = Eigen::VectorXd::Ones(7) * 10;
+  std::vector<trajopt_ifopt::JointPosition::ConstPtr> end;
+  end.push_back(vars.back());
+  auto end_constraint = std::make_shared<trajopt_ifopt::JointPosConstraint>(end_pos, end, "EndPosition");
+  nlp_ipopt.AddConstraintSet(end_constraint);
+
+  // 4) Add costs
+  Eigen::VectorXd vel_target = Eigen::VectorXd::Zero(7);
+  auto vel_constraint = std::make_shared<trajopt_ifopt::JointVelConstraint>(vel_target, vars, "jv");
+
+  // Must link the variables to the constraint since that happens in AddConstraintSet
+  vel_constraint->LinkWithVariables(nlp_ipopt.GetOptVariables());
+  Eigen::VectorXd weights = Eigen::VectorXd::Constant(vel_constraint->GetRows(), 0.01);
+  auto vel_cost = std::make_shared<trajopt_ifopt::SquaredCost>(vel_constraint, weights);
+  nlp_ipopt.AddCostSet(vel_cost);
+
+  if (DEBUG)
+  {
+    nlp_ipopt.PrintCurrent();
+    std::cout << "Constraint Jacobian: \n" << nlp_ipopt.GetJacobianOfConstraints().toDense() << std::endl;
+    std::cout << "Cost Jacobian: \n" << nlp_ipopt.GetJacobianOfCosts() << std::endl;
+  }
+
+  ifopt::IpoptSolver solver;
+  solver.SetOption("derivative_test", "first-order");
+  solver.SetOption("linear_solver", "mumps");
+  //  ipopt.SetOption("jacobian_approximation", "finite-difference-values");
+  solver.SetOption("jacobian_approximation", "exact");
+  solver.SetOption("print_level", 5);
+
+  // solve
+  solver.Solve(nlp_ipopt);
+  Eigen::VectorXd x = nlp_ipopt.GetOptVariables()->GetValues();
+
+  for (Eigen::Index i = 0; i < 7; i++)
+    EXPECT_NEAR(x[i], 0.0, 1e-5);
+  for (Eigen::Index i = 7; i < 14; i++)
+    EXPECT_NEAR(x[i], 5.0, 1e-1);
+  for (Eigen::Index i = 14; i < 21; i++)
+    EXPECT_NEAR(x[i], 10.0, 1e-5);
+  if (DEBUG)
+  {
+    std::cout << x.transpose() << std::endl;
+    nlp_ipopt.PrintCurrent();
+  }
+}
+
+/** @brief Joint position constraints with a squared velocity cost in between. Optimized using trajopt_sqp */
+TEST_F(VelocityConstraintOptimization, velocity_constraint_optimization_ifopt_problem)  // NOLINT
+{
+  CONSOLE_BRIDGE_logDebug("VelocityConstraintOptimization, velocity_constraint_optimization_ifopt_problem");
+  auto qp_problem = std::make_shared<trajopt_sqp::IfoptQPProblem>();
+  runVelocityConstraintOptimizationTest(qp_problem);
+}
+
+TEST_F(VelocityConstraintOptimization, velocity_constraint_optimization_trajopt_problem)  // NOLINT
+{
+  CONSOLE_BRIDGE_logDebug("VelocityConstraintOptimization, velocity_constraint_optimization_trajopt_problem");
+  auto qp_problem = std::make_shared<trajopt_sqp::TrajOptQPProblem>();
+  runVelocityConstraintOptimizationTest(qp_problem);
 }
 
 ////////////////////////////////////////////////////////////////////

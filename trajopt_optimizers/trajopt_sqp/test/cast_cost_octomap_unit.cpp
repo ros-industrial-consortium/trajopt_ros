@@ -113,10 +113,8 @@ public:
   }
 };
 
-TEST_F(CastOctomapTest, boxesIfoptProblem)  // NOLINT
+void runCastOctomapTest(trajopt_sqp::QPProblem::Ptr qp_problem, Environment::Ptr env)
 {
-  CONSOLE_BRIDGE_logDebug("CastOctomapTest, boxesIfoptProblem");
-
   std::unordered_map<std::string, double> ipos;
   ipos["boxbot_x_joint"] = -1.9;
   ipos["boxbot_y_joint"] = 0;
@@ -131,140 +129,6 @@ TEST_F(CastOctomapTest, boxesIfoptProblem)  // NOLINT
 
   manager->setActiveCollisionObjects(adjacency_map->getActiveLinkNames());
   manager->setDefaultCollisionMarginData(0);
-
-  // 2) Create the problem
-  ifopt::Problem nlp;
-
-  // 3) Add Variables
-  std::vector<trajopt_ifopt::JointPosition::ConstPtr> vars;
-  std::vector<Eigen::VectorXd> positions;
-  {
-    Eigen::VectorXd pos(2);
-    pos << -1.9, 0;
-    positions.push_back(pos);
-    auto var =
-        std::make_shared<trajopt_ifopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
-    vars.push_back(var);
-    nlp.AddVariableSet(var);
-  }
-  {
-    Eigen::VectorXd pos(2);
-    pos << 0, 1.9;
-    positions.push_back(pos);
-    auto var =
-        std::make_shared<trajopt_ifopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_1");
-    vars.push_back(var);
-    nlp.AddVariableSet(var);
-  }
-  {
-    Eigen::VectorXd pos(2);
-    pos << 1.9, 3.8;
-    positions.push_back(pos);
-    auto var =
-        std::make_shared<trajopt_ifopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_2");
-    vars.push_back(var);
-    nlp.AddVariableSet(var);
-  }
-
-  // Step 3: Setup collision
-  auto kin = env->getManipulatorManager()->getFwdKinematicSolver("manipulator");
-  auto adj_map = std::make_shared<tesseract_environment::AdjacencyMap>(
-      env->getSceneGraph(), kin->getActiveLinkNames(), env->getCurrentState()->link_transforms);
-
-  double margin_coeff = 10;
-  double margin = 0.02;
-  auto trajopt_collision_config = std::make_shared<trajopt_ifopt::TrajOptCollisionConfig>(margin, margin_coeff);
-  trajopt_collision_config->collision_margin_buffer = 0.05;
-
-  // 4) Add constraints
-  {  // Fix start position
-    std::vector<trajopt_ifopt::JointPosition::ConstPtr> fixed_vars = { vars[0] };
-    auto cnt = std::make_shared<trajopt_ifopt::JointPosConstraint>(positions[0], fixed_vars);
-    nlp.AddConstraintSet(cnt);
-  }
-
-  {  // Fix end position
-    std::vector<trajopt_ifopt::JointPosition::ConstPtr> fixed_vars = { vars[2] };
-    auto cnt = std::make_shared<trajopt_ifopt::JointPosConstraint>(positions[2], fixed_vars);
-    nlp.AddConstraintSet(cnt);
-  }
-
-  auto collision_cache = std::make_shared<trajopt_ifopt::CollisionCache>(100);
-  for (std::size_t i = 1; i < (vars.size() - 1); ++i)
-  {
-    auto collision_evaluator = std::make_shared<trajopt_ifopt::LVSContinuousCollisionEvaluator>(
-        collision_cache, kin, env, adj_map, Eigen::Isometry3d::Identity(), trajopt_collision_config);
-
-    std::array<JointPosition::ConstPtr, 3> position_vars{ vars[i - 1], vars[i], vars[i + 1] };
-    auto cnt = std::make_shared<trajopt_ifopt::ContinuousCollisionConstraintIfopt>(
-        collision_evaluator,
-        trajopt_ifopt::ContinuousCombineCollisionData(CombineCollisionDataMethod::WEIGHTED_AVERAGE),
-        position_vars);
-    nlp.AddConstraintSet(cnt);
-  }
-
-  auto qp_problem = std::make_shared<trajopt_sqp::IfoptQPProblem>(nlp);
-  qp_problem->print();
-
-  // 5) Setup solver
-  auto qp_solver = std::make_shared<trajopt_sqp::OSQPEigenSolver>();
-  trajopt_sqp::TrustRegionSQPSolver solver(qp_solver);
-  qp_solver->solver_.settings()->setVerbosity(true);
-  qp_solver->solver_.settings()->setWarmStart(true);
-  qp_solver->solver_.settings()->setPolish(true);
-  qp_solver->solver_.settings()->setAdaptiveRho(false);
-  qp_solver->solver_.settings()->setMaxIteration(8192);
-  qp_solver->solver_.settings()->setAbsoluteTolerance(1e-4);
-  qp_solver->solver_.settings()->setRelativeTolerance(1e-6);
-
-  // 6) solve
-  solver.verbose = true;
-  solver.solve(qp_problem);
-  Eigen::VectorXd x = qp_problem->getVariableValues();
-  std::cout << x.transpose() << std::endl;
-
-  EXPECT_TRUE(solver.getStatus() == trajopt_sqp::SQPStatus::NLP_CONVERGED);
-
-  tesseract_common::TrajArray inputs(3, 2);
-  inputs << -1.9, 0, 0, 1.9, 1.9, 3.8;
-  Eigen::Map<tesseract_common::TrajArray> results(x.data(), 3, 2);
-
-  tesseract_collision::CollisionCheckConfig config;
-  config.type = tesseract_collision::CollisionEvaluatorType::CONTINUOUS;
-  bool found =
-      checkTrajectory(collisions, *manager, *state_solver, forward_kinematics->getJointNames(), inputs, config);
-
-  EXPECT_TRUE(found);
-  CONSOLE_BRIDGE_logWarn((found) ? ("Initial trajectory is in collision") : ("Initial trajectory is collision free"));
-
-  collisions.clear();
-  found = checkTrajectory(collisions, *manager, *state_solver, forward_kinematics->getJointNames(), results, config);
-
-  EXPECT_FALSE(found);
-  CONSOLE_BRIDGE_logWarn((found) ? ("Final trajectory is in collision") : ("Final trajectory is collision free"));
-}
-
-TEST_F(CastOctomapTest, boxesTrajOptProblem)  // NOLINT
-{
-  CONSOLE_BRIDGE_logDebug("CastOctomapTest, boxesTrajOptProblem");
-
-  std::unordered_map<std::string, double> ipos;
-  ipos["boxbot_x_joint"] = -1.9;
-  ipos["boxbot_y_joint"] = 0;
-  env->setState(ipos);
-
-  std::vector<ContactResultMap> collisions;
-  tesseract_environment::StateSolver::Ptr state_solver = env->getStateSolver();
-  ContinuousContactManager::Ptr manager = env->getContinuousContactManager();
-  auto forward_kinematics = env->getManipulatorManager()->getFwdKinematicSolver("manipulator");
-  AdjacencyMap::Ptr adjacency_map = std::make_shared<AdjacencyMap>(
-      env->getSceneGraph(), forward_kinematics->getActiveLinkNames(), env->getCurrentState()->link_transforms);
-
-  manager->setActiveCollisionObjects(adjacency_map->getActiveLinkNames());
-  manager->setDefaultCollisionMarginData(0);
-
-  // 2) Create the problem
-  auto qp_problem = std::make_shared<trajopt_sqp::TrajOptQPProblem>();
 
   // 3) Add Variables
   std::vector<trajopt_ifopt::JointPosition::ConstPtr> vars;
@@ -373,6 +237,20 @@ TEST_F(CastOctomapTest, boxesTrajOptProblem)  // NOLINT
 
   EXPECT_FALSE(found);
   CONSOLE_BRIDGE_logWarn((found) ? ("Final trajectory is in collision") : ("Final trajectory is collision free"));
+}
+
+TEST_F(CastOctomapTest, boxesIfoptProblem)  // NOLINT
+{
+  CONSOLE_BRIDGE_logDebug("CastOctomapTest, boxesIfoptProblem");
+  auto qp_problem = std::make_shared<trajopt_sqp::IfoptQPProblem>();
+  runCastOctomapTest(qp_problem, env);
+}
+
+TEST_F(CastOctomapTest, boxesTrajOptProblem)  // NOLINT
+{
+  CONSOLE_BRIDGE_logDebug("CastOctomapTest, boxesTrajOptProblem");
+  auto qp_problem = std::make_shared<trajopt_sqp::TrajOptQPProblem>();
+  runCastOctomapTest(qp_problem, env);
 }
 
 int main(int argc, char** argv)

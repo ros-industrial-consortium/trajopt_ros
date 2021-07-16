@@ -79,10 +79,8 @@ public:
   }
 };
 
-TEST_F(PlanningTest, arm_around_table_ifopt_problem)  // NOLINT
+void runPlanningTest(trajopt_sqp::QPProblem::Ptr qp_problem, Environment::Ptr env)
 {
-  CONSOLE_BRIDGE_logDebug("PlanningTest, arm_around_table");
-
   std::unordered_map<std::string, double> ipos;
   ipos["torso_lift_joint"] = 0;
   ipos["r_shoulder_pan_joint"] = -1.832;
@@ -112,143 +110,6 @@ TEST_F(PlanningTest, arm_around_table_ifopt_problem)  // NOLINT
   trajectory.row(3) << -0.569, 0.747, -0.27, -1.515, -2.374, -0.881, 3.017;
   trajectory.row(4) << -0.148, 1.107, -0.023, -1.541, -2.799, -0.472, 2.998;
   trajectory.row(5) << 0.062, 1.287, 0.1, -1.554, -3.011, -0.268, 2.988;
-
-  // Create the problem
-  ifopt::Problem nlp;
-
-  // Add Variables
-  std::vector<trajopt_ifopt::JointPosition::ConstPtr> vars;
-  for (Eigen::Index i = 0; i < 6; ++i)
-  {
-    auto var = std::make_shared<trajopt_ifopt::JointPosition>(
-        trajectory.row(i), forward_kinematics->getJointNames(), "Joint_Position_" + std::to_string(i));
-    vars.push_back(var);
-    nlp.AddVariableSet(var);
-  }
-
-  double margin_coeff = 50;
-  double margin = 0.025;
-  auto trajopt_collision_config = std::make_shared<trajopt_ifopt::TrajOptCollisionConfig>(margin, margin_coeff);
-  trajopt_collision_config->collision_margin_buffer = 0.02;
-  trajopt_collision_config->longest_valid_segment_length = 0.005;
-
-  // Add costs
-  {
-    auto cnt = std::make_shared<JointVelConstraint>(Eigen::VectorXd::Zero(7), vars);
-    cnt->LinkWithVariables(nlp.GetOptVariables());
-    auto cost = std::make_shared<SquaredCost>(cnt);
-    nlp.AddCostSet(cost);
-  }
-
-  // Add constraints
-  {  // Fix start position
-    std::vector<JointPosition::ConstPtr> fixed_vars = { vars[0] };
-    auto cnt = std::make_shared<JointPosConstraint>(trajectory.row(0), fixed_vars);
-    nlp.AddConstraintSet(cnt);
-  }
-
-  {  // Fix end position
-    std::vector<trajopt_ifopt::JointPosition::ConstPtr> fixed_vars = { vars[5] };
-    auto cnt = std::make_shared<trajopt_ifopt::JointPosConstraint>(trajectory.row(5), fixed_vars);
-    nlp.AddConstraintSet(cnt);
-  }
-
-  auto collision_cache = std::make_shared<trajopt_ifopt::CollisionCache>(100);
-  for (std::size_t i = 1; i < (vars.size() - 1); ++i)
-  {
-    auto collision_evaluator =
-        std::make_shared<trajopt_ifopt::LVSContinuousCollisionEvaluator>(collision_cache,
-                                                                         forward_kinematics,
-                                                                         env,
-                                                                         adjacency_map,
-                                                                         Eigen::Isometry3d::Identity(),
-                                                                         trajopt_collision_config);
-
-    std::array<JointPosition::ConstPtr, 3> position_vars{ vars[i - 1], vars[i], vars[i + 1] };
-    auto cnt = std::make_shared<trajopt_ifopt::ContinuousCollisionConstraintIfopt>(
-        collision_evaluator,
-        trajopt_ifopt::ContinuousCombineCollisionData(CombineCollisionDataMethod::WEIGHTED_AVERAGE),
-        position_vars);
-    nlp.AddConstraintSet(cnt);
-  }
-
-  // Create problem
-  auto qp_problem = std::make_shared<trajopt_sqp::IfoptQPProblem>(nlp);
-
-  qp_problem->print();
-
-  // Setup solver
-  auto qp_solver = std::make_shared<trajopt_sqp::OSQPEigenSolver>();
-  trajopt_sqp::TrustRegionSQPSolver solver(qp_solver);
-  qp_solver->solver_.settings()->setVerbosity(true);
-  qp_solver->solver_.settings()->setWarmStart(true);
-  qp_solver->solver_.settings()->setPolish(true);
-  qp_solver->solver_.settings()->setAdaptiveRho(false);
-  qp_solver->solver_.settings()->setMaxIteration(8192);
-  qp_solver->solver_.settings()->setAbsoluteTolerance(1e-4);
-  qp_solver->solver_.settings()->setRelativeTolerance(1e-6);
-
-  // 6) solve
-  solver.verbose = true;
-  solver.solve(qp_problem);
-  Eigen::VectorXd x = qp_problem->getVariableValues();
-  std::cout << x.transpose() << std::endl;
-
-  EXPECT_TRUE(solver.getStatus() == trajopt_sqp::SQPStatus::NLP_CONVERGED);
-
-  Eigen::Map<tesseract_common::TrajArray> results(x.data(), 6, 7);
-
-  tesseract_collision::CollisionCheckConfig config;
-  config.type = tesseract_collision::CollisionEvaluatorType::CONTINUOUS;
-  bool found =
-      checkTrajectory(collisions, *manager, *state_solver, forward_kinematics->getJointNames(), trajectory, config);
-
-  EXPECT_TRUE(found);
-  CONSOLE_BRIDGE_logWarn((found) ? ("Initial trajectory is in collision") : ("Initial trajectory is collision free"));
-
-  collisions.clear();
-  found = checkTrajectory(collisions, *manager, *state_solver, forward_kinematics->getJointNames(), results, config);
-
-  EXPECT_FALSE(found);
-  CONSOLE_BRIDGE_logWarn((found) ? ("Final trajectory is in collision") : ("Final trajectory is collision free"));
-}
-
-TEST_F(PlanningTest, arm_around_table_trajopt_problem)  // NOLINT
-{
-  CONSOLE_BRIDGE_logDebug("PlanningTest, arm_around_table");
-
-  std::unordered_map<std::string, double> ipos;
-  ipos["torso_lift_joint"] = 0;
-  ipos["r_shoulder_pan_joint"] = -1.832;
-  ipos["r_shoulder_lift_joint"] = -0.332;
-  ipos["r_upper_arm_roll_joint"] = -1.011;
-  ipos["r_elbow_flex_joint"] = -1.437;
-  ipos["r_forearm_roll_joint"] = -1.1;
-  ipos["r_wrist_flex_joint"] = -1.926;
-  ipos["r_wrist_roll_joint"] = 3.074;
-  env->setState(ipos);
-
-  std::vector<ContactResultMap> collisions;
-  tesseract_environment::StateSolver::Ptr state_solver = env->getStateSolver();
-  ContinuousContactManager::Ptr manager = env->getContinuousContactManager();
-  auto forward_kinematics = env->getManipulatorManager()->getFwdKinematicSolver("right_arm");
-  AdjacencyMap::Ptr adjacency_map = std::make_shared<AdjacencyMap>(
-      env->getSceneGraph(), forward_kinematics->getActiveLinkNames(), env->getCurrentState()->link_transforms);
-
-  manager->setActiveCollisionObjects(adjacency_map->getActiveLinkNames());
-  manager->setDefaultCollisionMarginData(0);
-
-  // Initial trajectory
-  tesseract_common::TrajArray trajectory(6, 7);
-  trajectory.row(0) << -1.832, -0.332, -1.011, -1.437, -1.1, -1.926, 3.074;
-  trajectory.row(1) << -1.411, 0.028, -0.764, -1.463, -1.525, -1.698, 3.055;
-  trajectory.row(2) << -0.99, 0.388, -0.517, -1.489, -1.949, -1.289, 3.036;
-  trajectory.row(3) << -0.569, 0.747, -0.27, -1.515, -2.374, -0.881, 3.017;
-  trajectory.row(4) << -0.148, 1.107, -0.023, -1.541, -2.799, -0.472, 2.998;
-  trajectory.row(5) << 0.062, 1.287, 0.1, -1.554, -3.011, -0.268, 2.988;
-
-  // Create problem
-  auto qp_problem = std::make_shared<trajopt_sqp::TrajOptQPProblem>();
 
   // Add Variables
   std::vector<trajopt_ifopt::JointPosition::ConstPtr> vars;
@@ -341,6 +202,20 @@ TEST_F(PlanningTest, arm_around_table_trajopt_problem)  // NOLINT
 
   EXPECT_FALSE(found);
   CONSOLE_BRIDGE_logWarn((found) ? ("Final trajectory is in collision") : ("Final trajectory is collision free"));
+}
+
+TEST_F(PlanningTest, arm_around_table_ifopt_problem)  // NOLINT
+{
+  CONSOLE_BRIDGE_logDebug("PlanningTest, arm_around_table");
+  auto qp_problem = std::make_shared<trajopt_sqp::IfoptQPProblem>();
+  runPlanningTest(qp_problem, env);
+}
+
+TEST_F(PlanningTest, arm_around_table_trajopt_problem)  // NOLINT
+{
+  CONSOLE_BRIDGE_logDebug("PlanningTest, arm_around_table");
+  auto qp_problem = std::make_shared<trajopt_sqp::TrajOptQPProblem>();
+  runPlanningTest(qp_problem, env);
 }
 
 int main(int argc, char** argv)

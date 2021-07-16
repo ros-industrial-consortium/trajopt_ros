@@ -37,6 +37,7 @@ add_library(${PROJECT_NAME}
     src/ifopt_qp_problem.cpp
     src/trust_region_sqp_solver.cpp
     src/trajopt_qp_problem.cpp
+    src/expressions.cpp
 #    src/affine_expression.cpp
 #    src/quadratic_expression.cpp
 #    src/expression_operations.cpp

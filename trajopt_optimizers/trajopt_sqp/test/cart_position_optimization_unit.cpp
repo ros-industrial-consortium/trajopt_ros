@@ -82,18 +82,10 @@ inline std::string locateResource(const std::string& url)
 class CartPositionOptimization : public testing::TestWithParam<const char*>
 {
 public:
-  // 1) Create the problem
-  ifopt::Problem nlp;
-  trajopt_sqp::IfoptQPProblem::Ptr ifopt_problem;
-  trajopt_sqp::TrajOptQPProblem::Ptr trajopt_problem;
-
-  Eigen::VectorXd joint_target;
+  tesseract_environment::Environment::Ptr env;
 
   void SetUp() override
   {
-    ifopt_problem = std::make_shared<trajopt_sqp::IfoptQPProblem>();
-    trajopt_problem = std::make_shared<trajopt_sqp::TrajOptQPProblem>();
-
     if (DEBUG)
       console_bridge::setLogLevel(console_bridge::LogLevel::CONSOLE_BRIDGE_LOG_DEBUG);
     else
@@ -104,55 +96,12 @@ public:
     tesseract_common::fs::path srdf_file(std::string(TRAJOPT_DIR) + "/test/data/pr2.srdf");
     tesseract_scene_graph::ResourceLocator::Ptr locator =
         std::make_shared<tesseract_scene_graph::SimpleResourceLocator>(locateResource);
-    auto env = std::make_shared<tesseract_environment::Environment>();
+    env = std::make_shared<tesseract_environment::Environment>();
     env->init<tesseract_environment::OFKTStateSolver>(urdf_file, srdf_file, locator);
-
-    // Extract necessary kinematic information
-    auto forward_kinematics = env->getManipulatorManager()->getFwdKinematicSolver("right_arm");
-    auto world_to_base = env->getCurrentState()->link_transforms.at(forward_kinematics->getBaseLinkName());
-    tesseract_environment::AdjacencyMap::Ptr adjacency_map = std::make_shared<tesseract_environment::AdjacencyMap>(
-        env->getSceneGraph(), forward_kinematics->getActiveLinkNames(), env->getCurrentState()->link_transforms);
-    auto kinematic_info =
-        std::make_shared<trajopt_ifopt::KinematicsInfo>(forward_kinematics, adjacency_map, world_to_base);
-
-    // Get target position
-    Eigen::VectorXd start_pos(forward_kinematics->numJoints());
-    start_pos << 0.0, 0, 0, -1.0, 0, -1, -0.00;
-    if (DEBUG)
-      std::cout << "Joint Limits:\n" << forward_kinematics->getLimits().joint_limits.transpose() << std::endl;
-
-    joint_target = start_pos;
-    Eigen::Isometry3d target_pose = forward_kinematics->calcFwdKin(joint_target);
-    target_pose = world_to_base * target_pose;
-
-    // 3) Add Variables
-    std::vector<trajopt_ifopt::JointPosition::ConstPtr> vars;
-    for (int ind = 0; ind < 1; ind++)
-    {
-      auto zero = Eigen::VectorXd::Zero(7);
-      auto var = std::make_shared<trajopt_ifopt::JointPosition>(
-          zero, forward_kinematics->getJointNames(), "Joint_Position_" + std::to_string(ind));
-      vars.push_back(var);
-      nlp.AddVariableSet(var);
-      trajopt_problem->addVariableSet(var);
-    }
-
-    // 4) Add constraints
-    for (const auto& var : vars)
-    {
-      trajopt_ifopt::CartPosInfo cart_info(kinematic_info, target_pose, forward_kinematics->getTipLinkName());
-      auto cnt = std::make_shared<trajopt_ifopt::CartPosConstraint>(cart_info, var);
-      nlp.AddConstraintSet(cnt);
-      trajopt_problem->addConstraintSet(cnt);
-    }
-
-    ifopt_problem->init(nlp);
-    trajopt_problem->setup();
   }
 };
 
-void runCartPositionOptimization(trajopt_sqp::QPProblem::Ptr qp_problem,
-                                 const Eigen::Ref<const Eigen::VectorXd>& joint_target)
+void runCartPositionOptimization(trajopt_sqp::QPProblem::Ptr qp_problem, tesseract_environment::Environment::Ptr env)
 {
   auto qp_solver = std::make_shared<trajopt_sqp::OSQPEigenSolver>();
   trajopt_sqp::TrustRegionSQPSolver solver(qp_solver);
@@ -163,6 +112,45 @@ void runCartPositionOptimization(trajopt_sqp::QPProblem::Ptr qp_problem,
   qp_solver->solver_.settings()->setMaxIteration(8192);
   qp_solver->solver_.settings()->setAbsoluteTolerance(1e-4);
   qp_solver->solver_.settings()->setRelativeTolerance(1e-6);
+
+  // Extract necessary kinematic information
+  auto forward_kinematics = env->getManipulatorManager()->getFwdKinematicSolver("right_arm");
+  auto world_to_base = env->getCurrentState()->link_transforms.at(forward_kinematics->getBaseLinkName());
+  tesseract_environment::AdjacencyMap::Ptr adjacency_map = std::make_shared<tesseract_environment::AdjacencyMap>(
+      env->getSceneGraph(), forward_kinematics->getActiveLinkNames(), env->getCurrentState()->link_transforms);
+  auto kinematic_info =
+      std::make_shared<trajopt_ifopt::KinematicsInfo>(forward_kinematics, adjacency_map, world_to_base);
+
+  // Get target position
+  Eigen::VectorXd start_pos(forward_kinematics->numJoints());
+  start_pos << 0.0, 0, 0, -1.0, 0, -1, -0.00;
+  if (DEBUG)
+    std::cout << "Joint Limits:\n" << forward_kinematics->getLimits().joint_limits.transpose() << std::endl;
+
+  Eigen::VectorXd joint_target = start_pos;
+  Eigen::Isometry3d target_pose = forward_kinematics->calcFwdKin(joint_target);
+  target_pose = world_to_base * target_pose;
+
+  // 3) Add Variables
+  std::vector<trajopt_ifopt::JointPosition::ConstPtr> vars;
+  for (int ind = 0; ind < 1; ind++)
+  {
+    auto zero = Eigen::VectorXd::Zero(7);
+    auto var = std::make_shared<trajopt_ifopt::JointPosition>(
+        zero, forward_kinematics->getJointNames(), "Joint_Position_" + std::to_string(ind));
+    vars.push_back(var);
+    qp_problem->addVariableSet(var);
+  }
+
+  // 4) Add constraints
+  for (const auto& var : vars)
+  {
+    trajopt_ifopt::CartPosInfo cart_info(kinematic_info, target_pose, forward_kinematics->getTipLinkName());
+    auto cnt = std::make_shared<trajopt_ifopt::CartPosConstraint>(cart_info, var);
+    qp_problem->addConstraintSet(cnt);
+  }
+
+  qp_problem->setup();
 
   // solve
   solver.verbose = DEBUG;
@@ -182,11 +170,15 @@ void runCartPositionOptimization(trajopt_sqp::QPProblem::Ptr qp_problem,
 /** @brief Applies a cartesian position constraint and solves the ifopt problem with trajopt_sqp */
 TEST_F(CartPositionOptimization, cart_position_optimization_trajopt_problem)  // NOLINT
 {
-  runCartPositionOptimization(trajopt_problem, joint_target);
+  CONSOLE_BRIDGE_logDebug("CartPositionOptimization, cart_position_optimization_trajopt_problem");
+  auto qp_problem = std::make_shared<trajopt_sqp::IfoptQPProblem>();
+  runCartPositionOptimization(qp_problem, env);
 }
 
 /** @brief Applies a cartesian position constraint and solves the ifopt problem with trajopt_sqp */
 TEST_F(CartPositionOptimization, cart_position_optimization_ifopt_problem)  // NOLINT
 {
-  runCartPositionOptimization(ifopt_problem, joint_target);
+  CONSOLE_BRIDGE_logDebug("CartPositionOptimization, cart_position_optimization_ifopt_problem");
+  auto qp_problem = std::make_shared<trajopt_sqp::TrajOptQPProblem>();
+  runCartPositionOptimization(qp_problem, env);
 }

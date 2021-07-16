@@ -25,16 +25,49 @@
  */
 #include <trajopt_sqp/ifopt_qp_problem.h>
 #include <trajopt_ifopt/utils/ifopt_utils.h>
+#include <trajopt_ifopt/costs/squared_cost.h>
+#include <trajopt_ifopt/costs/absolute_cost.h>
 #include <iostream>
 
 namespace trajopt_sqp
 {
-IfoptQPProblem::IfoptQPProblem(ifopt::Problem& nlp) { init(nlp); }
+IfoptQPProblem::IfoptQPProblem() : nlp_(std::make_shared<ifopt::Problem>()) {}
+IfoptQPProblem::IfoptQPProblem(std::shared_ptr<ifopt::Problem> nlp) : nlp_(std::move(nlp)) {}
 
-void IfoptQPProblem::init(ifopt::Problem& nlp)
+void IfoptQPProblem::addVariableSet(ifopt::VariableSet::Ptr variable_set) { nlp_->AddVariableSet(variable_set); }
+
+void IfoptQPProblem::addConstraintSet(ifopt::ConstraintSet::Ptr constraint_set)
 {
-  nlp_ = &nlp;
+  nlp_->AddConstraintSet(constraint_set);
+}
 
+void IfoptQPProblem::addCostSet(ifopt::ConstraintSet::Ptr constraint_set, CostPenaltyType penalty_type)
+{
+  switch (penalty_type)
+  {
+    case CostPenaltyType::SQUARED:
+    {
+      // Must link the variables to the constraint since that happens in AddConstraintSet
+      constraint_set->LinkWithVariables(nlp_->GetOptVariables());
+      auto cost = std::make_shared<trajopt_ifopt::SquaredCost>(constraint_set);
+      nlp_->AddCostSet(cost);
+      break;
+    }
+    case CostPenaltyType::ABSOLUTE:
+    {
+      // Must link the variables to the constraint since that happens in AddConstraintSet
+      constraint_set->LinkWithVariables(nlp_->GetOptVariables());
+      auto cost = std::make_shared<trajopt_ifopt::AbsoluteCost>(constraint_set);
+      nlp_->AddCostSet(cost);
+      break;
+    }
+    default:
+      throw std::runtime_error("IfoptQPProblem: Unsupported cost penalty type!");
+  }
+}
+
+void IfoptQPProblem::setup()
+{
   num_nlp_vars_ = nlp_->GetNumberOfOptimizationVariables();
   num_nlp_cnts_ = nlp_->GetNumberOfConstraints();
   num_nlp_costs_ = nlp_->GetCosts().GetRows();
