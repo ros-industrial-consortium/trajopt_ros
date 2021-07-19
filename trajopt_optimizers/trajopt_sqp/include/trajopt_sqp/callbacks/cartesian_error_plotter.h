@@ -65,18 +65,18 @@ public:
    * @brief addConstraintSet Adds a constraint set to be plotted
    * @param cart_position_cnt Constraint to be plotted
    */
-  void addConstraintSet(const trajopt::CartPosConstraint::ConstPtr& cart_position_cnt);
+  void addConstraintSet(const trajopt_ifopt::CartPosConstraint::ConstPtr& cart_position_cnt);
 
   /**
    * @brief addConstraintSet Adds a vector of constraint sets to be plotted
    * @param cart_position_cnts Vector of constraints to be plotted
    */
-  void addConstraintSet(const std::vector<trajopt::CartPosConstraint::ConstPtr>& cart_position_cnts);
+  void addConstraintSet(const std::vector<trajopt_ifopt::CartPosConstraint::ConstPtr>& cart_position_cnts);
 
   bool execute(const ifopt::Problem& nlp, const trajopt_sqp::SQPResults& /*sqp_results*/) override;
 
 protected:
-  std::vector<trajopt::CartPosConstraint::ConstPtr> cart_position_cnts_;
+  std::vector<trajopt_ifopt::CartPosConstraint::ConstPtr> cart_position_cnts_;
   tesseract_visualization::Visualization::Ptr plotter_;
 };
 }  // namespace trajopt_sqp

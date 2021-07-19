@@ -33,9 +33,16 @@ trajopt_variables()
 ###########
 
 set(TRAJOPT_IFOPT_SOURCE_FILES
+    src/absolute_cost.cpp
     src/cartesian_position_constraint.cpp
-    src/collision_constraint.cpp
-    src/collision_evaluators.cpp
+    src/collision_types.cpp
+    src/collision_utils.cpp
+    src/discrete_collision_constraint.cpp
+    src/discrete_collision_evaluators.cpp
+    src/discrete_combine_collision_data.cpp
+    src/continuous_collision_constraint.cpp
+    src/continuous_collision_evaluators.cpp
+    src/continuous_combine_collision_data.cpp
     src/inverse_kinematics_constraint.cpp
     src/joint_position_constraint.cpp
     src/joint_velocity_constraint.cpp

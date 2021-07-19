@@ -33,7 +33,7 @@ TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <Eigen/Eigen>
 TRAJOPT_IGNORE_WARNINGS_POP
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 /**
  * @brief This class converts a constraint to a cost with a sum squared error
@@ -48,9 +48,9 @@ namespace trajopt
  *
  * Given a constraint: g(x) with some bounds: upper_ and lower_
  *
- * The target of the cost is set to the average of the upper and lower bounds:
+ * The target of the cost is set to the closest bound:
  *
- *     target = 1/2 * (upper_ + lower_)
+ *     target = to the closest bound
  *
  * and
  *
@@ -81,13 +81,13 @@ public:
    * @brief Constructs a CostTerm that converts a constraint into a cost with a sum squared error
    * @param constraint Input constraint to be converted to a cost
    */
-  SquaredCost(const ifopt::ConstraintSet::Ptr& constraint);
+  SquaredCost(ifopt::ConstraintSet::Ptr constraint);
   /**
    * @brief Constructs a CostTerm that converts a constraint into a cost with a weighted sum squared error
    * @param constraint Input constraint to be converted to a cost
    * @param weights Weights applied to the constraints. Length should be n_constraints
    */
-  SquaredCost(const ifopt::ConstraintSet::Ptr& constraint, const Eigen::Ref<const Eigen::VectorXd>& weights);
+  SquaredCost(ifopt::ConstraintSet::Ptr constraint, const Eigen::Ref<const Eigen::VectorXd>& weights);
 
   double GetCost() const override;
 
@@ -99,11 +99,10 @@ private:
 
   /** @brief Size of the input constraint */
   long n_constraints_;
+
   /** @brief Vector of weights. Default: Eigen::VectorXd::Ones(n_constraints) */
   Eigen::VectorXd weights_;
-  /** @brief Vector of targets. By default these are the average of the constraint bounds */
-  Eigen::VectorXd targets_;
 };
 
-}  // namespace trajopt
+}  // namespace trajopt_ifopt
 #endif

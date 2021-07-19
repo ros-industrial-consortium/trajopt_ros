@@ -1,3 +1,29 @@
+/**
+ * @file inverse_kinematics_constraint_unit.cpp
+ * @brief The inverse kinematics constraint unit test
+ *
+ * @author Levi Armstrong
+ * @author Matthew Powelson
+ * @date May 18, 2020
+ * @version TODO
+ * @bug No known bugs
+ *
+ * @copyright Copyright (c) 2020, Southwest Research Institute
+ *
+ * @par License
+ * Software License Agreement (Apache License)
+ * @par
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * @par
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include <trajopt_utils/macros.h>
 TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <ctime>
@@ -17,7 +43,7 @@ TRAJOPT_IGNORE_WARNINGS_POP
 #include <trajopt_ifopt/utils/numeric_differentiation.h>
 #include <trajopt_test_utils.hpp>
 
-using namespace trajopt;
+using namespace trajopt_ifopt;
 using namespace std;
 using namespace util;
 using namespace tesseract_environment;
@@ -58,18 +84,20 @@ public:
 
     tesseract_environment::AdjacencyMap::Ptr adjacency_map = std::make_shared<tesseract_environment::AdjacencyMap>(
         env->getSceneGraph(), forward_kinematics->getActiveLinkNames(), env->getCurrentState()->link_transforms);
-    kinematic_info = std::make_shared<trajopt::InverseKinematicsInfo>(
+    kinematic_info = std::make_shared<trajopt_ifopt::InverseKinematicsInfo>(
         inverse_kinematics, adjacency_map, Eigen::Isometry3d::Identity(), forward_kinematics->getTipLinkName());
 
     auto pos = Eigen::VectorXd::Ones(forward_kinematics->numJoints());
-    auto var0 = std::make_shared<trajopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
-    auto var1 = std::make_shared<trajopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_1");
+    auto var0 =
+        std::make_shared<trajopt_ifopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
+    auto var1 =
+        std::make_shared<trajopt_ifopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_1");
     nlp.AddVariableSet(var0);
     nlp.AddVariableSet(var1);
 
     // 4) Add constraints
     auto target_pose = Eigen::Isometry3d::Identity();
-    constraint = std::make_shared<trajopt::InverseKinematicsConstraint>(target_pose, kinematic_info, var0, var1);
+    constraint = std::make_shared<trajopt_ifopt::InverseKinematicsConstraint>(target_pose, kinematic_info, var0, var1);
     nlp.AddConstraintSet(constraint);
   }
 };
@@ -106,7 +134,8 @@ TEST_F(InverseKinematicsConstraintUnit, GetValue)  // NOLINT
     auto error_calculator = [&](const Eigen::Ref<const Eigen::VectorXd>& x) {
       return constraint->CalcValues(x, joint_position_single);
     };
-    trajopt::Jacobian num_jac_block = trajopt::calcForwardNumJac(error_calculator, joint_position_single, 1e-4);
+    trajopt_ifopt::SparseMatrix num_jac_block =
+        trajopt_ifopt::calcForwardNumJac(error_calculator, joint_position_single, 1e-4);
     EXPECT_TRUE(jac_block.isApprox(num_jac_block));
   }
 
@@ -129,11 +158,14 @@ TEST_F(InverseKinematicsConstraintUnit, GetSetBounds)  // NOLINT
   // Check that setting bounds works
   {
     Eigen::VectorXd pos = Eigen::VectorXd::Ones(n_dof);
-    auto var0 = std::make_shared<trajopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
-    auto var1 = std::make_shared<trajopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_1");
+    auto var0 =
+        std::make_shared<trajopt_ifopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_0");
+    auto var1 =
+        std::make_shared<trajopt_ifopt::JointPosition>(pos, forward_kinematics->getJointNames(), "Joint_Position_1");
 
     auto target_pose = Eigen::Isometry3d::Identity();
-    auto constraint_2 = std::make_shared<trajopt::InverseKinematicsConstraint>(target_pose, kinematic_info, var0, var1);
+    auto constraint_2 =
+        std::make_shared<trajopt_ifopt::InverseKinematicsConstraint>(target_pose, kinematic_info, var0, var1);
 
     ifopt::Bounds bounds(-0.1234, 0.5678);
     std::vector<ifopt::Bounds> bounds_vec = std::vector<ifopt::Bounds>(static_cast<std::size_t>(n_dof), bounds);

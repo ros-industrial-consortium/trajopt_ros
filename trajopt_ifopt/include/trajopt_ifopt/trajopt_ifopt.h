@@ -24,13 +24,20 @@
 #ifndef TRAJOPT_IFOPT_TRAJOPT_IFOPT_H
 #define TRAJOPT_IFOPT_TRAJOPT_IFOPT_H
 
+#include <trajopt_ifopt/constraints/discrete_collision_constraint.h>
+#include <trajopt_ifopt/constraints/continuous_collision_constraint.h>
+#include <trajopt_ifopt/constraints/discrete_collision_evaluators.h>
+#include <trajopt_ifopt/constraints/continuous_collision_evaluators.h>
+#include <trajopt_ifopt/constraints/collision_utils.h>
+#include <trajopt_ifopt/constraints/collision_types.h>
+
 #include <trajopt_ifopt/constraints/cartesian_position_constraint.h>
-#include <trajopt_ifopt/constraints/collision_constraint.h>
 #include <trajopt_ifopt/constraints/inverse_kinematics_constraint.h>
 #include <trajopt_ifopt/constraints/joint_position_constraint.h>
 #include <trajopt_ifopt/constraints/joint_velocity_constraint.h>
 
 #include <trajopt_ifopt/costs/squared_cost.h>
+#include <trajopt_ifopt/costs/absolute_cost.h>
 
 #include <trajopt_ifopt/utils/ifopt_utils.h>
 #include <trajopt_ifopt/utils/numeric_differentiation.h>

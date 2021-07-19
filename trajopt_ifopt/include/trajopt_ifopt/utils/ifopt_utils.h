@@ -30,9 +30,10 @@
 TRAJOPT_IGNORE_WARNINGS_PUSH
 #include <Eigen/Eigen>
 #include <ifopt/cost_term.h>
+#include <ifopt/problem.h>
 TRAJOPT_IGNORE_WARNINGS_POP
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 /**
  * @brief Converts a MatrixX2d (e.g. from forward_kinematics->getLimits()) to a vector of ifopt Bounds
@@ -93,7 +94,7 @@ inline std::vector<Eigen::VectorXd> interpolate(const Eigen::Ref<const Eigen::Ve
  * @return Output vector. If input is outside a bound, force it to the boundary
  */
 inline Eigen::VectorXd getClosestValidPoint(const Eigen::Ref<const Eigen::VectorXd>& input,
-                                            std::vector<ifopt::Bounds> bounds)
+                                            const std::vector<ifopt::Bounds>& bounds)
 {
   // Convert Bounds to VectorXds
   Eigen::VectorXd bound_lower(static_cast<Eigen::Index>(bounds.size()));
@@ -111,5 +112,111 @@ inline Eigen::VectorXd getClosestValidPoint(const Eigen::Ref<const Eigen::Vector
   return valid_point;
 }
 
-}  // namespace trajopt
+/**
+ * @brief Calculate errors of the bounds
+ * @param input The input values
+ * @param bounds The bounds
+ * @return The error given the bounds, if within the bounds it will be zero
+ */
+inline Eigen::VectorXd calcBoundsErrors(const Eigen::Ref<const Eigen::VectorXd>& input,
+                                        const std::vector<ifopt::Bounds>& bounds)
+{
+  assert(input.rows() == static_cast<Eigen::Index>(bounds.size()));
+
+  // Convert constraint bounds to VectorXd
+  Eigen::ArrayXd bound_lower(input.rows());
+  Eigen::ArrayXd bound_upper(input.rows());
+  for (std::size_t i = 0; i < bounds.size(); i++)
+  {
+    bound_lower[static_cast<Eigen::Index>(i)] = bounds[i].lower_;
+    bound_upper[static_cast<Eigen::Index>(i)] = bounds[i].upper_;
+  }
+
+  // Values will be negative if they violate the constrain
+  Eigen::ArrayXd zero = Eigen::ArrayXd::Zero(input.rows());
+  Eigen::ArrayXd dist_from_lower = (input.array() - bound_lower).min(zero);
+  Eigen::ArrayXd dist_from_upper = (input.array() - bound_upper).max(zero);
+  Eigen::ArrayXd worst_error = (dist_from_upper.abs() > dist_from_lower.abs()).select(dist_from_upper, dist_from_lower);
+
+  return worst_error;
+}
+
+/**
+ * @brief The absolute value of the Bounds Errors
+ * @param input The input values
+ * @param bounds The bounds
+ * @return The absolute errors given the bounds, if within the bounds it will be zero
+ */
+inline Eigen::VectorXd calcBoundsViolations(const Eigen::Ref<const Eigen::VectorXd>& input,
+                                            const std::vector<ifopt::Bounds>& bounds)
+{
+  return calcBoundsErrors(input, bounds).cwiseAbs();
+}
+
+inline ifopt::Problem::VectorXd calcNumericalCostGradient(const double* x, ifopt::Problem& nlp, double epsilon = 1e-8)
+{
+  auto cache_vars = nlp.GetVariableValues();
+
+  int n = nlp.GetNumberOfOptimizationVariables();
+  ifopt::Problem::Jacobian jac(1, n);
+  if (nlp.HasCostTerms())
+  {
+    double step_size = epsilon;
+
+    // calculate forward difference by disturbing each optimization variable
+    double g = nlp.EvaluateCostFunction(x);
+    std::vector<double> x_new(x, x + n);
+    for (int i = 0; i < n; ++i)
+    {
+      x_new[static_cast<std::size_t>(i)] += step_size;  // disturb
+      double g_new = nlp.EvaluateCostFunction(x_new.data());
+      jac.coeffRef(0, i) = (g_new - g) / step_size;
+      x_new[static_cast<std::size_t>(i)] = x[i];  // reset for next iteration
+    }
+  }
+
+  // Set problem values back to the original values.
+  nlp.SetVariables(cache_vars.data());
+
+  return jac.row(0).transpose();
+}
+
+inline ifopt::Problem::Jacobian calcNumericalConstraintGradient(const double* x,
+                                                                ifopt::Problem& nlp,
+                                                                double epsilon = 1e-8)
+{
+  auto cache_vars = nlp.GetVariableValues();
+
+  int n = nlp.GetNumberOfOptimizationVariables();
+  int m = nlp.GetConstraints().GetRows();
+  ifopt::Problem::Jacobian jac(m, n);
+  jac.reserve(m * n);
+
+  if (nlp.GetNumberOfConstraints() > 0)
+  {
+    double step_size = epsilon;
+
+    // calculate forward difference by disturbing each optimization variable
+    ifopt::Problem::VectorXd g = nlp.EvaluateConstraints(x);
+    std::vector<double> x_new(x, x + n);
+    for (int i = 0; i < n; ++i)
+    {
+      x_new[static_cast<std::size_t>(i)] += step_size;  // disturb
+      ifopt::Problem::VectorXd g_new = nlp.EvaluateConstraints(x_new.data());
+      ifopt::Problem::VectorXd delta_g = (g_new - g) / step_size;
+
+      for (int j = 0; j < m; ++j)
+        jac.coeffRef(j, i) = delta_g(j);
+
+      x_new[static_cast<std::size_t>(i)] = x[i];  // reset for next iteration
+    }
+  }
+
+  // Set problem values back to the original values.
+  nlp.SetVariables(cache_vars.data());
+
+  return jac;
+}
+
+}  // namespace trajopt_ifopt
 #endif

@@ -38,7 +38,7 @@ OSQPEigenSolver::OSQPEigenSolver()
   solver_.settings()->setWarmStart(true);
   solver_.settings()->setPolish(true);
   solver_.settings()->setAdaptiveRho(false);
-  solver_.settings()->setMaxIteraction(8192);
+  solver_.settings()->setMaxIteration(8192);
   solver_.settings()->setAbsoluteTolerance(1e-4);
   solver_.settings()->setRelativeTolerance(1e-6);
 }
@@ -68,7 +68,8 @@ bool OSQPEigenSolver::clear()
 bool OSQPEigenSolver::solve()
 {
   // In order to call initSolver, everything must have already been set, so we call it right before solving
-  solver_.initSolver();
+  if (!solver_.isInitialized())
+    solver_.initSolver();
   if (solver_.solve())
     return true;
 
@@ -121,13 +122,14 @@ Eigen::VectorXd OSQPEigenSolver::getSolution()
   return solution;
 }
 
-bool OSQPEigenSolver::updateHessianMatrix(const Hessian& hessian)
+bool OSQPEigenSolver::updateHessianMatrix(const SparseMatrix& hessian)
 {
   // Clean up values close to 0
-  Hessian cleaned = hessian.pruned(1e-7);
+  // Also multiply by 2 because OSQP is multiplying by (1/2) for the objective fuction
+  SparseMatrix cleaned = 2.0 * hessian.pruned(1e-7);
 
   if (solver_.isInitialized())
-    return solver_.updateHessianMatrix(hessian);
+    return solver_.updateHessianMatrix(cleaned);
 
   solver_.data()->clearHessianMatrix();
   return solver_.data()->setHessianMatrix(cleaned);
@@ -169,13 +171,13 @@ bool OSQPEigenSolver::updateBounds(const Eigen::Ref<const Eigen::VectorXd>& lowe
   return success;
 }
 
-bool OSQPEigenSolver::updateLinearConstraintsMatrix(const Jacobian& linearConstraintsMatrix)
+bool OSQPEigenSolver::updateLinearConstraintsMatrix(const SparseMatrix& linearConstraintsMatrix)
 {
   assert(num_cnts_ == linearConstraintsMatrix.rows());
   assert(num_vars_ == linearConstraintsMatrix.cols());
 
   solver_.data()->clearLinearConstraintsMatrix();
-  Jacobian cleaned = linearConstraintsMatrix.pruned(1e-7);
+  SparseMatrix cleaned = linearConstraintsMatrix.pruned(1e-7);
 
   if (solver_.isInitialized())
     return solver_.updateLinearConstraintsMatrix(linearConstraintsMatrix);

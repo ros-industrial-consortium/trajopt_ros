@@ -89,7 +89,7 @@ public:
    * @param hessian The QP hessian. Should be n_vars x n_vars
    * @return true if successful
    */
-  virtual bool updateHessianMatrix(const Hessian& hessian) = 0;
+  virtual bool updateHessianMatrix(const SparseMatrix& hessian) = 0;
 
   /**
    * @brief Updates the cost gradient
@@ -126,7 +126,7 @@ public:
    * @param linearConstraintsMatrix Input constraint matrix
    * @return true if successful
    */
-  virtual bool updateLinearConstraintsMatrix(const Jacobian& linearConstraintsMatrix) = 0;
+  virtual bool updateLinearConstraintsMatrix(const SparseMatrix& linearConstraintsMatrix) = 0;
 
   /**
    * @brief Returns the solver status

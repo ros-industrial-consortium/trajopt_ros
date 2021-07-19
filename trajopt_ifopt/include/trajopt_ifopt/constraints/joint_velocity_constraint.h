@@ -34,7 +34,7 @@ TRAJOPT_IGNORE_WARNINGS_POP
 
 #include <trajopt_ifopt/variable_sets/joint_position_variable.h>
 
-namespace trajopt
+namespace trajopt_ifopt
 {
 /**
  * @brief This creates a joint velocity constraint and allows bounds to be set on a joint position
@@ -101,6 +101,7 @@ private:
    *
    * Do not access them directly. Instead use this->GetVariables()->GetComponent(position_var->GetName())->GetValues()*/
   std::vector<JointPosition::ConstPtr> position_vars_;
+  std::unordered_map<std::string, Eigen::Index> index_map_;
 };
-};  // namespace trajopt
+};  // namespace trajopt_ifopt
 #endif

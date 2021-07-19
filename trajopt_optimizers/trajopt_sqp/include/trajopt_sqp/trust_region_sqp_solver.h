@@ -31,8 +31,6 @@
 #ifndef TRAJOPT_SQP_INCLUDE_SIMPLE_SQP_SOLVER_H_
 #define TRAJOPT_SQP_INCLUDE_SIMPLE_SQP_SOLVER_H_
 
-#include <ifopt/problem.h>
-#include <ifopt/solver.h>
 #include <trajopt_sqp/qp_problem.h>
 #include <trajopt_sqp/qp_solver.h>
 #include <trajopt_sqp/sqp_callback.h>
@@ -42,7 +40,7 @@ namespace trajopt_sqp
 /**
  * @brief A simple SQP Solver that uses the QPSolver passed in
  */
-class TrustRegionSQPSolver : public ifopt::Solver
+class TrustRegionSQPSolver
 {
 public:
   using Ptr = std::shared_ptr<TrustRegionSQPSolver>;
@@ -50,15 +48,48 @@ public:
 
   TrustRegionSQPSolver(QPSolver::Ptr qp_solver);
 
-  bool init(ifopt::Problem& nlp);
+  bool init(QPProblem::Ptr qp_prob);
 
-  void Solve(ifopt::Problem& nlp) override;
+  void solve(QPProblem::Ptr qp_prob);
 
   /**
-   * @brief Take a single QP optimization step, storing the results and calling callbacks
-   * @param nlp
+   * @brief Run a single convexification step which calls runTrustRegionLoop
+   * @warning This should not normally be call directly, but exposed for online planning
+   * @return True the QP solve converged, but does not mean the SQP solver has converged.
    */
-  SQPStatus stepOptimization(ifopt::Problem& nlp);
+  bool stepSQPSolver();
+
+  /**
+   * @brief Check if the SQPSolver constraints are satisfied
+   * @warning This should not normally be call directly, but exposed for online planning
+   */
+  bool verifySQPSolverConvergence();
+
+  /**
+   * @brief The SQPSolver reported convergence but the constraints are not satisfied so this function
+   * is used to increases the penalty on the constraints.
+   */
+  void adjustPenalty();
+
+  /**
+   * @brief Run trust region loop which calls stepOptimization adjusting box size
+   * @warning This should not normally be call directly, but exposed for online planning
+   */
+  void runTrustRegionLoop();
+
+  /**
+   * @brief Solve the current QP Problem, storing the results and calling callbacks
+   * @warning This should not normally be call directly, but exposed for online planning
+   * @return SQP Status
+   */
+  SQPStatus solveQPProblem();
+
+  /**
+   * @brief Set the trust region box size
+   * @warning This should not normally be call directly, but exposed for online planning
+   * @param box_size The box size
+   */
+  void setBoxSize(double box_size);
 
   /**
    * @brief Calls all registered callbacks with the current state of of the problem
@@ -86,6 +117,7 @@ public:
 
   /** @brief The QP Solver used to solve a single step of the SQP routine  */
   QPSolver::Ptr qp_solver;
+
   /** @brief The QP problem created from the NLP */
   QPProblem::Ptr qp_problem;
 
@@ -93,9 +125,6 @@ protected:
   SQPStatus status_;
   SQPResults results_;
   std::vector<SQPCallback::Ptr> callbacks_;
-
-private:
-  ifopt::Problem* nlp_;
 };
 
 }  // namespace trajopt_sqp
