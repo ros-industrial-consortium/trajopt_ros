@@ -125,10 +125,11 @@ Eigen::VectorXd OSQPEigenSolver::getSolution()
 bool OSQPEigenSolver::updateHessianMatrix(const SparseMatrix& hessian)
 {
   // Clean up values close to 0
-  SparseMatrix cleaned = hessian.pruned(1e-7);
+  // Also multiply by 2 because OSQP is multiplying by (1/2) for the objective fuction
+  SparseMatrix cleaned = 2.0 * hessian.pruned(1e-7);
 
   if (solver_.isInitialized())
-    return solver_.updateHessianMatrix(hessian);
+    return solver_.updateHessianMatrix(cleaned);
 
   solver_.data()->clearHessianMatrix();
   return solver_.data()->setHessianMatrix(cleaned);
