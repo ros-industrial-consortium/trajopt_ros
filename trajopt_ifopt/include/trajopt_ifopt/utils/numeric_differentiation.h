@@ -34,8 +34,9 @@ TRAJOPT_IGNORE_WARNINGS_POP
 
 namespace trajopt_ifopt
 {
+using SparseMatrix = Eigen::SparseMatrix<double, Eigen::RowMajor>;
 using ErrorCalculator = std::function<Eigen::VectorXd(const Eigen::Ref<const Eigen::VectorXd>&)>;
-using Jacobian = Eigen::SparseMatrix<double, Eigen::RowMajor>;
+using JacobianCalculator = std::function<SparseMatrix(const Eigen::Ref<const Eigen::VectorXd>&)>;
 
 /**
  * @brief Calculates the jacobian of the given error calculator using forward numeric differentiation
@@ -44,7 +45,9 @@ using Jacobian = Eigen::SparseMatrix<double, Eigen::RowMajor>;
  * @param epsilon Amount x is perturbed
  * @return The resulting jacobian. If f(x) = y, jac.size = [y.size(), x.size()]
  */
-inline Jacobian calcForwardNumJac(const ErrorCalculator& f, const Eigen::Ref<const Eigen::VectorXd>& x, double epsilon)
+inline SparseMatrix calcForwardNumJac(const ErrorCalculator& f,
+                                      const Eigen::Ref<const Eigen::VectorXd>& x,
+                                      double epsilon)
 {
   Eigen::VectorXd y = f(x);
   Eigen::MatrixXd out(y.size(), x.size());
@@ -56,8 +59,62 @@ inline Jacobian calcForwardNumJac(const ErrorCalculator& f, const Eigen::Ref<con
     out.col(i) = (y_perturbed - y) / epsilon;
     x_perturbed(i) = x(i);
   }
+
   return out.sparseView();
 }
+
+// inline std::vector<SparseMatrix> calcForwardNumHessian(const JacobianCalculator& f, const Eigen::Ref<const
+// Eigen::VectorXd>& x, double epsilon)
+//{
+//  SparseMatrix y = f(x);
+//  Eigen::MatrixXd out(x.size(), x.size());
+//  Eigen::VectorXd x_perturbed = x;
+//  for (int i = 0; i < x.size(); ++i)
+//  {
+//    x_perturbed(i) = x(i) + epsilon;
+//    SparseMatrix y_perturbed = f(x_perturbed);
+//    out.col(i) = (y_perturbed - y) / epsilon;
+//    x_perturbed(i) = x(i);
+//  }
+//}
+
+// inline calcGradAndDiagHess(const ErrorCalculator& f,
+//                           const Eigen::Ref<const Eigen::VectorXd>& x,
+//                           double epsilon,
+//                           double& y,
+//                           Eigen::Ref<Eigen::VectorXd> grad,
+//                           Eigen::Ref<SparseMatrix> hess)
+//{
+//  y = f(x);
+//  grad.resize(x.size());
+//  hess.resize(x.size(), x.size());
+//  hess.reserve(x.size());
+//  Eigen::VectorXd xpert = x;
+//  for (int i = 0; i < x.size(); ++i)
+//  {
+//    xpert(i) = x(i) + epsilon / 2;
+//    double yplus = f(xpert);
+//    xpert(i) = x(i) - epsilon / 2;
+//    double yminus = f(xpert);
+//    grad(i) = (yplus - yminus) / epsilon;
+//    hess(i) = (yplus + yminus - 2 * y) / (epsilon * epsilon / 4);
+//    xpert(i) = x(i);
+//  }
+//}
+
+// void calcGradAndFullHess(const ErrorCalculator& f,
+//                         const Eigen::Ref<const Eigen::VectorXd>& x,
+//                         double epsilon,
+//                         double& y,
+//                         Eigen::Ref<Eigen::VectorXd> grad,
+//                         Eigen::Ref<SparseMatrix> hess)
+//{
+//  y = f(x);
+//  VectorOfVector::Ptr grad_func = forwardNumGrad(f, epsilon);
+//  grad = grad_func->call(x);
+//  hess = calcForwardNumJac(*grad_func, x, epsilon);
+//  hess = (hess + hess.transpose()) / 2;
+//}
 }  // namespace trajopt_ifopt
 
 #endif

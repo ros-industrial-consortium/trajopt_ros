@@ -154,7 +154,7 @@ void runDiscreteGradientTest(const Environment::Ptr& env, double coeff, CombineC
 
   std::cout << "Jacobian: \n" << nlp.GetJacobianOfConstraints().toDense() << std::endl;
 
-  trajopt_ifopt::Jacobian num_jac_block = calcNumericalConstraintGradient(positions[0].data(), nlp, 1e-8);
+  trajopt_ifopt::SparseMatrix num_jac_block = calcNumericalConstraintGradient(positions[0].data(), nlp, 1e-8);
   std::cout << "Numerical Jacobian: \n" << num_jac_block.toDense() << std::endl;
 }
 

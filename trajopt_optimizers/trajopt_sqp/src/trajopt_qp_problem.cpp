@@ -559,7 +559,7 @@ Eigen::VectorXd TrajOptQPProblem::evaluateExactCosts(const Eigen::Ref<const Eige
   Eigen::Index start_index = 0;
   if (squared_costs_.GetRows() > 0)
   {
-    g.topRows(squared_costs_.GetRows()) = squared_costs_.GetValues().cwiseAbs2();
+    g.topRows(squared_costs_.GetRows()) = squared_costs_.GetValues().array().square();
     start_index = squared_costs_.GetRows();
   }
 
@@ -630,7 +630,9 @@ void TrajOptQPProblem::print() const
   std::cout << "Constraint Matrix:\n" << constraint_matrix_.toDense().format(format) << std::endl;
   std::cout << "bounds_lower: " << bounds_lower_.transpose().format(format) << std::endl;
   std::cout << "bounds_upper: " << bounds_upper_.transpose().format(format) << std::endl;
-  std::cout << "NLP values: " << variables_->GetValues().transpose().format(format) << std::endl;
+  std::cout << "NLP values: " << std::endl;
+  for (const auto& v_set : variables_->GetComponents())
+    std::cout << v_set->GetValues().transpose().format(format) << std::endl;
 }
 
 Eigen::Index TrajOptQPProblem::getNumNLPVars() const { return variables_->GetRows(); }

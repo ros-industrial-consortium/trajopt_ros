@@ -134,7 +134,7 @@ TEST_F(InverseKinematicsConstraintUnit, GetValue)  // NOLINT
     auto error_calculator = [&](const Eigen::Ref<const Eigen::VectorXd>& x) {
       return constraint->CalcValues(x, joint_position_single);
     };
-    trajopt_ifopt::Jacobian num_jac_block =
+    trajopt_ifopt::SparseMatrix num_jac_block =
         trajopt_ifopt::calcForwardNumJac(error_calculator, joint_position_single, 1e-4);
     EXPECT_TRUE(jac_block.isApprox(num_jac_block));
   }

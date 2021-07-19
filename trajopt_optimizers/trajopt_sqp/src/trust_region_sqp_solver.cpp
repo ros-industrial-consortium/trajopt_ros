@@ -343,17 +343,18 @@ bool TrustRegionSQPSolver::callCallbacks()
 void TrustRegionSQPSolver::printStepInfo() const
 {
   // Print Header
-  std::printf("\n| %s |\n", std::string(75, '=').c_str());
-  std::printf("| %s %s %s |\n", std::string(29, ' ').c_str(), "ROS Industrial", std::string(30, ' ').c_str());
-  std::printf("| %s %s %s |\n", std::string(25, ' ').c_str(), "TrajOpt Motion Planning", std::string(25, ' ').c_str());
-  std::printf("| %s |\n", std::string(75, '=').c_str());
+  std::printf("\n| %s |\n", std::string(88, '=').c_str());
+  std::printf("| %s %s %s |\n", std::string(36, ' ').c_str(), "ROS Industrial", std::string(36, ' ').c_str());
+  std::printf("| %s %s %s |\n", std::string(32, ' ').c_str(), "TrajOpt Motion Planning", std::string(31, ' ').c_str());
+  std::printf("| %s |\n", std::string(88, '=').c_str());
   std::printf("| %s %s (Box Size: %-3.9f) %s |\n",
-              std::string(20, ' ').c_str(),
+              std::string(26, ' ').c_str(),
               "Iteration",
               results_.box_size(0),
-              std::string(20, ' ').c_str());
-  std::printf("| %s |\n", std::string(75, '-').c_str());
-  std::printf("| %11s: %-3d | %11s: %-3d | %13s: %-2d | %12s: %-3d |\n",
+              std::string(27, ' ').c_str());
+  std::printf("| %s |\n", std::string(88, '-').c_str());
+  std::printf("| %14s: %-4d | %14s: %-4d | %15s: %-3d | %14s: %-3d"
+              "d |\n",
               "Overall",
               results_.overall_iteration,
               "Convexify",
@@ -362,23 +363,20 @@ void TrustRegionSQPSolver::printStepInfo() const
               results_.trust_region_iteration,
               "Penalty",
               results_.penalty_iteration);
-  std::printf("| %s |\n", std::string(75, '=').c_str());
+  std::printf("| %s |\n", std::string(88, '=').c_str());
 
   // Print Cost and Constraint Data
-  std::printf(
-      "| %10s | %10s | %10s | %10s | %10s | %10s |\n", "merit", "oldexact", "new_exact", "dapprox", "dexact", "ratio");
-  // Costs
-  std::printf("| %s | SUM COSTS + SUM CONSTRAINTS\n", std::string(75, '-').c_str());
-  std::printf("| %10s | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e |\n",
-              "----------",
-              results_.best_exact_merit,
-              results_.new_exact_merit,
-              results_.approx_merit_improve,
-              results_.exact_merit_improve,
-              results_.merit_improve_ratio);
+  std::printf("| %10s | %10s | %10s | %10s | %10s | %10s | %10s |\n",
+              "merit",
+              "oldexact",
+              "new_exact",
+              "new_approx",
+              "dapprox",
+              "dexact",
+              "ratio");
 
-  // Costs
-  std::printf("| %s | INDIVIDUAL COSTS\n", std::string(75, '-').c_str());
+  // Individual Costs
+  std::printf("| %s | INDIVIDUAL COSTS\n", std::string(88, '-').c_str());
   // Loop over costs
   const std::vector<std::string>& cost_names = qp_problem->getNLPCostNames();
   for (Eigen::Index cost_number = 0; cost_number < static_cast<Eigen::Index>(cost_names.size()); ++cost_number)
@@ -386,30 +384,43 @@ void TrustRegionSQPSolver::printStepInfo() const
     double approx_improve = results_.best_costs[cost_number] - results_.new_approx_costs[cost_number];
     double exact_improve = results_.best_costs[cost_number] - results_.new_costs[cost_number];
     if (fabs(approx_improve) > 1e-8)
-      std::printf("| %10s | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %-15s \n",
+      std::printf("| %10s | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %-15s \n",
                   "----------",
                   results_.best_costs[cost_number],
                   results_.new_costs[cost_number],
+                  results_.new_approx_costs[cost_number],
                   approx_improve,
                   exact_improve,
                   exact_improve / approx_improve,
                   cost_names[static_cast<std::size_t>(cost_number)].c_str());
     else
-      std::printf("| %10s | %10.3e | %10.3e | %10.3e | %10.3e | %10s | %-15s\n",
+      std::printf("| %10s | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %10s | %-15s\n",
                   "----------",
                   results_.best_costs[cost_number],
                   results_.new_costs[cost_number],
+                  results_.new_approx_costs[cost_number],
                   approx_improve,
                   exact_improve,
                   "  ------  ",
                   cost_names[static_cast<std::size_t>(cost_number)].c_str());
   }
 
-  // Constraints
+  // Sum Cost
+  std::printf("| %s | SUM COSTS\n", std::string(88, '-').c_str());
+  std::printf("| %10s | %10.3e | %10.3e | %10.3e | %10s | %10s | %10s |\n",
+              "----------",
+              results_.best_costs.sum(),
+              results_.new_costs.sum(),
+              results_.new_approx_costs.sum(),
+              "----------",
+              "----------",
+              "----------");
+
+  // Individual Constraints
   // If we want to print the names we will have to add a getConstraints function to IFOPT
   if (results_.new_constraint_violations.size() != 0)
   {
-    std::printf("| %s | CONSTRAINTS\n", std::string(75, '-').c_str());
+    std::printf("| %s | CONSTRAINTS\n", std::string(88, '-').c_str());
     const std::vector<std::string>& constraint_names = qp_problem->getNLPConstraintNames();
     // Loop over constraints
     for (Eigen::Index cnt_number = 0; cnt_number < static_cast<Eigen::Index>(constraint_names.size()); ++cnt_number)
@@ -419,19 +430,21 @@ void TrustRegionSQPSolver::printStepInfo() const
       double exact_improve =
           results_.best_constraint_violations[cnt_number] - results_.new_constraint_violations[cnt_number];
       if (fabs(approx_improve) > 1e-8)
-        std::printf("| %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %-15s\n",
+        std::printf("| %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %-15s\n",
                     results_.merit_error_coeffs[cnt_number],
                     results_.merit_error_coeffs[cnt_number] * results_.best_constraint_violations[cnt_number],
                     results_.merit_error_coeffs[cnt_number] * results_.new_constraint_violations[cnt_number],
+                    results_.merit_error_coeffs[cnt_number] * results_.new_approx_constraint_violations[cnt_number],
                     results_.merit_error_coeffs[cnt_number] * approx_improve,
                     results_.merit_error_coeffs[cnt_number] * exact_improve,
                     exact_improve / approx_improve,
                     constraint_names[static_cast<std::size_t>(cnt_number)].c_str());
       else
-        std::printf("| %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %10s | %-15s \n",
+        std::printf("| %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | %10s | %-15s \n",
                     results_.merit_error_coeffs[cnt_number],
                     results_.merit_error_coeffs[cnt_number] * results_.best_constraint_violations[cnt_number],
                     results_.merit_error_coeffs[cnt_number] * results_.new_constraint_violations[cnt_number],
+                    results_.merit_error_coeffs[cnt_number] * results_.new_approx_constraint_violations[cnt_number],
                     results_.merit_error_coeffs[cnt_number] * approx_improve,
                     results_.merit_error_coeffs[cnt_number] * exact_improve,
                     "  ------  ",
@@ -439,16 +452,28 @@ void TrustRegionSQPSolver::printStepInfo() const
     }
   }
 
+  // Constraint
+  std::printf("| %s | SUM CONSTRAINTS\n", std::string(88, '-').c_str());
+  std::printf("| %10s | %10.3e | %10.3e | %10.3e | %10s | %10s | %10s |\n",
+              "----------",
+              results_.best_constraint_violations.sum(),
+              results_.new_constraint_violations.sum(),
+              results_.new_approx_constraint_violations.sum(),
+              "----------",
+              "----------",
+              "----------");
+
   // Total
-  std::printf("| %s |\n", std::string(75, '=').c_str());
-  std::printf("| %10s | %10.3e | %10.3e | %10.3e | %10.3e | %10.3e | TOTAL\n",
+  std::printf("| %s |\n", std::string(88, '=').c_str());
+  std::printf("| %10s | %10.3e | %10.3e | %10s | %10.3e | %10.3e | %10.3e | TOTAL (SUM COSTS + SUM CONSTRAINTS)\n",
               "----------",
               results_.best_exact_merit,
               results_.new_exact_merit,
+              "----------",
               results_.approx_merit_improve,
               results_.exact_merit_improve,
               results_.merit_improve_ratio);
-  std::printf("| %s |\n", std::string(75, '=').c_str());
+  std::printf("| %s |\n", std::string(88, '=').c_str());
 }
 
 }  // namespace trajopt_sqp

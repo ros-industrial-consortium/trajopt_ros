@@ -170,19 +170,19 @@ TEST_F(CartesianPositionConstraintUnit, FillJacobian)  // NOLINT
 
     // Calculate jacobian numerically
     auto error_calculator = [&](const Eigen::Ref<const Eigen::VectorXd>& x) { return constraint->CalcValues(x); };
-    trajopt_ifopt::Jacobian num_jac_block =
+    trajopt_ifopt::SparseMatrix num_jac_block =
         trajopt_ifopt::calcForwardNumJac(error_calculator, joint_position_mod, 1e-4);
 
     // Compare to constraint jacobian
     {
-      trajopt_ifopt::Jacobian jac_block(num_jac_block.rows(), num_jac_block.cols());
+      trajopt_ifopt::SparseMatrix jac_block(num_jac_block.rows(), num_jac_block.cols());
       constraint->CalcJacobianBlock(joint_position_mod, jac_block);
       EXPECT_TRUE(jac_block.isApprox(num_jac_block, 1e-3));
       //      std::cout << "Numeric:\n" << num_jac_block.toDense() << std::endl;
       //      std::cout << "Analytic:\n" << jac_block.toDense() << std::endl;
     }
     {
-      trajopt_ifopt::Jacobian jac_block(num_jac_block.rows(), num_jac_block.cols());
+      trajopt_ifopt::SparseMatrix jac_block(num_jac_block.rows(), num_jac_block.cols());
       constraint->FillJacobianBlock("Joint_Position_0", jac_block);
       EXPECT_TRUE(jac_block.toDense().isApprox(num_jac_block.toDense(), 1e-3));
       //      std::cout << "Numeric:\n" << num_jac_block.toDense() << std::endl;

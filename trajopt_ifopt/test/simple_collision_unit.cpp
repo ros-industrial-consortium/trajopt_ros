@@ -160,7 +160,7 @@ TEST_F(SimpleCollisionTest, spheres)  // NOLINT
   std::cout << "Jacobian: \n" << nlp.GetJacobianOfConstraints() << std::endl;
 
   auto error_calculator = [&](const Eigen::Ref<const Eigen::VectorXd>& x) { return cnt->CalcValues(x); };
-  trajopt_ifopt::Jacobian num_jac_block = trajopt_ifopt::calcForwardNumJac(error_calculator, positions[0], 1e-4);
+  trajopt_ifopt::SparseMatrix num_jac_block = trajopt_ifopt::calcForwardNumJac(error_calculator, positions[0], 1e-4);
   std::cout << "Numerical Jacobian: \n" << num_jac_block << std::endl;
 
   // 5) choose solver and options

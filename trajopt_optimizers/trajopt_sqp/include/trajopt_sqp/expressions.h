@@ -57,20 +57,53 @@ struct QuadExprs : Exprs
   Eigen::VectorXd values(const Eigen::Ref<Eigen::VectorXd>& x) const override;
 };
 
+/**
+ * @brief Given the function error and jacobian calculate the linear approximation
+ * @details This was derived using the reference below, but the CostFromFunc::convex in the original trajopt is
+ * different References:
+ * https://www.khanacademy.org/math/multivariable-calculus/applications-of-multivariable-derivatives/tangent-planes-and-local-linearization/a/local-linearization
+ *  Where:
+ *    x = x0
+ *    f(x0​) = func_errors
+ *    ∇f(x0​) = func_jacobian
+ *
+ *  Therefore:
+ *    a = f(x0​) - ∇f(x0​) * x
+ *    b = ∇f(x0​)
+ *
+ * @param func_errors The functions error
+ * @param func_jacobian The functions jacobian
+ * @param x The value used to calculate the error and jacobian
+ * @return A linear approximation
+ */
 AffExprs createAffExprs(const Eigen::Ref<Eigen::VectorXd>& func_error,
-                        const Eigen::Ref<const SparseMatrix>& func_gradient,
+                        const Eigen::Ref<const SparseMatrix>& func_jacobian,
                         const Eigen::Ref<const Eigen::VectorXd>& x);
 
 /**
- * @brief This code was taken for trajopt CostFromFunc::convex
- * @param func_errors
- * @param func_gradients
- * @param func_hessians
- * @param x
- * @return
+ * @brief Given the function error, jacobian and hessians calculate the quadratic approximation
+ * @details This was derived using the reference below, but the CostFromFunc::convex in the original trajopt is
+ * different References:
+ * https://www.khanacademy.org/math/multivariable-calculus/applications-of-multivariable-derivatives/quadratic-approximations/a/quadratic-approximation
+ *  Where:
+ *    x = x0
+ *    f(x0​) = func_errors
+ *    ∇f(x0​) = func_jacobian
+ *    H = func_hessians
+ *
+ *  Therefore:
+ *    c = 0.5 * H​(x0​);
+ *    a = f(x0​) - ∇f(x0​) * x + x.transpose() * c * x
+ *    b = ∇f(x0​) - (2 * c) * x
+ *
+ * @param func_errors The functions error
+ * @param func_jacobian The functions jacobian
+ * @param func_hessians The functions hessian
+ * @param x The value used to calculate the error, jacobian and hessian
+ * @return A quadratic approximation
  */
 QuadExprs createQuadExprs(const Eigen::Ref<Eigen::VectorXd>& func_errors,
-                          const Eigen::Ref<const SparseMatrix>& func_gradients,
+                          const Eigen::Ref<const SparseMatrix>& func_jacobian,
                           const std::vector<SparseMatrix>& func_hessians,
                           const Eigen::Ref<const Eigen::VectorXd>& x);
 
